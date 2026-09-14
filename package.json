@@ -1,0 +1,1 @@
+﻿{`n  "name": "sharp-mind-ai-academic-os",`n  "private": true,`n  "description": "SharpMind — AI Academic OS",`n  "workspaces": ["apps/*", "backend", "packages/*"]`n}
