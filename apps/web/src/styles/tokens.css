@@ -1,0 +1,212 @@
+/* ==========================================================================
+   SharpMind Design Tokens — Black & White Claymorphic System
+   Monochrome clay-sculpted UI with depth, spring, and tactile feel
+   ========================================================================== */
+
+:root {
+  /* ---- Color: Backgrounds ---- */
+  --color-bg-primary: #0a0a0a;
+  --color-bg-secondary: #111111;
+  --color-bg-tertiary: #1a1a1a;
+  --color-bg-elevated: #222222;
+  --color-bg-surface: #181818;
+  --color-bg-glass: rgba(255, 255, 255, 0.04);
+  --color-bg-glass-hover: rgba(255, 255, 255, 0.08);
+  --color-bg-glass-active: rgba(255, 255, 255, 0.12);
+
+  /* ---- Color: Borders ---- */
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-hover: rgba(255, 255, 255, 0.15);
+  --color-border-focus: rgba(255, 255, 255, 0.30);
+  --color-border-subtle: rgba(255, 255, 255, 0.04);
+
+  /* ---- Color: Brand (Monochrome) ---- */
+  --color-primary: #ffffff;
+  --color-primary-hover: #e0e0e0;
+  --color-primary-light: #f5f5f5;
+  --color-primary-dark: #cccccc;
+  --color-secondary: #888888;
+  --color-secondary-hover: #aaaaaa;
+  --color-accent: #ffffff;
+  --color-accent-hover: #e0e0e0;
+  --color-accent-light: #f5f5f5;
+
+  /* ---- Color: Text ---- */
+  --color-text-primary: #f5f5f5;
+  --color-text-secondary: #a0a0a0;
+  --color-text-muted: #666666;
+  --color-text-inverse: #0a0a0a;
+  --color-text-link: #ffffff;
+  --color-text-link-hover: #cccccc;
+  --color-text-tertiary: #555555;
+
+  /* ---- Color: Semantic ---- */
+  --color-error: #ff4444;
+  --color-error-bg: rgba(255, 68, 68, 0.1);
+  --color-warning: #ffaa00;
+  --color-warning-bg: rgba(255, 170, 0, 0.1);
+  --color-success: #44ff88;
+  --color-success-bg: rgba(68, 255, 136, 0.1);
+  --color-info: #4488ff;
+  --color-info-bg: rgba(68, 136, 255, 0.1);
+
+  /* ---- Claymorphic Shadows ---- */
+  --clay-shadow-sm:
+    6px 6px 12px rgba(0, 0, 0, 0.6),
+    -4px -4px 10px rgba(255, 255, 255, 0.03),
+    inset 1px 1px 2px rgba(255, 255, 255, 0.06);
+  --clay-shadow-md:
+    8px 8px 18px rgba(0, 0, 0, 0.55),
+    -6px -6px 14px rgba(255, 255, 255, 0.04),
+    inset 2px 2px 4px rgba(255, 255, 255, 0.07);
+  --clay-shadow-lg:
+    12px 12px 28px rgba(0, 0, 0, 0.5),
+    -8px -8px 22px rgba(255, 255, 255, 0.05),
+    inset 3px 3px 6px rgba(255, 255, 255, 0.08);
+  --clay-shadow-xl:
+    16px 16px 36px rgba(0, 0, 0, 0.5),
+    -10px -10px 28px rgba(255, 255, 255, 0.05),
+    inset 4px 4px 8px rgba(255, 255, 255, 0.09);
+  --clay-shadow-pressed:
+    inset 4px 4px 10px rgba(0, 0, 0, 0.5),
+    inset -2px -2px 6px rgba(255, 255, 255, 0.03);
+  --clay-shadow-hover:
+    10px 10px 22px rgba(0, 0, 0, 0.5),
+    -8px -8px 18px rgba(255, 255, 255, 0.06),
+    inset 2px 2px 5px rgba(255, 255, 255, 0.1);
+  --clay-shadow-input:
+    inset 3px 3px 8px rgba(0, 0, 0, 0.4),
+    inset -2px -2px 6px rgba(255, 255, 255, 0.03);
+  --clay-shadow-input-focus:
+    inset 4px 4px 10px rgba(0, 0, 0, 0.5),
+    inset -2px -2px 6px rgba(255, 255, 255, 0.04),
+    0 0 0 2px rgba(255, 255, 255, 0.15);
+
+  /* Legacy shadow compat */
+  --shadow-sm: var(--clay-shadow-sm);
+  --shadow-md: var(--clay-shadow-md);
+  --shadow-lg: var(--clay-shadow-lg);
+  --shadow-xl: var(--clay-shadow-xl);
+  --shadow-2xl: var(--clay-shadow-xl);
+  --shadow-glow: 0 0 20px rgba(255, 255, 255, 0.08);
+  --shadow-glow-lg: 0 0 40px rgba(255, 255, 255, 0.1);
+  --shadow-glow-accent: 0 0 20px rgba(255, 255, 255, 0.08);
+
+  /* ---- Typography ---- */
+  --font-display: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+  --font-accent: 'Syne', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  --text-xs: 0.75rem;       /* 12px */
+  --text-sm: 0.875rem;      /* 14px */
+  --text-base: 1rem;        /* 16px */
+  --text-lg: 1.125rem;      /* 18px */
+  --text-xl: 1.25rem;       /* 20px */
+  --text-2xl: 1.5rem;       /* 24px */
+  --text-3xl: 1.875rem;     /* 30px */
+  --text-4xl: 2.25rem;      /* 36px */
+  --text-5xl: 3rem;         /* 48px */
+  --text-6xl: 3.75rem;      /* 60px */
+  --text-7xl: 4.5rem;       /* 72px */
+
+  --leading-none: 1;
+  --leading-tight: 1.15;
+  --leading-snug: 1.3;
+  --leading-normal: 1.6;
+  --leading-relaxed: 1.75;
+
+  --tracking-tighter: -0.04em;
+  --tracking-tight: -0.025em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.025em;
+  --tracking-wider: 0.05em;
+  --tracking-widest: 0.1em;
+
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --weight-extrabold: 800;
+
+  /* ---- Spacing (4px base) ---- */
+  --space-0: 0;
+  --space-px: 1px;
+  --space-0-5: 0.125rem;    /* 2px */
+  --space-1: 0.25rem;       /* 4px */
+  --space-1-5: 0.375rem;    /* 6px */
+  --space-2: 0.5rem;        /* 8px */
+  --space-3: 0.75rem;       /* 12px */
+  --space-4: 1rem;          /* 16px */
+  --space-5: 1.25rem;       /* 20px */
+  --space-6: 1.5rem;        /* 24px */
+  --space-8: 2rem;          /* 32px */
+  --space-10: 2.5rem;       /* 40px */
+  --space-12: 3rem;         /* 48px */
+  --space-16: 4rem;         /* 64px */
+  --space-20: 5rem;         /* 80px */
+  --space-24: 6rem;         /* 96px */
+  --space-32: 8rem;         /* 128px */
+  --space-40: 10rem;        /* 160px */
+
+  /* ---- Border Radius (Clay: rounder, puffier) ---- */
+  --radius-sm: 0.5rem;      /* 8px */
+  --radius-md: 0.75rem;     /* 12px */
+  --radius-lg: 1rem;        /* 16px */
+  --radius-xl: 1.25rem;     /* 20px */
+  --radius-2xl: 1.75rem;    /* 28px */
+  --radius-3xl: 2.25rem;    /* 36px */
+  --radius-full: 9999px;
+
+  /* ---- Z-Index ---- */
+  --z-base: 0;
+  --z-above: 10;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-overlay: 300;
+  --z-modal: 400;
+  --z-toast: 500;
+
+  /* ---- Transitions ---- */
+  --duration-instant: 50ms;
+  --duration-fast: 150ms;
+  --duration-normal: 250ms;
+  --duration-slow: 400ms;
+  --duration-slower: 600ms;
+  --duration-slowest: 1000ms;
+  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-clay: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-squish: cubic-bezier(0.68, -0.6, 0.32, 1.6);
+  --ease-elastic: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --ease-smooth: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+
+  /* ---- Layout ---- */
+  --container-sm: 640px;
+  --container-md: 768px;
+  --container-lg: 1024px;
+  --container-xl: 1200px;
+  --container-padding: var(--space-6);
+  --header-height: 4.5rem;
+  --section-spacing: var(--space-24);
+}
+
+/* ---- Responsive Container Padding ---- */
+@media (max-width: 768px) {
+  :root {
+    --container-padding: var(--space-4);
+    --section-spacing: var(--space-16);
+  }
+}
+
+@media (max-width: 480px) {
+  :root {
+    --container-padding: var(--space-4);
+    --section-spacing: var(--space-12);
+  }
+}

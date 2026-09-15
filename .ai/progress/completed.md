@@ -1,0 +1,29 @@
+# Completed
+
+- Verified empty repository at bootstrap.
+- Created canonical directories and `.gitkeep` placeholders.
+- Created bootstrap documentation, ADR, and persistent AI memory files.
+- Initialized Git and committed bootstrap.
+- Phase 01 — Part 02: Public/marketing website scaffolded, styled, and built in `apps/web`:
+  - Design tokens, reset, and globals (`tokens.css`, `reset.css`, `globals.css`).
+  - Core UI component library (Button, Card, Input, Textarea, Badge, SectionHeading, AnimatedCounter).
+  - Site layout (Header, Footer, Layout wrapper).
+  - Complete set of public pages: Home, Product, Features, AI Academic OS, Learning Flow, Download, About, Contact, Privacy, Terms, Cookies, Get Started, App entry, 404.
+  - Form adapter architecture with documented placeholder handler.
+  - SEO optimization (robots.txt, sitemap.xml, manifest.json, metadata).
+  - Fixed Windows FAT32 Webpack `readlink` `EISDIR` error via `patch-fs.js`.
+  - Full TypeScript typecheck and Next.js static production build verified (`18/18` pages exported).
+- Phase 01 — Part 03: Web Authentication Experience built and verified in `apps/web`:
+  - Typed auth models & Supabase-compatible `AuthAdapter` interface.
+  - Local evaluation adapter (`LocalAuthAdapter`) with persistent session, demo accounts, verification states, and password reset handling.
+  - `AuthProvider` and `useAuth()` hook for state across pages.
+  - Route guard hook `useProtectedRoute` for protected `/app` route and returning-user redirects on guest pages.
+  - Pages: `/login`, `/signup` (with live password strength criteria & role picker), `/verify-email`, `/forgot-password`, `/reset-password`, updated `/get-started`, and protected `/app`.
+  - Dynamic auth-aware Header navigation with user profile badge, dashboard link, and sign-out action.
+  - Verified: `npm run typecheck` (0 errors), `npm run build` (23/23 static pages exported), and browser subagent automated testing of all 8 E2E auth steps.
+- Phase 01 — Part 04: First-Time Student Onboarding Flow built and verified in `apps/web`:
+  - Decoupled `CurriculumAdapter` contract and `StaticCurriculumAdapter` providing verified Indian academic taxonomy (CBSE, ICSE, State Boards, IB, Classes 11-12, Dropper, JEE Main/Advanced, NEET, BITSAT).
+  - Typed `StudentProfile` and `StudentProfileAdapter` with draft auto-saving, resume/re-entry persistence, and future-proof hooks for the Student Model and diagnostic tests.
+  - 5-step wizard (`src/app/onboarding/page.tsx`): Academic Identity, Subjects & Target Exams, Preparation Baseline, Study Habits & Routine, Review & Activation.
+  - Integrated with `/app` dashboard: renders onboarding callout banner when incomplete, and reflects personalized academic profile, target exams, and study goals upon completion.
+  - Verified: `npm run typecheck` (0 errors), `npm run build` (24/24 static pages exported), and full browser subagent E2E flow test (including validation and resume/re-entry reload checks).

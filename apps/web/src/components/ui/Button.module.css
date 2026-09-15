@@ -1,0 +1,147 @@
+/* ==========================================================================
+   Button — Claymorphic with springy press & inflate
+   ========================================================================== */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  font-family: var(--font-accent);
+  font-weight: var(--weight-semibold);
+  line-height: 1;
+  white-space: nowrap;
+  border-radius: var(--radius-xl);
+  border: 1px solid transparent;
+  cursor: pointer;
+  position: relative;
+  text-decoration: none;
+  transition:
+    transform 0.35s var(--ease-clay),
+    box-shadow 0.35s var(--ease-clay),
+    background 0.3s var(--ease-smooth),
+    border-color 0.3s var(--ease-smooth),
+    color 0.2s var(--ease-default);
+}
+
+.button:hover {
+  transform: translateY(-2px) scale(1.03);
+}
+
+.button:active:not(:disabled) {
+  transform: scale(0.96);
+  box-shadow: var(--clay-shadow-pressed);
+  transition-duration: 0.12s;
+}
+
+.button:disabled,
+.button.loading {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* ---- Sizes ---- */
+.sm {
+  padding: var(--space-2) var(--space-5);
+  font-size: var(--text-sm);
+  border-radius: var(--radius-lg);
+}
+
+.md {
+  padding: var(--space-3) var(--space-6);
+  font-size: var(--text-base);
+}
+
+.lg {
+  padding: var(--space-4) var(--space-10);
+  font-size: var(--text-lg);
+  border-radius: var(--radius-2xl);
+}
+
+/* ---- Primary — White clay pill ---- */
+.primary {
+  background: #ffffff;
+  color: #0a0a0a;
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: var(--clay-shadow-md);
+}
+
+.primary:hover {
+  background: #f0f0f0;
+  box-shadow:
+    10px 10px 22px rgba(0, 0, 0, 0.5),
+    -8px -8px 18px rgba(255, 255, 255, 0.08),
+    inset 2px 2px 5px rgba(255, 255, 255, 0.15),
+    0 0 30px rgba(255, 255, 255, 0.08);
+}
+
+.primary:active:not(:disabled) {
+  background: #e5e5e5;
+  transform: scale(0.96);
+}
+
+/* ---- Secondary — Dark clay pill with white border ---- */
+.secondary {
+  background: var(--color-bg-elevated);
+  color: var(--color-text-primary);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: var(--clay-shadow-sm);
+}
+
+.secondary:hover {
+  background: var(--color-bg-glass-hover);
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: var(--clay-shadow-hover);
+}
+
+/* ---- Outline — Ghost clay with border ---- */
+.outline {
+  background: transparent;
+  color: var(--color-text-primary);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.outline:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.35);
+  box-shadow: var(--clay-shadow-sm);
+}
+
+/* ---- Ghost — Minimal ---- */
+.ghost {
+  background: transparent;
+  color: var(--color-text-secondary);
+  border-color: transparent;
+}
+
+.ghost:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--color-text-primary);
+}
+
+/* ---- Full Width ---- */
+.fullWidth {
+  width: 100%;
+}
+
+/* ---- Loading Spinner ---- */
+.spinner {
+  width: 1em;
+  height: 1em;
+  border: 2px solid rgba(0, 0, 0, 0.2);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  position: absolute;
+}
+
+.hiddenText {
+  visibility: hidden;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
