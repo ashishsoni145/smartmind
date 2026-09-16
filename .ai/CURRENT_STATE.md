@@ -92,5 +92,19 @@ Date: 2026-09-16
 ### Phase 01 Status: 100% COMPLETED
 All 9 parts of Phase 01 (Foundation, Database, Auth, Onboarding, Authenticated Shell, Classroom Hierarchy, Library & AI Tutor, Profile & Settings, Web Integration & QA) are fully built, tested, and verified.
 
-
-
+- Vercel Deployment & Hoisted Monorepo Build Fix:
+  - Root Cause Diagnosed:
+    - Root `package.json` defines npm workspaces (`apps/*`, `backend`, `packages/*`).
+    - Vercel monorepo builds run `npm install` at root (`/vercel/path0`), hoisting `next` to `/vercel/path0/node_modules/next`.
+    - `apps/web/package.json` had hardcoded relative script paths: `node -r ./patch-fs.js ./node_modules/next/dist/bin/next build`.
+    - In Vercel's hoisted structure, `./node_modules/next/dist/bin/next` evaluated inside `apps/web` failed with `Cannot find module '/vercel/path0/apps/web/node_modules/next/dist/bin/next'`.
+  - Fix Implemented:
+    - Created `apps/web/run-next.js` which dynamically resolves the Next.js CLI binary using standard Node module resolution (`require.resolve('next/dist/bin/next')`), seamlessly supporting local, parent, and hoisted root node_modules.
+    - Preserved Windows FAT32 compatibility (`patch-fs.js`) on `process.platform === 'win32'`, passing it via normalized forward-slash `--require` in `NODE_OPTIONS` for Webpack worker threads, while bypassing it completely on Linux/Vercel.
+    - Updated `apps/web/package.json` scripts to use `node ./run-next.js dev|build|start`.
+    - Added `outputFileTracingRoot: path.resolve(__dirname, '../../')` to `apps/web/next.config.ts`.
+    - Cleaned up `apps/web/patch-fs.js` and ensured root `package-lock.json` is generated and aligned.
+  - Verification:
+    - Local Windows build (`node ./run-next.js build`): 36/36 static pages exported cleanly (exit code 0).
+    - Root build (`npm run build`): Exit code 0.
+    - Typecheck (`tsc --noEmit`): 0 errors across entire workspace.

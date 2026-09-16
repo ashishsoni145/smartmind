@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "node -r ./patch-fs.js ./node_modules/next/dist/bin/next dev",
-    "build": "node -r ./patch-fs.js ./node_modules/next/dist/bin/next build",
-    "start": "node -r ./patch-fs.js ./node_modules/next/dist/bin/next start",
+    "dev": "node ./run-next.js dev",
+    "build": "node ./run-next.js build",
+    "start": "node ./run-next.js start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"
   },

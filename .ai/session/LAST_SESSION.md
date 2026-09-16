@@ -26,4 +26,10 @@ Session: Phase 01 — Part 08 & Part 09 (Profile, Settings, Dynamic Theme, Full 
 ### Phase 01 Status: 100% COMPLETED.
 All 9 parts of Phase 01 are fully implemented, verified, and operational.
 
+4. **Vercel Monorepo Deployment Fix**:
+   - Diagnosed failure: Vercel hoists dependencies to `/vercel/path0/node_modules/next` when `workspaces` are defined, breaking hardcoded `./node_modules/next/dist/bin/next` path.
+   - Built `run-next.js` using Node standard resolution (`require.resolve('next/dist/bin/next')`), supporting hoisted monorepo execution while preserving Windows FAT32 filesystem patches on win32.
+   - Fixed `apps/web/package.json` scripts, `apps/web/next.config.ts`, `apps/web/patch-fs.js`, and synchronized root `package-lock.json`.
+   - Verified local Windows build (36/36 pages, code 0) and root build (code 0).
+
 Next Checkpoint: Awaiting explicit user command `START PHASE 02` (Knowledge Engine & Vector Retrieval).

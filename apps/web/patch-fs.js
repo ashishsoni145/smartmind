@@ -11,7 +11,7 @@ function patchFs() {
     const cb = typeof options === 'function' ? options : callback;
     const opt = typeof options === 'function' ? undefined : options;
     return origReadlink.call(fs, path, opt, (err, linkString) => {
-      if (err && err.code === 'EISDIR') {
+      if (err && (err.code === 'EISDIR' || (err.message && err.message.includes('EISDIR')))) {
         const newErr = new Error(`EINVAL: invalid argument, readlink '${path}'`);
         newErr.code = 'EINVAL';
         newErr.errno = -4071;
@@ -27,7 +27,7 @@ function patchFs() {
     try {
       return origReadlinkSync.call(fs, path, options);
     } catch (err) {
-      if (err && err.code === 'EISDIR') {
+      if (err && (err.code === 'EISDIR' || (err.message && err.message.includes('EISDIR')))) {
         const newErr = new Error(`EINVAL: invalid argument, readlink '${path}'`);
         newErr.code = 'EINVAL';
         newErr.errno = -4071;
@@ -45,7 +45,7 @@ function patchFs() {
       try {
         return await origPromisesReadlink.call(fs.promises, path, options);
       } catch (err) {
-        if (err && err.code === 'EISDIR') {
+        if (err && (err.code === 'EISDIR' || (err.message && err.message.includes('EISDIR')))) {
           const newErr = new Error(`EINVAL: invalid argument, readlink '${path}'`);
           newErr.code = 'EINVAL';
           newErr.errno = -4071;
