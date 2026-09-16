@@ -1,0 +1,36 @@
+.nav {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 0.875rem;
+  padding: 0.5rem 0;
+  color: var(--color-text-tertiary);
+}
+
+.crumbLink {
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color var(--transition-fast, 0.15s ease);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.crumbLink:hover {
+  color: var(--color-text-primary);
+}
+
+.separator {
+  color: var(--color-text-tertiary);
+  opacity: 0.6;
+}
+
+.crumbActive {
+  color: var(--color-text-primary);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}

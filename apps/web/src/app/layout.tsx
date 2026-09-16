@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Space_Grotesk, Plus_Jakarta_Sans, Syne, JetBrains_Mono } from 'next/font/google';
 import { Layout } from '@/components/layout/Layout';
 import { AuthProvider } from '@/lib/auth/auth-context';
+import { ThemeProvider } from '@/lib/theme/theme-context';
 import { sharedMetadata } from './metadata';
 import '@/styles/globals.css';
 
@@ -67,9 +68,11 @@ export default function RootLayout({
         <link rel="manifest" href="/manifest.json" />
       </head>
       <body>
-        <AuthProvider>
-          <Layout>{children}</Layout>
-        </AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <Layout>{children}</Layout>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

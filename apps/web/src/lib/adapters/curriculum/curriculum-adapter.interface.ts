@@ -1,4 +1,13 @@
-import type { Board, Grade, Subject, TargetExam } from '@/lib/types/curriculum';
+import type {
+  Board,
+  Grade,
+  Subject,
+  TargetExam,
+  ChapterNode,
+  TopicNode,
+  CurriculumQuestion,
+  CurriculumMaterial,
+} from '@/lib/types/curriculum';
 
 export interface CurriculumAdapter {
   name: string;
@@ -7,4 +16,15 @@ export interface CurriculumAdapter {
   getSubjects(boardId?: string, gradeId?: string): Promise<Subject[]>;
   getTargetExams(gradeId?: string): Promise<TargetExam[]>;
   getAcademicYears(): Promise<string[]>;
+
+  // Classroom Learning Hierarchy
+  getChapters(subjectId: string, gradeId?: string, boardId?: string): Promise<ChapterNode[]>;
+  getChapter(chapterId: string): Promise<ChapterNode | null>;
+  getTopics(chapterId: string): Promise<TopicNode[]>;
+  getTopic(topicId: string): Promise<TopicNode | null>;
+  getQuestionsForNode(nodeId: string): Promise<CurriculumQuestion[]>;
+  getMaterialsForNode(nodeId: string): Promise<CurriculumMaterial[]>;
+  getAllMaterials(filters?: { subjectId?: string; fileType?: string; searchQuery?: string }): Promise<CurriculumMaterial[]>;
+  getMaterial(materialId: string): Promise<CurriculumMaterial | null>;
 }
+

@@ -1,5 +1,20 @@
 import type { CurriculumAdapter } from './curriculum-adapter.interface';
-import type { Board, Grade, Subject, TargetExam } from '@/lib/types/curriculum';
+import type {
+  Board,
+  Grade,
+  Subject,
+  TargetExam,
+  ChapterNode,
+  TopicNode,
+  CurriculumQuestion,
+  CurriculumMaterial,
+} from '@/lib/types/curriculum';
+import {
+  CANONICAL_CHAPTERS,
+  CANONICAL_TOPICS,
+  CANONICAL_QUESTIONS,
+  CANONICAL_MATERIALS,
+} from '@/lib/curriculum/fixtures/canonical-curriculum-fixtures';
 
 const BOARDS: Board[] = [
   {
@@ -39,42 +54,42 @@ const SUBJECTS: Subject[] = [
     id: 'physics',
     code: 'PHY',
     name: 'Physics',
-    icon: '⚡',
+    icon: 'physics',
     category: 'core_stem',
   },
   {
     id: 'chemistry',
     code: 'CHEM',
     name: 'Chemistry',
-    icon: '🧪',
+    icon: 'chemistry',
     category: 'core_stem',
   },
   {
     id: 'mathematics',
     code: 'MATH',
     name: 'Mathematics',
-    icon: '📐',
+    icon: 'mathematics',
     category: 'core_stem',
   },
   {
     id: 'biology',
     code: 'BIO',
     name: 'Biology',
-    icon: '🧬',
+    icon: 'biology',
     category: 'core_stem',
   },
   {
     id: 'computer_science',
     code: 'CS',
     name: 'Computer Science',
-    icon: '💻',
+    icon: 'computer_science',
     category: 'core_stem',
   },
   {
     id: 'english',
     code: 'ENG',
     name: 'English Core',
-    icon: '📖',
+    icon: 'english',
     category: 'languages',
   },
 ];
@@ -146,4 +161,72 @@ export class StaticCurriculumAdapter implements CurriculumAdapter {
   public async getAcademicYears(): Promise<string[]> {
     return ACADEMIC_YEARS;
   }
+
+  // Classroom Learning Hierarchy Methods
+  public async getChapters(subjectId: string, gradeId?: string, boardId?: string): Promise<ChapterNode[]> {
+    return CANONICAL_CHAPTERS.filter((ch) => {
+      if (ch.subjectId !== subjectId) return false;
+      if (gradeId && ch.gradeId !== gradeId) return false;
+      if (boardId && ch.boardId !== boardId) return false;
+      return true;
+    });
+  }
+
+  public async getChapter(chapterId: string): Promise<ChapterNode | null> {
+    return CANONICAL_CHAPTERS.find((ch) => ch.id === chapterId) || null;
+  }
+
+  public async getTopics(chapterId: string): Promise<TopicNode[]> {
+    return CANONICAL_TOPICS[chapterId] || [];
+  }
+
+  public async getTopic(topicId: string): Promise<TopicNode | null> {
+    for (const topics of Object.values(CANONICAL_TOPICS)) {
+      const match = topics.find((t) => t.id === topicId);
+      if (match) return match;
+    }
+    return null;
+  }
+
+  public async getQuestionsForNode(nodeId: string): Promise<CurriculumQuestion[]> {
+    return CANONICAL_QUESTIONS.filter((q) => q.curriculumNodeId === nodeId);
+  }
+
+  public async getMaterialsForNode(nodeId: string): Promise<CurriculumMaterial[]> {
+    return CANONICAL_MATERIALS.filter((m) => m.curriculumNodeId === nodeId);
+  }
+
+  public async getAllMaterials(filters?: {
+    subjectId?: string;
+    fileType?: string;
+    searchQuery?: string;
+  }): Promise<CurriculumMaterial[]> {
+    let materials = [...CANONICAL_MATERIALS];
+
+    if (filters?.subjectId && filters.subjectId !== 'all') {
+      materials = materials.filter((m) => m.subjectId === filters.subjectId);
+    }
+
+    if (filters?.fileType && filters.fileType !== 'all') {
+      materials = materials.filter((m) => m.fileType === filters.fileType);
+    }
+
+    if (filters?.searchQuery && filters.searchQuery.trim()) {
+      const q = filters.searchQuery.toLowerCase().trim();
+      materials = materials.filter(
+        (m) =>
+          m.title.toLowerCase().includes(q) ||
+          m.description?.toLowerCase().includes(q) ||
+          m.authoritativeSource?.toLowerCase().includes(q) ||
+          m.tags?.some((t) => t.toLowerCase().includes(q))
+      );
+    }
+
+    return materials;
+  }
+
+  public async getMaterial(materialId: string): Promise<CurriculumMaterial | null> {
+    return CANONICAL_MATERIALS.find((m) => m.id === materialId) || null;
+  }
 }
+

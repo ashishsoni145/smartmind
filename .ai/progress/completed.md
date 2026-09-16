@@ -27,3 +27,65 @@
   - 5-step wizard (`src/app/onboarding/page.tsx`): Academic Identity, Subjects & Target Exams, Preparation Baseline, Study Habits & Routine, Review & Activation.
   - Integrated with `/app` dashboard: renders onboarding callout banner when incomplete, and reflects personalized academic profile, target exams, and study goals upon completion.
   - Verified: `npm run typecheck` (0 errors), `npm run build` (24/24 static pages exported), and full browser subagent E2E flow test (including validation and resume/re-entry reload checks).
+- Supabase Complete Database & Persistence Integration:
+  - Attached to project `https://vscprtuinxopistikpcs.supabase.co`.
+  - Created and applied complete 11-module relational schema (26 tables, triggers, indexes, pgvector, and 100% RLS security policies) via migration `20260916000001_initial_academic_os_schema.sql`.
+  - Seeded canonical curriculum taxonomy (Boards, Grades, Subjects, Target Exams, Chapters, Questions, Assessment) via migration `20260916000002_seed_initial_curriculum.sql`.
+  - Documented in ADR 0002 (`docs/architecture/adr/0002-canonical-database-schema.md`).
+  - Installed `@supabase/supabase-js` and implemented `SupabaseAuthAdapter`, `SupabaseStudentProfileAdapter`, and `SupabaseCurriculumAdapter` with automatic activation.
+  - Verified: zero TypeScript errors (`tsc --noEmit`), clean static build (`24/24` pages exported), and remote database table & row verification.
+- Phase 01 — Part 05: Authenticated Web Shell & Workspace Navigation:
+  - Built shell architecture: `WorkspaceShell`, `Sidebar` (collapsible rail + mobile drawer), `TopBar` (breadcrumbs, Cmd+K trigger, student identity pill, notifications, profile menu), `CommandPalette` (instant keyboard navigation across all 13 modules), `NotificationsDrawer`, and `WorkspacePlaceholder`.
+  - Implemented AI Next-Action Surface Dashboard (`/app`): Primary Recommendation Hero with explicit pedagogical rationale ("Why this next?"), Adaptive Daily Queue (Backlog items), Knowledge State Matrix (strictly uncalibrated 0% fabrication state), and Study Mode Launchers.
+  - Built 12 workspace sub-route modules: `/app/classroom`, `/app/library`, `/app/tutor` (with Socratic prompt sandbox), `/app/focus` (with interactive Pomodoro timer), `/app/planner`, `/app/tests` (with live Supabase Baseline Diagnostic), `/app/mistakes`, `/app/revision`, `/app/readiness`, `/app/analytics`, `/app/upgrade`, and `/app/settings`.
+  - Wrapped layout in `<Suspense>` boundary (`src/app/app/layout.tsx`) to support Next.js 15 static prerendering with `useSearchParams`.
+  - Verified: `npm run typecheck` (0 errors), `npm run build` (36/36 static pages exported cleanly), all 14 workspace routes returning HTTP 200, and 100% pass on architectural unit tests.
+- Phase 01 — Part 06: Classroom Learning Hierarchy & Iconography System:
+  - Built full learning hierarchy: `Classroom → Subject → Chapter → Topic → Concept / Resource View`.
+  - Components (`src/components/classroom/`): `ClassroomBreadcrumbs`, `ClassroomFilterBar` (search & grade filtering), `SubjectCardGrid`, `ChapterListView` (weightages, prerequisites, uncalibrated maturity), `TopicListView` (durations, concept count, retention curves), `TopicDetailView` (with 4 dedicated tabs: Concepts & Visual Learning, Important Questions & authentic PYQs with hints/solutions, Notes & NCERT References, Mastery & Readiness Hooks).
+  - Modern SVG Icon system (`src/components/ui/Icon.tsx`): Replaced all emojis with sleek, stroke-based SVG icons across Sidebar, TopBar, CommandPalette, Dashboard, and Classroom.
+  - Curriculum Data & Adapters: Extended `src/lib/types/curriculum.ts`, updated `CurriculumAdapter`, seeded NCERT development fixtures (`src/lib/curriculum/fixtures/canonical-curriculum-fixtures.ts`) with authentic exam provenance (JEE Main, NEET) and zero syllabus fabrication.
+  - Deep Linking: Full URL parameter routing (`?subject=...`, `?chapter=...`, `?topic=...`, `?tab=...`, `?grade=...`, `?search=...`).
+  - Verified: `tsc --noEmit` (0 errors), `npm run build` (36/36 static pages exported cleanly), HTTP 200 across all deep links, live user authentication confirmed with `alpmlaapmp@gmail.com`, and 7/7 unit tests passed.
+- Phase 01 — Part 07: Web Library & AI Tutor / Doubt Mode Interface:
+  - Inbuilt PDF Viewer & Resource Browser (`src/components/library/` & `src/app/app/library/`):
+    - `PdfViewerModal.tsx`: Inbuilt reader with toolbar (page navigation, zoom in/out/100%, outline/table of contents sidebar, download simulation, fullscreen toggle, keyboard navigation). Formatted with authentic NCERT textbook pages (Chapter 4: Motion in a Plane), derivations, formulas, and theorems.
+    - `ImageViewerModal.tsx`: High-resolution visual diagram lightbox for atomic orbitals and scientific diagrams.
+    - `MaterialCard.tsx`: Resource cards with format badges (PDF, Cheatsheet, Master Notes, Visual Diagram, Revision Capsule), page counts, file sizes, and authoritative source tags.
+    - `LibraryFilterBar.tsx`: Instant search, subject pills, and format selector.
+    - Deep Linking: `?doc=[docId]` auto-launches the reader.
+  - Interactive 3D Visual Learning Surface (`src/components/visual/`):
+    - `VisualLearningViewer.tsx`: Trajectory simulation in 2D and 3D.
+    - **3D Spatial Void with Camera Angle Rotation**: Orbit camera freely around 3D origin (yaw and pitch rotation) via click-and-drag or touch, scroll to zoom, with camera presets (Isometric, Top-Down, Side Profile).
+    - Real-time telemetry HUD: instantaneous position $(x, y, z)$, velocity $|v|$, flight time $T$, max height $H$, range $R$.
+    - Physics controls: launch velocity, elevation angle, azimuth drift, planetary gravity selector, air drag toggle, play/pause/step/reset.
+    - Embedded into `TopicDetailView.tsx` and accessible directly from `TutorPage`.
+  - AI Tutor / Doubt Mode Interface (`src/components/tutor/` & `src/app/app/tutor/`):
+    - `TutorModeSelector.tsx`: Horizontal selector for **10 pedagogical modes** (`Teach`, `Socratic`, `Hint`, `Practice`, `Quiz`, `Check Solution`, `Explain Mistake`, `Revision`, `Viva`, `Exam`).
+    - `TutorMessageThread.tsx`: Displays student turns (with image preview), assistant turns (with mode badge and NCERT citations), simulation launcher hooks, and reasoning loading skeletons.
+    - `TutorInputArea.tsx`: Auto-expanding textarea, drag-and-drop image upload for handwritten work, thumbnail preview, remove trigger.
+    - `TutorSessionSidebar.tsx`: Dialogue threads drawer with active session indicator and "New Dialogue" launcher.
+    - `tutorAdapter`: Typed AI adapter abstraction (`TutorAdapter`, `LocalAITutorAdapter`, `SupabaseAITutorAdapter`) with realistic latency and zero fabricated LLM text.
+    - Deep Linking: Supports `?topic=[topicId]&mode=[mode]`.
+  - Verified: `npm run typecheck` (0 errors), `npm run build` (36/36 static pages exported cleanly), HTTP 200 across `/app/library/`, `/app/tutor/`, and deep links.
+- Phase 01 — Part 08: Profile, Settings & Dynamic Theme System:
+  - Settings Navigation & Forms (`src/components/settings/`):
+    - `SettingsNav.tsx`: 5-tab navigation: Profile & Account, Academic Target, Security & Access, Subscription & Tier, Appearance & Notifications.
+    - `ProfileForm.tsx`: Student name, username, email, and role management with live save.
+    - `AcademicSettingsForm.tsx`: Board, grade, stream, target exams, target year, daily study hours, preferred study slot.
+    - `SecuritySettingsForm.tsx`: Password update with live criteria checklist, 2FA toggle, active session count.
+    - `SubscriptionStatusCard.tsx`: Plan tier badge, active status, feature checklist, upgrade button.
+    - `PreferencesForm.tsx`: Dark/Light/System theme selector, daily reminder time picker, spaced repetition alerts toggle, announcements toggle, report toggle, and accessibility options (reduced motion, sound effects).
+    - `settingsAdapter`: Supabase `profiles` & `student_profiles` integration with local fallback.
+  - Theme System (`src/lib/theme/`):
+    - `ThemeProvider` & `useTheme()` hook managing `localStorage` and system color scheme listener.
+    - Instant `data-theme="dark" | "light"` switching without page reload.
+  - Logout action integrated with `signOut()`.
+- Phase 01 — Part 09: Comprehensive Web Integration & QA Pass:
+  - 16/16 routes verified with HTTP 200 responses.
+  - Production build: Next.js static export completed with 36/36 pages rendered.
+  - TypeScript check: 0 errors across 100% of workspace files.
+  - Design hygiene: 0 emojis in core code; 100% SVG `Icon` system.
+  - Recorded future milestone register in `.ai/progress/backlog.md`.
+  - Phase 01 100% COMPLETE.
+

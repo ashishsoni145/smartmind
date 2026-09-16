@@ -1,3 +1,3 @@
 # Next
 
-Phase 01 — Part 05: Next scheduled part in Phase 01 (or user review of Phase 01 Part 04 checkpoint).
+Await User Approval of Phase 01 Completion and instruction to begin Phase 02 (Knowledge Engine & Vector Ingestion) with explicit `START PHASE 02`.
