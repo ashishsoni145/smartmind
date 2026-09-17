@@ -15,6 +15,41 @@
   width: 76px;
 }
 
+.sidebar.collapsed .brandHeader {
+  padding: 1rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: auto;
+}
+
+.sidebar.collapsed .brandLink {
+  justify-content: center;
+}
+
+.sidebar.collapsed .collapseToggle {
+  position: static;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sidebar.collapsed .collapseToggle:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--color-text-primary);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
 .brandHeader {
   display: flex;
   align-items: center;

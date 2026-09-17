@@ -64,20 +64,59 @@ export interface ChapterNode extends CurriculumNode {
   prerequisites?: PrerequisiteItem[];
 }
 
+export interface FormulaVariable {
+  symbol: string;
+  meaning: string;
+  unit?: string;
+}
+
+export interface FormulaItem {
+  id?: string;
+  label: string;
+  formula: string;
+  description?: string;
+  variables?: FormulaVariable[];
+}
+
+export interface TopicNoteSection {
+  heading: string;
+  paragraphs: string[];
+  keyTakeaways?: string[];
+  examTips?: string[];
+}
+
+export interface TopicNotes {
+  overview: string;
+  sections?: TopicNoteSection[];
+  commonMisconceptions?: string[];
+}
+
+export interface TopicArtifact {
+  id: string;
+  title: string;
+  description: string;
+  artifactType: '3d_simulation' | 'interactive_canvas' | 'concept_model';
+  simulationId?: string;
+}
+
 export interface ConceptItem {
   id: string;
   title: string;
   summary: string;
-  coreFormulas?: { formula: string; label: string }[];
+  coreFormulas?: FormulaItem[];
   visualLearningType?: 'simulation' | 'interactive_diagram' | 'video_walkthrough';
   visualLearningTitle?: string;
   visualLearningDescription?: string;
+  simulationId?: string;
 }
 
 export interface TopicNode extends CurriculumNode {
   nodeType: 'topic';
   estimatedMinutes?: number;
   concepts?: ConceptItem[];
+  notes?: TopicNotes;
+  formulas?: FormulaItem[];
+  artifacts?: TopicArtifact[];
   // Future mastery and readiness hooks
   masteryStatus?: 'uncalibrated' | 'calibrated' | 'in_progress' | 'mastered';
   retentionPercent?: number;

@@ -7,13 +7,15 @@ import type {
   TopicNode,
   CurriculumQuestion,
   CurriculumMaterial,
+  FormulaItem,
 } from '@/lib/types/curriculum';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
+import { FormulaCard } from '@/components/ui/MathFormula';
 import { VisualLearningViewer } from '@/components/visual/VisualLearningViewer';
 import styles from './TopicDetailView.module.css';
 
-export type TopicTab = 'concepts' | 'pyqs' | 'notes' | 'mastery';
+export type TopicTab = 'notes' | 'formulas' | 'artifacts' | 'questions';
 
 interface TopicDetailViewProps {
   subject: Subject;
@@ -31,15 +33,17 @@ export const TopicDetailView: React.FC<TopicDetailViewProps> = ({
   topic,
   questions,
   materials,
-  activeTab = 'concepts',
+  activeTab = 'notes',
   onTabChange,
 }) => {
+  const [currentTab, setCurrentTab] = useState<TopicTab>(activeTab);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
   const [revealedHints, setRevealedHints] = useState<Record<string, boolean>>({});
   const [revealedSolutions, setRevealedSolutions] = useState<Record<string, boolean>>({});
-  const [isSimulationActive, setIsSimulationActive] = useState(false);
+  const [is3DActive, setIs3DActive] = useState<boolean>(true);
 
   const handleTabClick = (tab: TopicTab) => {
+    setCurrentTab(tab);
     if (onTabChange) {
       onTabChange(tab);
     }
@@ -57,8 +61,50 @@ export const TopicDetailView: React.FC<TopicDetailViewProps> = ({
     setRevealedSolutions((prev) => ({ ...prev, [questionId]: !prev[questionId] }));
   };
 
-  const concepts = topic.concepts || [];
-  const pyqQuestions = questions.filter((q) => q.isPyq);
+  // Collect formulas for this topic
+  const topicFormulas: FormulaItem[] =
+    topic.formulas && topic.formulas.length > 0
+      ? topic.formulas
+      : topic.concepts && topic.concepts.length > 0
+      ? topic.concepts.flatMap((c) => c.coreFormulas || [])
+      : [];
+
+  // Check if topic has a registered 3D simulation
+  const primarySimulationId =
+    topic.artifacts?.find((a) => a.simulationId)?.simulationId ||
+    topic.concepts?.find((c) => c.simulationId)?.simulationId;
+
+  const has3DSimulation = Boolean(primarySimulationId);
+
+  // Notes data fallback
+  const notesData = {
+    overview:
+      topic.notes?.overview ||
+      topic.description ||
+      `Comprehensive NCERT study module for ${topic.title} aligned with the latest rationalised curriculum.`,
+    sections:
+      topic.notes?.sections && topic.notes.sections.length > 0
+        ? topic.notes.sections
+        : [
+            {
+              heading: 'Foundational Principles & Theory',
+              paragraphs: [
+                `This unit establishes the core theoretical concepts of ${topic.title} following the latest rationalised NCERT syllabus. Review derivations, dimensional relationships, and fundamental definitions.`,
+                `Pay close attention to coordinate conventions, physical assumptions, and experimental boundary conditions.`,
+              ],
+              keyTakeaways: [
+                'Master fundamental definitions and vector/scalar distinctions.',
+                'Verify SI base units and dimensional homogeneity in all equations.',
+                'Review step-by-step mathematical reasoning for examination derivations.',
+              ],
+              examTips: [
+                'Frequently tested in standard CBSE board long-answer questions and competitive entrance exams.',
+                'Check sign conventions and reference frames before substituting numerical values.',
+              ],
+            },
+          ],
+    commonMisconceptions: topic.notes?.commonMisconceptions,
+  };
 
   return (
     <div className={styles.container}>
@@ -71,7 +117,15 @@ export const TopicDetailView: React.FC<TopicDetailViewProps> = ({
               {subject.name} • {chapter.title}
             </span>
           </div>
-          <span style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+          <span
+            style={{
+              fontSize: '0.8125rem',
+              color: 'var(--color-text-secondary)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
             <Icon name="clock" size="xs" />
             <span>Est. {topic.estimatedMinutes || 45} mins</span>
           </span>
@@ -81,152 +135,284 @@ export const TopicDetailView: React.FC<TopicDetailViewProps> = ({
         {topic.description && <p className={styles.topicDescription}>{topic.description}</p>}
       </div>
 
-      {/* Tabs Navigation */}
+      {/* Tabs Navigation: Notes, Formula Sheet, Artifacts, Questions */}
       <nav className={styles.tabsNav} role="tablist" aria-label="Topic Learning Resources">
+        {/* OPTION 1: Detailed Notes */}
         <button
           type="button"
           role="tab"
-          aria-selected={activeTab === 'concepts'}
-          className={`${styles.tabBtn} ${activeTab === 'concepts' ? styles.tabBtnActive : ''}`}
-          onClick={() => handleTabClick('concepts')}
-        >
-          <Icon name="sparkles" size="sm" />
-          <span>Concepts & Visual Learning</span>
-          <span className={styles.tabCount}>{concepts.length}</span>
-        </button>
-
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'pyqs'}
-          className={`${styles.tabBtn} ${activeTab === 'pyqs' ? styles.tabBtnActive : ''}`}
-          onClick={() => handleTabClick('pyqs')}
-        >
-          <Icon name="award" size="sm" />
-          <span>Important Questions & PYQs</span>
-          <span className={styles.tabCount}>{questions.length}</span>
-        </button>
-
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'notes'}
-          className={`${styles.tabBtn} ${activeTab === 'notes' ? styles.tabBtnActive : ''}`}
+          aria-selected={currentTab === 'notes'}
+          className={`${styles.tabBtn} ${currentTab === 'notes' ? styles.tabBtnActive : ''}`}
           onClick={() => handleTabClick('notes')}
         >
           <Icon name="fileText" size="sm" />
-          <span>Notes & References</span>
-          <span className={styles.tabCount}>{materials.length}</span>
+          <span>Detailed Notes</span>
         </button>
 
+        {/* OPTION 2: Formula Sheet */}
         <button
           type="button"
           role="tab"
-          aria-selected={activeTab === 'mastery'}
-          className={`${styles.tabBtn} ${activeTab === 'mastery' ? styles.tabBtnActive : ''}`}
-          onClick={() => handleTabClick('mastery')}
+          aria-selected={currentTab === 'formulas'}
+          className={`${styles.tabBtn} ${currentTab === 'formulas' ? styles.tabBtnActive : ''}`}
+          onClick={() => handleTabClick('formulas')}
         >
-          <Icon name="target" size="sm" />
-          <span>Mastery & Readiness Hooks</span>
-          <span className={styles.tabCount} style={{ background: 'rgba(255, 255, 255, 0.1)' }}>Model</span>
+          <Icon name="sparkles" size="sm" />
+          <span>Formula Sheet</span>
+          <span className={styles.tabCount}>{topicFormulas.length}</span>
+        </button>
+
+        {/* OPTION 3: Visual Artifacts */}
+        <button
+          type="button"
+          role="tab"
+          aria-selected={currentTab === 'artifacts'}
+          className={`${styles.tabBtn} ${currentTab === 'artifacts' ? styles.tabBtnActive : ''}`}
+          onClick={() => handleTabClick('artifacts')}
+        >
+          <Icon name="cube" size="sm" />
+          <span>Visual Artifacts</span>
+          {has3DSimulation && (
+            <span
+              className={styles.tabCount}
+              style={{
+                background: 'rgba(56, 189, 248, 0.2)',
+                color: '#38bdf8',
+                border: '1px solid rgba(56, 189, 248, 0.3)',
+              }}
+            >
+              3D Sandbox
+            </span>
+          )}
+        </button>
+
+        {/* OPTION 4: Questions & PYQs */}
+        <button
+          type="button"
+          role="tab"
+          aria-selected={currentTab === 'questions'}
+          className={`${styles.tabBtn} ${currentTab === 'questions' ? styles.tabBtnActive : ''}`}
+          onClick={() => handleTabClick('questions')}
+        >
+          <Icon name="award" size="sm" />
+          <span>Exam PYQs & Tests</span>
+          <span className={styles.tabCount}>{questions.length}</span>
         </button>
       </nav>
 
-      {/* TAB 1: Concepts & Visual Learning */}
-      {activeTab === 'concepts' && (
-        <div className={styles.tabPanel} role="tabpanel">
-          {concepts.length === 0 ? (
-            <div className={styles.conceptCard}>
-              <h3 className={styles.conceptTitle}>Foundational Concept Overview</h3>
-              <p className={styles.conceptSummary}>
-                {topic.description || 'Core syllabus unit under active pedagogical review.'}
-              </p>
+      {/* ========================================================================= */}
+      {/* 1. NOTES VIEW */}
+      {/* ========================================================================= */}
+      {currentTab === 'notes' && (
+        <div className={styles.notesContainer} role="tabpanel">
+          {/* Overview Card */}
+          <div className={styles.notesOverviewCard}>
+            <div className={styles.overviewHeader}>
+              <Icon name="bookOpen" size="sm" />
+              <h3 className={styles.overviewTitle}>NCERT Syllabus Module Overview</h3>
             </div>
-          ) : (
-            concepts.map((concept) => (
-              <div key={concept.id} className={styles.conceptCard}>
-                <div className={styles.conceptHeader}>
-                  <h3 className={styles.conceptTitle}>{concept.title}</h3>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', fontFamily: 'var(--font-mono)' }}>
-                    {topic.code}
-                  </span>
+            <p className={styles.overviewText}>{notesData.overview}</p>
+          </div>
+
+          {/* Structured Note Sections */}
+          {notesData.sections.map((sec, idx) => (
+            <div key={idx} className={styles.noteSectionCard}>
+              <h4 className={styles.sectionHeading}>
+                <span>{idx + 1}.</span>
+                <span>{sec.heading}</span>
+              </h4>
+
+              {sec.paragraphs.map((p, pIdx) => (
+                <p key={pIdx} className={styles.noteParagraph}>
+                  {p}
+                </p>
+              ))}
+
+              {/* Key Takeaways */}
+              {sec.keyTakeaways && sec.keyTakeaways.length > 0 && (
+                <div className={styles.takeawaysBox}>
+                  <div className={styles.takeawaysTitle}>Key Examination Takeaways</div>
+                  <ul className={styles.takeawaysList}>
+                    {sec.keyTakeaways.map((item, tIdx) => (
+                      <li key={tIdx}>{item}</li>
+                    ))}
+                  </ul>
                 </div>
+              )}
 
-                <p className={styles.conceptSummary}>{concept.summary}</p>
+              {/* Exam Tips */}
+              {sec.examTips && sec.examTips.length > 0 && (
+                <div className={styles.examTipsBox}>
+                  <div className={styles.examTipsTitle}>High-Yield Scoring Pointers</div>
+                  <ul className={styles.takeawaysList}>
+                    {sec.examTips.map((tip, eIdx) => (
+                      <li key={eIdx}>{tip}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          ))}
 
-                {/* Mathematical / Core Formulas */}
-                {concept.coreFormulas && concept.coreFormulas.length > 0 && (
-                  <div className={styles.formulaSection}>
-                    <h4 className={styles.formulaHeading}>Key Equations & Formulas</h4>
-                    <div className={styles.formulaGrid}>
-                      {concept.coreFormulas.map((f, i) => (
-                        <div key={i} className={styles.formulaCard}>
-                          <span className={styles.formulaLabel}>{f.label}</span>
-                          <code className={styles.formulaCode}>{f.formula}</code>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Visual Learning Simulation */}
-                {concept.visualLearningTitle && (
-                  <div className={styles.simulationCard}>
-                    <div className={styles.simulationHeader}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Icon name="video" size="sm" />
-                        <span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                          {concept.visualLearningTitle}
-                        </span>
-                      </div>
-                      <span className={styles.simulationBadge}>
-                        {concept.visualLearningType || 'Interactive Simulation'}
-                      </span>
-                    </div>
-
-                    <div className={styles.simulationCanvas}>
-                      <Icon name="cube" size="lg" style={{ opacity: 0.9, color: '#38bdf8' }} />
-                      <div style={{ maxWidth: '480px' }}>
-                        <div style={{ fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: '4px' }}>
-                          {concept.visualLearningTitle}
-                        </div>
-                        <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>
-                          {concept.visualLearningDescription}
-                        </div>
-                      </div>
-
-                      <Button
-                        size="sm"
-                        variant={isSimulationActive ? 'outline' : 'primary'}
-                        onClick={() => setIsSimulationActive(!isSimulationActive)}
-                      >
-                        {isSimulationActive ? 'Close 3D Simulation' : 'Launch 3D Visual Sandbox'}
-                      </Button>
-                    </div>
-
-                    {isSimulationActive && (
-                      <div style={{ marginTop: '1.25rem', width: '100%' }}>
-                        <VisualLearningViewer
-                          title={concept.visualLearningTitle || 'Ballistic Projectile Dynamics'}
-                          topicTitle={topic.title}
-                          onClose={() => setIsSimulationActive(false)}
-                        />
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            ))
+          {/* Common Misconceptions Box */}
+          {notesData.commonMisconceptions && notesData.commonMisconceptions.length > 0 && (
+            <div className={styles.misconceptionsBox}>
+              <div className={styles.misconceptionsTitle}>Common Student Traps & Pitfalls</div>
+              <ul className={styles.takeawaysList}>
+                {notesData.commonMisconceptions.map((misc, mIdx) => (
+                  <li key={mIdx}>{misc}</li>
+                ))}
+              </ul>
+            </div>
           )}
         </div>
       )}
 
-      {/* TAB 2: Important Questions & PYQ Entry */}
-      {activeTab === 'pyqs' && (
+      {/* ========================================================================= */}
+      {/* 2. FORMULA SHEET VIEW */}
+      {/* ========================================================================= */}
+      {currentTab === 'formulas' && (
+        <div className={styles.formulaSheetContainer} role="tabpanel">
+          <div className={styles.formulaSheetHeader}>
+            <h3 className={styles.formulaSheetTitle}>
+              Key Equations & Analytical Formulas ({topicFormulas.length} Associated)
+            </h3>
+            <span style={{ fontSize: '0.8125rem', color: 'rgba(255, 255, 255, 0.6)' }}>
+              Rendered with standard mathematical typesetting and variable legends
+            </span>
+          </div>
+
+          {topicFormulas.length === 0 ? (
+            <div className={styles.noteSectionCard}>
+              <h4 className={styles.sectionHeading}>Conceptual / Non-Numerical Unit</h4>
+              <p className={styles.noteParagraph}>
+                This section focuses primarily on structural classification, qualitative principles, and nomenclature. Review the detailed notes tab for complete definitions and mechanisms.
+              </p>
+            </div>
+          ) : (
+            <div className={styles.formulaGrid}>
+              {topicFormulas.map((f, idx) => (
+                <FormulaCard
+                  key={idx}
+                  label={f.label}
+                  formula={f.formula}
+                  description={f.description}
+                  variables={f.variables}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 3. VISUAL ARTIFACTS VIEW */}
+      {/* ========================================================================= */}
+      {currentTab === 'artifacts' && (
+        <div className={styles.artifactsContainer} role="tabpanel">
+          {has3DSimulation ? (
+            <div className={styles.artifactCard}>
+              <div className={styles.artifactHeader}>
+                <div className={styles.artifactMeta}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h3 className={styles.artifactTitle}>Interactive 3D Simulation Sandbox</h3>
+                    <span className={styles.artifactBadge3D}>Contained 3D Window</span>
+                  </div>
+                  <p className={styles.artifactDesc}>
+                    Rotate and orbit camera angle, zoom into dynamic vectors, and adjust physical parameters in real-time. All interactions are strictly contained within this 3D viewport window.
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant={is3DActive ? 'outline' : 'primary'}
+                  onClick={() => setIs3DActive(!is3DActive)}
+                >
+                  {is3DActive ? 'Reset 3D Sandbox' : 'Launch 3D Window'}
+                </Button>
+              </div>
+
+              {is3DActive && (
+                <div className={styles.artifactStageBox}>
+                  <VisualLearningViewer
+                    simulationId={primarySimulationId}
+                    title={topic.title}
+                    topicTitle={`${chapter.title} • ${topic.title}`}
+                  />
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className={styles.artifactCard}>
+              <div className={styles.artifactHeader}>
+                <div className={styles.artifactMeta}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h3 className={styles.artifactTitle}>Conceptual Visual Model</h3>
+                    <span
+                      className={styles.artifactBadge3D}
+                      style={{
+                        background: 'rgba(16, 185, 129, 0.15)',
+                        color: '#10b981',
+                        border: '1px solid rgba(16, 185, 129, 0.3)',
+                      }}
+                    >
+                      Visual Model
+                    </span>
+                  </div>
+                  <p className={styles.artifactDesc}>
+                    Orthogonal visual breakdown and dimensional parameter relationships for {topic.title}.
+                  </p>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  padding: '24px',
+                  background: 'rgba(9, 13, 22, 0.7)',
+                  borderRadius: '10px',
+                  border: '1px solid rgba(255, 255, 255, 0.06)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '16px',
+                }}
+              >
+                <div style={{ color: '#38bdf8', fontWeight: 600, fontSize: '14px' }}>
+                  Analytical Architecture & Physical Relationships
+                </div>
+                <p style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '13px', lineHeight: 1.6, margin: 0 }}>
+                  This module operates under standard rationalised NCERT parameters. For 3D kinetic mechanics, open the respective kinematics, orbital gravitation, electromagnetism, wave interference, or atomic models in the curriculum library.
+                </p>
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                  <Button size="sm" variant="outline" onClick={() => handleTabClick('formulas')}>
+                    <Icon name="sparkles" size="xs" />
+                    <span>View Formula Sheet</span>
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => handleTabClick('notes')}>
+                    <Icon name="fileText" size="xs" />
+                    <span>Read Detailed Notes</span>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 4. QUESTIONS & PYQS VIEW */}
+      {/* ========================================================================= */}
+      {currentTab === 'questions' && (
         <div className={styles.tabPanel} role="tabpanel">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '8px',
+            }}
+          >
             <span style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
-              Verified examination questions with authentic provenance ({questions.length} Total • {pyqQuestions.length} PYQs)
+              Verified examination questions with authentic provenance ({questions.length} Total)
             </span>
             <Button href={`/app/tutor?topic=${encodeURIComponent(topic.title)}`} size="sm" variant="outline">
               <Icon name="tutor" size="xs" />
@@ -235,88 +421,128 @@ export const TopicDetailView: React.FC<TopicDetailViewProps> = ({
           </div>
 
           {questions.length === 0 ? (
-            <div className={styles.questionCard}>
+            <div className={styles.noteSectionCard}>
               <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>
-                No verified past year questions linked to this specific node yet. Try the Baseline Diagnostic in Tests.
+                No past year questions currently indexed for this specific node. Practice diagnostic assessments in the Tests & Diagnostics tab.
               </p>
             </div>
           ) : (
             questions.map((q, idx) => {
-              const selected = selectedAnswers[q.id];
-              const showHint = revealedHints[q.id];
-              const showSolution = revealedSolutions[q.id];
+              const userAns = selectedAnswers[q.id];
+              const isHintOpen = revealedHints[q.id];
+              const isSolOpen = revealedSolutions[q.id];
 
               return (
                 <div key={q.id} className={styles.questionCard}>
                   <div className={styles.questionMetaRow}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>
-                        Question {idx + 1}
-                      </span>
-                      {q.isPyq && (
-                        <span className={styles.pyqBadge}>
-                          <Icon name="award" size="xs" />
-                          <span>{q.sourceExam} {q.sourceYear}</span>
+                      <span className={styles.qNum}>Q{idx + 1}</span>
+                      {q.isPyq && q.sourceExam && (
+                        <span className={styles.examTag}>
+                          {q.sourceExam} {q.sourceYear}
                         </span>
                       )}
+                      <span
+                        className={`${styles.diffTag} ${
+                          q.difficultyLevel === 'easy'
+                            ? styles.diffEasy
+                            : q.difficultyLevel === 'hard'
+                            ? styles.diffHard
+                            : styles.diffModerate
+                        }`}
+                      >
+                        {q.difficultyLevel.toUpperCase()}
+                      </span>
                     </div>
 
-                    <span className={styles.difficultyBadge}>
-                      {q.difficultyLevel}
-                    </span>
+                    {q.isVerified && (
+                      <span
+                        style={{
+                          fontSize: '0.75rem',
+                          color: '#10b981',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                      >
+                        <Icon name="check" size="xs" />
+                        <span>Verified Provenance</span>
+                      </span>
+                    )}
                   </div>
 
-                  <p className={styles.questionText}>{q.questionText}</p>
+                  <div className={styles.questionText}>{q.questionText}</div>
 
+                  {/* Options */}
                   {q.options && q.options.length > 0 && (
                     <div className={styles.optionsList}>
-                      {q.options.map((opt) => (
-                        <div
-                          key={opt.id}
-                          className={`${styles.optionItem} ${selected === opt.optionKey ? styles.optionSelected : ''}`}
-                          onClick={() => handleOptionSelect(q.id, opt.optionKey)}
-                        >
-                          <span className={styles.optionKey}>{opt.optionKey}</span>
-                          <span>{opt.optionText}</span>
-                        </div>
-                      ))}
+                      {q.options.map((opt) => {
+                        const isSelected = userAns === opt.optionKey;
+                        const isCorrect = opt.isCorrect;
+                        let optionClass = styles.optionItem;
+
+                        if (userAns) {
+                          if (isSelected) {
+                            optionClass += isCorrect
+                              ? ` ${styles.optionCorrect}`
+                              : ` ${styles.optionIncorrect}`;
+                          } else if (isCorrect) {
+                            optionClass += ` ${styles.optionCorrect}`;
+                          }
+                        }
+
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            className={optionClass}
+                            onClick={() => handleOptionSelect(q.id, opt.optionKey)}
+                          >
+                            <span className={styles.optionLetter}>{opt.optionKey}</span>
+                            <span className={styles.optionText}>{opt.optionText}</span>
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', paddingTop: '0.5rem' }}>
+                  {/* Hints and Solutions Action Row */}
+                  <div className={styles.actionRow}>
                     {q.hint && (
                       <button
                         type="button"
-                        className={styles.toggleBtn}
+                        className={styles.hintBtn}
                         onClick={() => toggleHint(q.id)}
                       >
                         <Icon name="lightbulb" size="xs" />
-                        <span>{showHint ? 'Hide Pedagogical Hint' : 'View Pedagogical Hint'}</span>
+                        <span>{isHintOpen ? 'Hide Socratic Hint' : 'View Socratic Hint'}</span>
                       </button>
                     )}
 
                     {q.explanation && (
                       <button
                         type="button"
-                        className={styles.toggleBtn}
+                        className={styles.solBtn}
                         onClick={() => toggleSolution(q.id)}
                       >
-                        <Icon name="fileText" size="xs" />
-                        <span>{showSolution ? 'Hide Step-by-Step Solution' : 'Reveal Step-by-Step Solution'}</span>
+                        <Icon name="check" size="xs" />
+                        <span>{isSolOpen ? 'Hide Full Solution' : 'View Verified Solution'}</span>
                       </button>
                     )}
                   </div>
 
-                  {showHint && (
-                    <div className={styles.expandableBox} style={{ borderColor: 'rgba(255, 255, 255, 0.15)' }}>
-                      <strong style={{ color: 'var(--color-text-primary)' }}>Pedagogical Hint: </strong>
+                  {/* Hint Reveal */}
+                  {isHintOpen && (
+                    <div className={styles.hintBox}>
+                      <strong>Socratic Guide: </strong>
                       {q.hint}
                     </div>
                   )}
 
-                  {showSolution && (
-                    <div className={styles.expandableBox} style={{ background: 'rgba(255, 255, 255, 0.04)' }}>
-                      <strong style={{ color: 'var(--color-text-primary)' }}>Full Solution & Verification: </strong>
+                  {/* Solution Reveal */}
+                  {isSolOpen && (
+                    <div className={styles.solutionBox}>
+                      <strong>Verified Step-by-Step Derivation: </strong>
                       {q.explanation}
                     </div>
                   )}
@@ -324,123 +550,6 @@ export const TopicDetailView: React.FC<TopicDetailViewProps> = ({
               );
             })
           )}
-        </div>
-      )}
-
-      {/* TAB 3: Notes & Resources Entry */}
-      {activeTab === 'notes' && (
-        <div className={styles.tabPanel} role="tabpanel">
-          <div className={styles.materialGrid}>
-            {materials.map((mat) => (
-              <div key={mat.id} className={styles.materialCard}>
-                <div className={styles.materialTop}>
-                  <span className={styles.materialType}>{mat.fileType.replace('_', ' ')}</span>
-                  <Icon name="fileText" size="sm" style={{ color: 'var(--color-text-tertiary)' }} />
-                </div>
-
-                <h4 className={styles.materialTitle}>{mat.title}</h4>
-                {mat.authoritativeSource && (
-                  <span className={styles.materialSource}>Source: {mat.authoritativeSource}</span>
-                )}
-                {mat.description && (
-                  <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)', margin: 0, lineHeight: 1.5 }}>
-                    {mat.description}
-                  </p>
-                )}
-
-                <div style={{ marginTop: 'auto', paddingTop: '0.75rem' }}>
-                  <Button size="sm" variant="outline" href={`/app/library?doc=${mat.id}`}>
-                    <Icon name="externalLink" size="xs" />
-                    <span>Open in Curriculum Library</span>
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* TAB 4: Future Mastery & Readiness Hooks */}
-      {activeTab === 'mastery' && (
-        <div className={styles.tabPanel} role="tabpanel">
-          <div className={styles.masteryCard}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
-              <div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-text-primary)', margin: '0 0 4px 0' }}>
-                  Student Knowledge State & Retention Architecture
-                </h3>
-                <span style={{ fontSize: '0.8125rem', color: 'var(--color-text-tertiary)' }}>
-                  Continuous Bayesian Knowledge Tracing (BKT) & Leitner Spaced Decay Model
-                </span>
-              </div>
-
-              <span style={{
-                fontSize: '0.6875rem',
-                fontFamily: 'var(--font-mono)',
-                padding: '0.2rem 0.6rem',
-                borderRadius: '9999px',
-                background: 'rgba(255, 255, 255, 0.08)',
-                color: 'var(--color-text-secondary)'
-              }}>
-                Status: Calibration Pending
-              </span>
-            </div>
-
-            <div className={styles.masteryGrid}>
-              <div className={styles.masteryMetric}>
-                <span className={styles.metricTitle}>
-                  <Icon name="target" size="xs" />
-                  <span>Mastery Probability (p_know)</span>
-                </span>
-                <span className={styles.metricValue}>0.10</span>
-                <span className={styles.metricSubtitle}>Prior baseline before practice evidence</span>
-              </div>
-
-              <div className={styles.masteryMetric}>
-                <span className={styles.metricTitle}>
-                  <Icon name="revision" size="xs" />
-                  <span>Memory Stability (S)</span>
-                </span>
-                <span className={styles.metricValue}>Cold</span>
-                <span className={styles.metricSubtitle}>Awaiting first spaced review cycle</span>
-              </div>
-
-              <div className={styles.masteryMetric}>
-                <span className={styles.metricTitle}>
-                  <Icon name="award" size="xs" />
-                  <span>Exam Weightage Share</span>
-                </span>
-                <span className={styles.metricValue}>{topic.weightagePercent}%</span>
-                <span className={styles.metricSubtitle}>High-yield entrance exam contribution</span>
-              </div>
-
-              <div className={styles.masteryMetric}>
-                <span className={styles.metricTitle}>
-                  <Icon name="check" size="xs" />
-                  <span>Prerequisite Dependency</span>
-                </span>
-                <span className={styles.metricValue} style={{ fontSize: '1.125rem' }}>
-                  {topic.prerequisites?.length ? 'Satisfied' : 'None'}
-                </span>
-                <span className={styles.metricSubtitle}>DAG readiness for active study</span>
-              </div>
-            </div>
-
-            <div className={styles.actionRow}>
-              <Button href={`/app/tutor?topic=${encodeURIComponent(topic.title)}`} variant="primary" size="sm">
-                <Icon name="tutor" size="xs" />
-                <span>Start Socratic Dialogue</span>
-              </Button>
-              <Button href={`/app/focus?topic=${encodeURIComponent(topic.title)}`} variant="outline" size="sm">
-                <Icon name="focus" size="xs" />
-                <span>Launch 25m Focus Block</span>
-              </Button>
-              <Button href="/app/tests?mode=baseline" variant="outline" size="sm">
-                <Icon name="tests" size="xs" />
-                <span>Take Diagnostic Assessment</span>
-              </Button>
-            </div>
-          </div>
         </div>
       )}
     </div>

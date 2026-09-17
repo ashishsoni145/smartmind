@@ -13,6 +13,8 @@ interface TopBarProps {
   onOpenSearch: () => void;
   onOpenNotifications: () => void;
   onToggleMobileMenu: () => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 const ROUTE_TITLES: Record<string, string> = {
@@ -36,6 +38,8 @@ export function TopBar({
   onOpenSearch,
   onOpenNotifications,
   onToggleMobileMenu,
+  isCollapsed,
+  onToggleCollapse,
 }: TopBarProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -79,8 +83,15 @@ export function TopBar({
         <button
           type="button"
           className={styles.menuBtn}
-          onClick={onToggleMobileMenu}
-          aria-label="Open navigation menu"
+          onClick={() => {
+            if (typeof window !== 'undefined' && window.innerWidth <= 900) {
+              onToggleMobileMenu();
+            } else if (onToggleCollapse) {
+              onToggleCollapse();
+            }
+          }}
+          aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           <Icon name="menu" size="sm" />
         </button>

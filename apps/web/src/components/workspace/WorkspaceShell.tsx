@@ -93,6 +93,8 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
           onOpenSearch={() => setIsSearchOpen(true)}
           onOpenNotifications={() => setIsNotificationsOpen(true)}
           onToggleMobileMenu={() => setIsMobileOpen((prev) => !prev)}
+          isCollapsed={isCollapsed}
+          onToggleCollapse={handleToggleCollapse}
         />
 
         <main id="workspace-content" className={styles.contentWrapper}>

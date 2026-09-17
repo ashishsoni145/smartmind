@@ -11,6 +11,7 @@ import type {
 } from '@/lib/types/curriculum';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import { StaticCurriculumAdapter } from './static-curriculum-adapter';
+import { CANONICAL_TOPICS } from '@/lib/curriculum/fixtures/canonical-curriculum-fixtures';
 
 export class SupabaseCurriculumAdapter implements CurriculumAdapter {
   public readonly name = 'SupabaseCurriculumAdapter';
@@ -122,7 +123,7 @@ export class SupabaseCurriculumAdapter implements CurriculumAdapter {
         description: row.description || '',
         sequenceOrder: row.sequence_order || 0,
         weightagePercent: Number(row.weightage_percent) || 0,
-        topicsCount: 3,
+        topicsCount: (CANONICAL_TOPICS[row.id] || []).length || 3,
         masteryStatus: 'uncalibrated',
         masteryProbability: 0.1,
         retentionPercent: 100,
@@ -159,7 +160,7 @@ export class SupabaseCurriculumAdapter implements CurriculumAdapter {
         description: data.description || '',
         sequenceOrder: data.sequence_order || 0,
         weightagePercent: Number(data.weightage_percent) || 0,
-        topicsCount: 3,
+        topicsCount: (CANONICAL_TOPICS[data.id] || []).length || 3,
         masteryStatus: 'uncalibrated',
         masteryProbability: 0.1,
         retentionPercent: 100,

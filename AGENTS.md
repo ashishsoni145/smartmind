@@ -9,3 +9,9 @@ After coding, run relevant tests, lint/type checks/builds and E2E where applicab
 Notion is the source for product requirements and roadmap. Git plus `.ai/` is the source for implementation and technical state. Chat is temporary.
 
 Required workflow: READ MEMORY → INSPECT REPOSITORY → IDENTIFY PHASE/PART → VERIFY CHECKPOINT → PLAN → IMPLEMENT → TEST → DIFF → UPDATE MEMORY → CHECKPOINT. Do not start Phase 01 without explicit `START PHASE 01`.
+
+## Browser Verification Credentials
+Whenever opening the browser to verify implementations, use the following credentials to sign in:
+- Email: `alpmlaapmp@gmail.com`
+- Password: `Asdfghjkl;0`
+

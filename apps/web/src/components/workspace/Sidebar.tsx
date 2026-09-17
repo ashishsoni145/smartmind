@@ -79,11 +79,17 @@ export function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, onCloseMo
           <button
             type="button"
             className={styles.collapseToggle}
-            onClick={onToggleCollapse}
-            aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            onClick={() => {
+              if (typeof window !== 'undefined' && window.innerWidth <= 900) {
+                onCloseMobile();
+              } else {
+                onToggleCollapse();
+              }
+            }}
+            aria-label={isMobileOpen ? 'Close menu' : isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={isMobileOpen ? 'Close menu' : isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
-            {isCollapsed ? '→' : '←'}
+            <Icon name={isMobileOpen ? 'close' : isCollapsed ? 'chevronRight' : 'chevronLeft'} size="xs" />
           </button>
         </div>
 

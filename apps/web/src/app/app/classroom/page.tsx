@@ -29,7 +29,11 @@ function ClassroomHierarchyContent() {
   const subjectId = searchParams.get('subject') || '';
   const chapterId = searchParams.get('chapter') || '';
   const topicId = searchParams.get('topic') || '';
-  const tabParam = (searchParams.get('tab') as TopicTab) || 'concepts';
+  const rawTab = searchParams.get('tab');
+  const tabParam: TopicTab =
+    rawTab === 'notes' || rawTab === 'formulas' || rawTab === 'artifacts' || rawTab === 'questions'
+      ? rawTab
+      : 'notes';
   const gradeParam = searchParams.get('grade') || 'all';
   const searchParam = searchParams.get('search') || '';
 
@@ -185,7 +189,7 @@ function ClassroomHierarchyContent() {
     params.set('subject', subjectId);
     params.set('chapter', chapterId);
     params.set('topic', newTopicId);
-    params.set('tab', 'concepts');
+    params.set('tab', 'notes');
     router.push(`/app/classroom?${params.toString()}`);
   };
 

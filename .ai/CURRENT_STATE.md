@@ -92,6 +92,37 @@ Date: 2026-09-16
 ### Phase 01 Status: 100% COMPLETED
 All 9 parts of Phase 01 (Foundation, Database, Auth, Onboarding, Authenticated Shell, Classroom Hierarchy, Library & AI Tutor, Profile & Settings, Web Integration & QA) are fully built, tested, and verified.
 
+- Authentic NCERT Rationalised Curriculum & Topic-Specific 3D/Interactive Simulations (Completed 2026-09-17):
+  - NCERT Rationalised Coverage (2024-2026):
+    - 106 Chapters seeded in Supabase Postgres and `ncert-chapters-data.ts`:
+      - Physics (28 Chapters: 14 in Class 11, 14 in Class 12)
+      - Chemistry (19 Chapters: 9 in Class 11, 10 in Class 12)
+      - Mathematics (27 Chapters: 14 in Class 11, 13 in Class 12)
+      - Biology (32 Chapters: 19 in Class 11, 13 in Class 12)
+    - Full authentic sub-topics in `ncert-topics-data.ts` mapped for all 106 chapters with resilient fallback in `StaticCurriculumAdapter` and dynamic `topicsCount` in `SupabaseCurriculumAdapter`.
+  - 14 Dedicated Modular 3D / Interactive Simulations in `apps/web/src/components/visual/simulations/`:
+    - `ProjectileSimulation.tsx`: 3D Ballistic Trajectory, pitch/yaw/zoom orbit camera, air drag, gravity field selector, apex/range markers, and live telemetry HUD ($v_0, \theta, \phi, H_{max}, R$). Isolated strictly to *Motion in a Plane -> Projectile Motion*.
+    - `RectilinearKinematicsSimulation.tsx`: 1D particle on track with $\vec{v}$ and $\vec{a}$ vector arrows, synchronized real-time $x(t), v(t), a(t)$ oscilloscope, emergency brake toggle.
+    - `CircularMotionSimulation.tsx`: 3D circular orbit with tangential $\vec{v}_t$, radial centripetal $\vec{a}_c = \omega^2 R$, period $T$, and frequency $f$.
+    - `InclineFbdSimulation.tsx`: 3D wedge inclined plane + apex pulley + hanging mass with orthogonal vector overlays ($\vec{N}, mg\sin\theta, mg\cos\theta, \vec{T}, \vec{f}_s$).
+    - `RoadBankingSimulation.tsx`: 3D banked highway turn with vehicle, tire friction envelope, and real-time stability meter ($v_0 = \sqrt{Rg\tan\theta}$, safe, slipping, skidding).
+    - `EnergyConservationSimulation.tsx`: Potential well / roller track with rolling particle and real-time $E_k, E_p, E_{total}$ energy bar charts.
+    - `KeplerOrbitSimulation.tsx`: 3D planetary ellipse orbit with eccentricity $e$ slider and Kepler's 2nd Law animated equal-area sector sweeps.
+    - `PointChargeFieldSimulation.tsx`: 3D electrostatic multi-charge field lines and equipotential contour surfaces for $+q$ and $-q$.
+    - `DcCircuitMeshSimulation.tsx`: Closed DC circuit with animated electron drift, multi-resistor network, and real-time Kirchhoff voltage/current law verification.
+    - `DoubleSlitInterferenceSimulation.tsx`: Wave ripple tank with dual coherent sources, constructive/destructive interference, and fringe intensity screen ($\beta = \frac{\lambda D}{d}$).
+    - `BohrAtomSimulation.tsx`: 3D quantum orbits $n=1..5$, clickable energy level jumps, and emitted photon wave packets with calculated $\lambda$ and spectral series.
+    - `VseprGeometrySimulation.tsx`: 3D rotatable molecular geometry sandbox with $CH_4, NH_3, H_2O, BeCl_2, BF_3, PCl_5, SF_6$, lone pair lobes, and bond angles.
+    - `SecantTangentLimitSimulation.tsx`: Calculus limits of difference quotients, interactive secant pivoting to tangent slope.
+    - `VectorCrossProductSimulation.tsx`: 3D Vector algebra $\vec{C} = \vec{A} \times \vec{B}$ with shaded parallelogram area and Right-Hand Rule indicator.
+  - Dispatcher & Classroom Integration:
+    - `VisualLearningViewer.tsx`: Refactored to dispatch strictly by `simulationId`. Defaults to a clean NCERT concept derivation guide without any simulation or projectile motion fallback.
+    - `TopicDetailView.tsx`: Isolated simulation toggle per concept (`activeSimulationConceptId: string | null`), passing `simulationId` cleanly.
+  - Browser Verification Credentials:
+    - Whenever launching the browser subagent or manual browser test, use:
+      - Email: `alpmlaapmp@gmail.com`
+      - Password: `Asdfghjkl;0`
+
 - Vercel Deployment & Hoisted Monorepo Build Fix:
   - Root Cause Diagnosed:
     - Root `package.json` defines npm workspaces (`apps/*`, `backend`, `packages/*`).
