@@ -1,35 +1,42 @@
 # Last Session Handoff
 
-Session: Phase 01 — Part 08 & Part 09 (Profile, Settings, Dynamic Theme, Full Web Integration & QA Pass) Completed on 2026-09-16.
+Session: Phase 03 (Curriculum Engine, Academic Knowledge Graph, and Verified PYQ Subsystem) Completed on 2026-09-18.
 
 ### What Was Accomplished:
-1. **Dynamic Theme System**:
-   - `ThemeProvider` and `useTheme()` hook managing `localStorage` (`sharpmind_theme_v1`) and system color scheme listener.
-   - Tokenized CSS mapping for `[data-theme="dark"]` and `[data-theme="light"]` in `src/styles/tokens.css`.
-   - Instant visual toggle across the entire application without full page reload.
-2. **Settings Navigation & Domain Forms (`src/components/settings/` & `src/app/app/settings/`)**:
-   - `SettingsNav.tsx`: 5 dedicated sections (Profile & Account, Academic Target, Security & Access, Subscription & Tier, Appearance & Notifications).
-   - `ProfileForm.tsx`: Student name, username, email, and user role with live validation and persistence.
-   - `AcademicSettingsForm.tsx`: Board, grade, stream, target exams (JEE Advanced, JEE Main, NEET, BITSAT), target year, daily study hours (1-12h), preferred study time.
-   - `SecuritySettingsForm.tsx`: Password update with live criteria checklist, 2FA toggle, active session count.
-   - `SubscriptionStatusCard.tsx`: Active tier badge, plan capabilities checklist, billing frequency, upgrade launcher.
-   - `PreferencesForm.tsx`: Dark/Light/System theme selector, daily reminder time picker, spaced repetition alerts toggle, announcements toggle, weekly report toggle, and accessibility toggles (reduced motion, audio feedback).
-   - Sign Out action integrated with `useAuth().signOut()`.
-   - `settingsAdapter`: Supabase `profiles` & `student_profiles` integration with local offline fallback.
-3. **Web Integration & QA Verification Pass**:
-   - `npm run typecheck` (`tsc --noEmit`): 0 errors across 100% of workspace files.
-   - `npm run build`: 36/36 static pages exported cleanly with exit code 0.
-   - HTTP route verification: 16/16 routes verified and returning HTTP 200 with full markup payloads.
-   - Icon hygiene: Zero emojis in core code; 100% SVG `Icon` system.
-   - Backlog register: Created `.ai/progress/backlog.md` detailing future phase commitments (vector ingestion, BKT inference, PYQ bank expansion, LLM integration, mobile clients).
 
-### Phase 01 Status: 100% COMPLETED.
-All 9 parts of Phase 01 are fully implemented, verified, and operational.
+1. **Part 01 — Curriculum & Syllabus Engine (`backend/src/modules/curriculum/`)**:
+   - Extensible data model supporting boards (CBSE, ICSE, State Boards), competitive exams (JEE Main, JEE Advanced, NEET UG), academic years, grades, units, chapters, topics, subtopics, concepts, learning objectives, and weightages without hardcoding boards or curricula.
+   - Applied database migration `20260918000002_curriculum_knowledge_graph_and_pyq.sql` on live Supabase.
+   - Hierarchy endpoints (`GET /boards`, `GET /grades`, `GET /subjects`, `GET /target-exams`, `GET /chapters`, `GET /nodes/:id/children`, `POST /nodes`).
 
-4. **Vercel Monorepo Deployment Fix**:
-   - Diagnosed failure: Vercel hoists dependencies to `/vercel/path0/node_modules/next` when `workspaces` are defined, breaking hardcoded `./node_modules/next/dist/bin/next` path.
-   - Built `run-next.js` using Node standard resolution (`require.resolve('next/dist/bin/next')`), supporting hoisted monorepo execution while preserving Windows FAT32 filesystem patches on win32.
-   - Fixed `apps/web/package.json` scripts, `apps/web/next.config.ts`, `apps/web/patch-fs.js`, and synchronized root `package-lock.json`.
-   - Verified local Windows build (36/36 pages, code 0) and root build (code 0).
+2. **Part 02 — Academic Knowledge Graph Layer (`backend/src/modules/knowledge-graph/`)**:
+   - Created `concepts`, `concept_curriculum_mappings`, and `knowledge_graph_edges` tables with 100% RLS.
+   - Implemented Directed Acyclic Graph (DAG) cycle detection via `GraphService.hasPrerequisiteCycle(sourceId, targetId)` strictly rejecting circular prerequisite edges with 400 Bad Request.
+   - Implemented recursive PostgreSQL CTE function `public.get_concept_prerequisites(target_concept_id)` with cycle guards and depth tracking.
+   - Endpoints: `POST /concepts`, `GET /concepts/:id`, `POST /edges`, `GET /concepts/:id/prerequisites`, `GET /nodes/:id/concepts`.
 
-Next Checkpoint: Awaiting explicit user command `START PHASE 02` (Knowledge Engine & Vector Retrieval).
+3. **Part 03 — Authentic PYQ Data Model & Deduplication Engine (`backend/src/modules/questions/`)**:
+   - Extended `questions` with `concept_id`, `target_exam_id`, `marks`, `is_important`, `appearance_frequency`, `pattern_tags`, and paper codes.
+   - Deduplication pipeline in `QuestionService.ingestQuestions()`: Exact matches on `(subject_id, question_text, source_exam, source_year)` increment `appearance_frequency` and set `is_important = true` without inserting duplicate rows.
+   - Exam pattern analysis endpoint (`GET /questions/patterns`).
+   - Seeded authentic, rationalised NCERT concepts, DAG prerequisite edges, and past JEE Main, JEE Advanced, and NEET questions into live Supabase database with zero fabricated data.
+
+4. **Part 04 — Classroom UI Connection & Verification (`apps/web`)**:
+   - Updated `SupabaseCurriculumAdapter` to query live questions, mapped concepts, and authentic PYQs with graceful fallback.
+   - Enhanced `TopicDetailView`:
+     - Academic Prerequisites & Diagnostic Readiness card displaying prerequisites with met/pending status and calibration hooks (`masteryStatus`, `retentionPercent`).
+     - Interactive examination filter pills (All, JEE Main, NEET, JEE Advanced, CBSE Board).
+     - Visual badges for high-yield questions (`🔥 High Yield`), repeated question frequency (`Repeated 3x`), marks allocation (`4 Marks`), verified provenance, and pattern tags.
+   - Updated `@sharpmind/types` and `@sharpmind/api-client`.
+   - Recorded architecture decisions in ADR 0004 (`docs/architecture/adr/0004-academic-knowledge-graph-and-curriculum-engine.md`).
+
+5. **Verification & QA Pass**:
+   - Backend automated test suite: 22/22 tests passed across 4 test suites (`api.test.ts`, `curriculum.test.ts`, `graph.test.ts`, `pyq.test.ts`).
+   - Backend typecheck (`npm run typecheck:backend`): 0 errors.
+   - Web typecheck (`npm run typecheck`): 0 errors.
+   - Live dev servers: Backend (port 4000) status `ok`, database `connected`; Web frontend (port 3000) serving `/app/classroom/` with HTTP 200.
+
+### Next Checkpoint:
+Phase 03 is 100% COMPLETE.
+Next Phase: Phase 04 — Student Model, continuous knowledge state calibration, Bayesian Knowledge Tracing (BKT), forgetting curves, and diagnostic evidence logging.
+

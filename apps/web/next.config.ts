@@ -19,6 +19,13 @@ const nextConfig: NextConfig = {
   trailingSlash: true,
   webpack: (config) => {
     config.resolve.symlinks = false;
+    config.resolve.alias = {
+      ...(config.resolve.alias || {}),
+      '@sharpmind/types$': path.resolve(__dirname, '../../packages/types/src/index.ts'),
+      '@sharpmind/types': path.resolve(__dirname, '../../packages/types/src'),
+      '@sharpmind/api-client$': path.resolve(__dirname, '../../packages/api-client/src/index.ts'),
+      '@sharpmind/api-client': path.resolve(__dirname, '../../packages/api-client/src'),
+    };
     return config;
   },
 };

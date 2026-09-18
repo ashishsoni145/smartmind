@@ -9,9 +9,16 @@
   ],
   "scripts": {
     "dev": "npm --prefix apps/web run dev",
+    "dev:web": "npm --prefix apps/web run dev",
+    "dev:backend": "npm --prefix backend run dev",
     "build": "npm --prefix apps/web run build",
+    "build:backend": "npm --prefix backend run build",
     "start": "npm --prefix apps/web run start",
+    "start:backend": "npm --prefix backend run start",
     "lint": "npm --prefix apps/web run lint",
-    "typecheck": "npm --prefix apps/web run typecheck"
+    "typecheck": "npm --prefix apps/web run typecheck",
+    "typecheck:backend": "npm --prefix backend run typecheck",
+    "typecheck:all": "npm --prefix backend run typecheck && npm --prefix apps/web run typecheck",
+    "test:backend": "npm --prefix backend run test"
   }
 }

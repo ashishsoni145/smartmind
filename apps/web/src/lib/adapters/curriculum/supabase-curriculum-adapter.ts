@@ -185,10 +185,27 @@ export class SupabaseCurriculumAdapter implements CurriculumAdapter {
     if (!supabase) return this.staticFallback.getQuestionsForNode(nodeId);
 
     try {
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('questions')
         .select('*, question_options(*)')
         .eq('curriculum_node_id', nodeId);
+
+      // If no direct questions on this node, check if concepts are mapped to this curriculum node
+      if ((!data || data.length === 0) && !error) {
+        const { data: mappings } = await supabase
+          .from('concept_curriculum_mappings')
+          .select('concept_id')
+          .eq('curriculum_node_id', nodeId);
+
+        if (mappings && mappings.length > 0) {
+          const conceptIds = mappings.map((m) => m.concept_id);
+          const { data: cData } = await supabase
+            .from('questions')
+            .select('*, question_options(*)')
+            .in('concept_id', conceptIds);
+          data = cData;
+        }
+      }
 
       if (error || !data || data.length === 0) {
         return this.staticFallback.getQuestionsForNode(nodeId);
@@ -196,17 +213,25 @@ export class SupabaseCurriculumAdapter implements CurriculumAdapter {
 
       return data.map((q) => ({
         id: q.id,
-        curriculumNodeId: q.curriculum_node_id,
+        curriculumNodeId: q.curriculum_node_id || nodeId,
         subjectId: q.subject_id,
+        conceptId: q.concept_id,
+        targetExamId: q.target_exam_id,
         questionText: q.question_text,
         questionType: q.question_type,
         difficultyLevel: q.difficulty_level,
+        marks: q.marks ? Number(q.marks) : 4,
         explanation: q.explanation || '',
         hint: q.hint || '',
         sourceExam: q.source_exam,
         sourceYear: q.source_year,
-        isPyq: q.is_pyq,
-        isVerified: q.is_verified,
+        sourceSession: q.source_session,
+        sourcePaperCode: q.source_paper_code,
+        isPyq: Boolean(q.is_pyq),
+        isImportant: Boolean(q.is_important),
+        appearanceFrequency: q.appearance_frequency || 1,
+        patternTags: q.pattern_tags || [],
+        isVerified: Boolean(q.is_verified),
         options: (q.question_options || []).map((opt: any) => ({
           id: opt.id,
           optionKey: opt.option_key,
@@ -216,6 +241,87 @@ export class SupabaseCurriculumAdapter implements CurriculumAdapter {
       }));
     } catch {
       return this.staticFallback.getQuestionsForNode(nodeId);
+    }
+  }
+
+  public async getPyqs(filters?: {
+    subjectId?: string;
+    targetExamId?: string;
+    isImportant?: boolean;
+  }): Promise<CurriculumQuestion[]> {
+    const supabase = getSupabaseClient();
+    if (!supabase) return this.staticFallback.getPyqs(filters);
+
+    try {
+      let query = supabase
+        .from('questions')
+        .select('*, question_options(*)')
+        .eq('is_pyq', true);
+
+      if (filters?.subjectId) {
+        query = query.eq('subject_id', filters.subjectId);
+      }
+      if (filters?.targetExamId) {
+        query = query.eq('target_exam_id', filters.targetExamId);
+      }
+      if (filters?.isImportant !== undefined) {
+        query = query.eq('is_important', filters.isImportant);
+      }
+
+      query = query.order('appearance_frequency', { ascending: false }).order('source_year', { ascending: false });
+
+      const { data, error } = await query;
+      if (error || !data || data.length === 0) {
+        return this.staticFallback.getPyqs(filters);
+      }
+
+      return data.map((q) => ({
+        id: q.id,
+        curriculumNodeId: q.curriculum_node_id || '',
+        subjectId: q.subject_id,
+        conceptId: q.concept_id,
+        targetExamId: q.target_exam_id,
+        questionText: q.question_text,
+        questionType: q.question_type,
+        difficultyLevel: q.difficulty_level,
+        marks: q.marks ? Number(q.marks) : 4,
+        explanation: q.explanation || '',
+        hint: q.hint || '',
+        sourceExam: q.source_exam,
+        sourceYear: q.source_year,
+        sourceSession: q.source_session,
+        sourcePaperCode: q.source_paper_code,
+        isPyq: Boolean(q.is_pyq),
+        isImportant: Boolean(q.is_important),
+        appearanceFrequency: q.appearance_frequency || 1,
+        patternTags: q.pattern_tags || [],
+        isVerified: Boolean(q.is_verified),
+        options: (q.question_options || []).map((opt: any) => ({
+          id: opt.id,
+          optionKey: opt.option_key,
+          optionText: opt.option_text,
+          isCorrect: opt.is_correct,
+        })),
+      }));
+    } catch {
+      return this.staticFallback.getPyqs(filters);
+    }
+  }
+
+  public async getConceptsForNode(nodeId: string): Promise<any[]> {
+    const supabase = getSupabaseClient();
+    if (!supabase) return [];
+
+    try {
+      const { data, error } = await supabase
+        .from('concept_curriculum_mappings')
+        .select('concepts(*)')
+        .eq('curriculum_node_id', nodeId);
+
+      if (error || !data) return [];
+      return data.map((d: any) => d.concepts).filter(Boolean);
+    } catch {
+      return [];
     }
   }
 

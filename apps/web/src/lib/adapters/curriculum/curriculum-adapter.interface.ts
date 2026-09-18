@@ -23,6 +23,8 @@ export interface CurriculumAdapter {
   getTopics(chapterId: string): Promise<TopicNode[]>;
   getTopic(topicId: string): Promise<TopicNode | null>;
   getQuestionsForNode(nodeId: string): Promise<CurriculumQuestion[]>;
+  getPyqs(filters?: { subjectId?: string; targetExamId?: string; isImportant?: boolean }): Promise<CurriculumQuestion[]>;
+  getConceptsForNode?(nodeId: string): Promise<any[]>;
   getMaterialsForNode(nodeId: string): Promise<CurriculumMaterial[]>;
   getAllMaterials(filters?: { subjectId?: string; fileType?: string; searchQuery?: string }): Promise<CurriculumMaterial[]>;
   getMaterial(materialId: string): Promise<CurriculumMaterial | null>;

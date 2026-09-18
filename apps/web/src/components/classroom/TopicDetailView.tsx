@@ -41,6 +41,7 @@ export const TopicDetailView: React.FC<TopicDetailViewProps> = ({
   const [revealedHints, setRevealedHints] = useState<Record<string, boolean>>({});
   const [revealedSolutions, setRevealedSolutions] = useState<Record<string, boolean>>({});
   const [is3DActive, setIs3DActive] = useState<boolean>(true);
+  const [examFilter, setExamFilter] = useState<string>('all');
 
   const handleTabClick = (tab: TopicTab) => {
     setCurrentTab(tab);
@@ -134,6 +135,45 @@ export const TopicDetailView: React.FC<TopicDetailViewProps> = ({
         <h2 className={styles.topicTitle}>{topic.title}</h2>
         {topic.description && <p className={styles.topicDescription}>{topic.description}</p>}
       </div>
+
+      {/* Prerequisites & Student Model Hooks */}
+      {topic.prerequisites && topic.prerequisites.length > 0 && (
+        <div className={styles.prerequisitesCard}>
+          <div className={styles.prerequisitesHeader}>
+            <h4 className={styles.prerequisitesTitle}>
+              <Icon name="check" size="sm" />
+              <span>Academic Prerequisites & Diagnostic Readiness</span>
+            </h4>
+            <div
+              style={{
+                display: 'flex',
+                gap: '8px',
+                alignItems: 'center',
+                fontSize: '0.75rem',
+                color: 'var(--color-text-tertiary)',
+              }}
+            >
+              <span>
+                Mastery: <strong style={{ color: '#38bdf8' }}>{topic.masteryStatus || 'uncalibrated'}</strong>
+              </span>
+              <span>•</span>
+              <span>
+                Retention: <strong>{topic.retentionPercent ?? 100}%</strong>
+              </span>
+            </div>
+          </div>
+          <div className={styles.prerequisitesList}>
+            {topic.prerequisites.map((p) => (
+              <span key={p.id} className={styles.prereqItem}>
+                <span className={p.met ? styles.prereqStatusMet : styles.prereqStatusPending}>
+                  {p.met ? '✓' : '○'}
+                </span>
+                <span>{p.title}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Tabs Navigation: Notes, Formula Sheet, Artifacts, Questions */}
       <nav className={styles.tabsNav} role="tablist" aria-label="Topic Learning Resources">
@@ -420,14 +460,52 @@ export const TopicDetailView: React.FC<TopicDetailViewProps> = ({
             </Button>
           </div>
 
-          {questions.length === 0 ? (
-            <div className={styles.noteSectionCard}>
-              <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>
-                No past year questions currently indexed for this specific node. Practice diagnostic assessments in the Tests & Diagnostics tab.
-              </p>
-            </div>
-          ) : (
-            questions.map((q, idx) => {
+          {/* Exam Filter Pills */}
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '12px', marginBottom: '8px' }}>
+            {['all', 'JEE Main', 'NEET', 'JEE Advanced', 'CBSE Board'].map((exam) => (
+              <button
+                key={exam}
+                type="button"
+                onClick={() => setExamFilter(exam)}
+                style={{
+                  padding: '4px 12px',
+                  borderRadius: '9999px',
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  border: '1px solid',
+                  borderColor: examFilter === exam ? 'var(--color-text-primary)' : 'rgba(255, 255, 255, 0.1)',
+                  background: examFilter === exam ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+                  color: examFilter === exam ? '#fff' : 'var(--color-text-secondary)',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {exam === 'all' ? 'All Examinations' : exam}
+              </button>
+            ))}
+          </div>
+
+          {(() => {
+            const filteredQuestions =
+              examFilter === 'all'
+                ? questions
+                : questions.filter(
+                    (q) => q.sourceExam?.toLowerCase() === examFilter.toLowerCase()
+                  );
+
+            if (filteredQuestions.length === 0) {
+              return (
+                <div className={styles.noteSectionCard}>
+                  <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>
+                    {questions.length === 0
+                      ? 'No past year questions currently indexed for this specific node. Practice diagnostic assessments in the Tests & Diagnostics tab.'
+                      : `No past year questions indexed for ${examFilter}. Select "All Examinations" to view all available questions.`}
+                  </p>
+                </div>
+              );
+            }
+
+            return filteredQuestions.map((q, idx) => {
               const userAns = selectedAnswers[q.id];
               const isHintOpen = revealedHints[q.id];
               const isSolOpen = revealedSolutions[q.id];
@@ -435,11 +513,16 @@ export const TopicDetailView: React.FC<TopicDetailViewProps> = ({
               return (
                 <div key={q.id} className={styles.questionCard}>
                   <div className={styles.questionMetaRow}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                       <span className={styles.qNum}>Q{idx + 1}</span>
                       {q.isPyq && q.sourceExam && (
                         <span className={styles.examTag}>
                           {q.sourceExam} {q.sourceYear}
+                        </span>
+                      )}
+                      {q.sourceSession && (
+                        <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-tertiary)' }}>
+                          ({q.sourceSession})
                         </span>
                       )}
                       <span
@@ -453,6 +536,21 @@ export const TopicDetailView: React.FC<TopicDetailViewProps> = ({
                       >
                         {q.difficultyLevel.toUpperCase()}
                       </span>
+                      {q.isImportant && (
+                        <span className={styles.importantBadge}>
+                          🔥 High Yield
+                        </span>
+                      )}
+                      {q.appearanceFrequency && q.appearanceFrequency > 1 && (
+                        <span className={styles.frequencyBadge}>
+                          Repeated {q.appearanceFrequency}x
+                        </span>
+                      )}
+                      {q.marks && (
+                        <span className={styles.marksBadge}>
+                          {q.marks} Marks
+                        </span>
+                      )}
                     </div>
 
                     {q.isVerified && (
@@ -472,6 +570,17 @@ export const TopicDetailView: React.FC<TopicDetailViewProps> = ({
                   </div>
 
                   <div className={styles.questionText}>{q.questionText}</div>
+
+                  {/* Pattern tags */}
+                  {q.patternTags && q.patternTags.length > 0 && (
+                    <div className={styles.patternTagsList}>
+                      {q.patternTags.map((tag) => (
+                        <span key={tag} className={styles.patternTagChip}>
+                          #{tag.replace(/_/g, ' ')}
+                        </span>
+                      ))}
+                    </div>
+                  )}
 
                   {/* Options */}
                   {q.options && q.options.length > 0 && (
@@ -548,8 +657,8 @@ export const TopicDetailView: React.FC<TopicDetailViewProps> = ({
                   )}
                 </div>
               );
-            })
-          )}
+            });
+          })()}
         </div>
       )}
     </div>

@@ -139,3 +139,68 @@ All 9 parts of Phase 01 (Foundation, Database, Auth, Onboarding, Authenticated S
     - Local Windows build (`node ./run-next.js build`): 36/36 static pages exported cleanly (exit code 0).
     - Root build (`npm run build`): Exit code 0.
     - Typecheck (`tsc --noEmit`): 0 errors across entire workspace.
+
+- Phase 02 Completed: Backend Foundation, Auth/Authorization, File Subsystem, Search, and Shared Contracts (Parts 01–04):
+  - Express API Server (`backend/`):
+    - TypeScript server running on port 4000 with Helmet security headers, CORS origin filtering, compression, express.json limit 10mb, and Pino structured logging with request tracing.
+    - Zod environment validation (`backend/src/config/env.ts`) verifying PORT, NODE_ENV, SUPABASE_URL, and SUPABASE_SERVICE_ROLE_KEY.
+    - Centralized `AppError` hierarchy and global error handling returning standardized `ApiResponse<T>` envelopes.
+    - Supabase service-role client singleton (`backend/src/db/client.ts`).
+    - Health checks: `GET /health` and `GET /api/v1/health` (uptime, version, env), `GET /api/v1/health/db` (verifies live Supabase connectivity and query latency).
+  - Auth & Authorization (`backend/src/middleware/`):
+    - `requireAuth`: Extracts JWT from `Authorization: Bearer <token>` or session cookies, validates against `supabase.auth.getUser()`, and attaches enriched `req.user` profile.
+    - `requireRole`: Enforces platform role boundaries (`student`, `parent`, `teacher`, `admin`).
+    - `requireSelfOrAdmin`: Enforces user data isolation and validates parent/teacher links against `parent_student_links` and `teacher_student_links`.
+    - User and Student Profile endpoints (`GET /me`, `PATCH /me`, `GET /me/student-profile`, `PUT /me/student-profile`, `GET /:id`).
+    - Onboarding draft auto-save and completion endpoints (`GET /onboarding/draft`, `POST /onboarding/draft`, `POST /onboarding/complete`).
+  - File Subsystem & Search (`backend/src/modules/files`, `backend/src/modules/search`):
+    - Database migration `20260918000001_file_subsystem_and_search.sql` executed against live Supabase project: created `public.file_assets` table (100% RLS), `sharpmind_files` storage bucket (50MB limit), and full-text GIN search indexes on `curriculum_nodes`, `questions`, and `materials`.
+    - Pre-signed direct upload URLs (`POST /files/upload-url`) avoiding server memory overhead for user files (homework, notes, avatars).
+    - Pre-signed download URLs (`GET /files/:id/download`), user file listing with pagination (`GET /files`), and deletion (`DELETE /files/:id`).
+    - Search endpoint (`GET /search`): Unified text search across curriculum taxonomy, question bank/PYQs, and reference materials, with a pgvector-ready semantic search interface.
+  - Shared Packages & Web Integration:
+    - `@sharpmind/types` in `packages/types`: Canonical domain models (Auth, Onboarding, Curriculum, Settings, Tutor, Forms, Files, API) exported for both backend and client workspaces.
+    - `@sharpmind/api-client` in `packages/api-client`: Fully-typed isomorphic SDK with modular accessors (`api.health`, `api.users`, `api.onboarding`, `api.files`, `api.search`).
+    - `apps/web/src/lib/api.ts`: Web client instance wired to live Supabase session access tokens.
+    - `apps/web/src/lib/types/`: Transparent re-exports from `@sharpmind/types` preserving 100% backward compatibility with existing components and adapters.
+    - Webpack aliases and path mappings configured for zero-build-lag development.
+  - Verification:
+    - Backend automated test suite: 7/7 tests passed (`backend/src/__tests__/api.test.ts`).
+    - Backend typecheck (`npm run typecheck:backend`): 0 errors.
+    - Web typecheck (`npm run typecheck`): 0 errors.
+    - Next.js production build (`npm run build`): 36/36 static pages exported cleanly.
+    - Live health check: Web HTTP 200, Backend status ok, Backend DB connected.
+
+- Phase 03 Completed: Curriculum Engine, Academic Knowledge Graph, and Verified PYQ Subsystem (Parts 01–04):
+  - Database Migration & Schema Extensions (`infra/supabase/migrations/20260918000002_curriculum_knowledge_graph_and_pyq.sql`):
+    - Created `public.concepts` table for atomic, curriculum-agnostic learning objects with difficulty levels and common student misconceptions.
+    - Created `public.concept_curriculum_mappings` linking concepts many-to-many to curriculum nodes across multiple syllabi.
+    - Created `public.knowledge_graph_edges` table with typed relationships (`prerequisite_of`, `part_of`, `related_to`, `enables`, `common_misconception_of`) and edge weights.
+    - Created recursive PostgreSQL CTE function `public.get_concept_prerequisites(target_concept_id)` with depth tracking and cycle guards.
+    - Extended `curriculum_nodes` with `unit` node type, `academic_year`, `version`, `status` (`draft`, `published`, `archived`), `learning_objectives`, and `target_exam_ids`.
+    - Extended `questions` with `concept_id`, `target_exam_id`, `marks`, `is_important`, `appearance_frequency`, `pattern_tags`, `source_paper_code`, and `source_session`.
+    - 100% RLS enabled on all new tables with permissive public read access for curriculum data and authenticated writes.
+  - Backend Modules (`backend/src/modules/`):
+    - `curriculum/`: Hierarchy navigation (boards, grades, subjects, target exams, chapters, topics, subtopics), unit modeling, and curriculum node import/versioning with validation.
+    - `knowledge-graph/`: Concept creation, prerequisite edge creation, graph query endpoints, and DFS-based Directed Acyclic Graph (DAG) cycle detection in `GraphService.hasPrerequisiteCycle(sourceId, targetId)` rejecting cyclic insertions.
+    - `questions/`: PYQ retrieval with exam/topic/concept filters, question ingestion with deduplication on `(subject_id, question_text, source_exam, source_year)` which increments `appearance_frequency` and sets `is_important = true`, and exam pattern analysis (`getExamPatterns`).
+  - Authentic Academic Seeding:
+    - Executed `backend/src/scripts/seed_curriculum_and_pyqs.ts` against live Supabase database.
+    - Seeded 8 core foundational concepts across Physics, Chemistry, and Mathematics (Vectors, 1D Kinematics, Projectile Motion, Circular Motion, Newton's Laws, Work-Energy, VSEPR Theory, Limits/Continuity) with detailed misconceptions and remedies.
+    - Seeded 7 knowledge graph directed prerequisite and related edges.
+    - Seeded authentic verified PYQ examination questions from JEE Main, JEE Advanced, and NEET UG with step-by-step verified solutions, King's property definite integrals, Taylor series limits, FBDs, and Socratic hints.
+  - Classroom UI Integration (`apps/web`):
+    - Enhanced `SupabaseCurriculumAdapter` to fetch live questions, authentic PYQs with frequency counters, marks, pattern tags, and mapped concepts with graceful offline fallback.
+    - Enhanced `TopicDetailView`:
+      - Added Academic Prerequisites & Diagnostic Readiness card displaying topic prerequisites with met/pending status and calibration hooks (`masteryStatus`, `retentionPercent`).
+      - Added interactive examination filter pills (All, JEE Main, NEET, JEE Advanced, CBSE Board).
+      - Added visual badges for high-yield questions (`🔥 High Yield`), repeated question frequency (`Repeated 3x`), marks allocation (`4 Marks`), verified provenance, and pattern tags (`#projectile standard`, `#taylor series`).
+  - Architecture Documentation:
+    - Created ADR 0004: `docs/architecture/adr/0004-academic-knowledge-graph-and-curriculum-engine.md`.
+  - Comprehensive Verification:
+    - Backend automated test suite: 22/22 tests passed across 4 test suites (`api.test.ts`, `curriculum.test.ts`, `graph.test.ts`, `pyq.test.ts`).
+    - Backend typecheck (`npm --prefix backend run typecheck`): 0 errors.
+    - Web typecheck (`npm --prefix apps/web run typecheck`): 0 errors.
+    - Live dev servers: Backend responding on `http://127.0.0.1:4000/api/v1/health` (`status=ok`), Web responding on `http://127.0.0.1:3000/app/classroom/` (HTTP 200).
+
+

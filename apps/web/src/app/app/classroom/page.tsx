@@ -133,7 +133,12 @@ function ClassroomHierarchyContent() {
       try {
         const [topList, qList, matList] = await Promise.all([
           curriculumAdapter.getTopics(chapterId),
-          curriculumAdapter.getQuestionsForNode(chapterId),
+          topicId
+            ? curriculumAdapter.getQuestionsForNode(topicId).then(async (tQs) => {
+                if (tQs.length > 0) return tQs;
+                return curriculumAdapter.getQuestionsForNode(chapterId);
+              })
+            : curriculumAdapter.getQuestionsForNode(chapterId),
           curriculumAdapter.getMaterialsForNode(chapterId),
         ]);
         if (isMounted) {
@@ -150,7 +155,7 @@ function ClassroomHierarchyContent() {
     return () => {
       isMounted = false;
     };
-  }, [chapterId]);
+  }, [chapterId, topicId]);
 
   // Current entity lookups
   const currentSubject = useMemo(

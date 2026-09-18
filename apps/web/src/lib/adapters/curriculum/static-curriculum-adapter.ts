@@ -252,6 +252,28 @@ export class StaticCurriculumAdapter implements CurriculumAdapter {
     return CANONICAL_QUESTIONS.filter((q) => q.curriculumNodeId === nodeId);
   }
 
+  public async getPyqs(filters?: {
+    subjectId?: string;
+    targetExamId?: string;
+    isImportant?: boolean;
+  }): Promise<CurriculumQuestion[]> {
+    let list = CANONICAL_QUESTIONS.filter((q) => q.isPyq);
+    if (filters?.subjectId) {
+      list = list.filter((q) => q.subjectId === filters.subjectId);
+    }
+    if (filters?.targetExamId) {
+      list = list.filter((q) => q.targetExamId === filters.targetExamId);
+    }
+    if (filters?.isImportant !== undefined) {
+      list = list.filter((q) => Boolean(q.isImportant) === filters.isImportant);
+    }
+    return list;
+  }
+
+  public async getConceptsForNode(_nodeId: string): Promise<any[]> {
+    return [];
+  }
+
   public async getMaterialsForNode(nodeId: string): Promise<CurriculumMaterial[]> {
     return CANONICAL_MATERIALS.filter((m) => m.curriculumNodeId === nodeId);
   }
