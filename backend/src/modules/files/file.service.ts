@@ -106,8 +106,31 @@ export class FileService {
     }
 
     // Permission check
-    if (asset.user_id !== userId && userRole !== 'admin' && userRole !== 'teacher') {
-      throw new ForbiddenError('You do not have permission to access this file');
+    if (asset.user_id !== userId && userRole !== 'admin') {
+      let isAuthorized = false;
+      if (userRole === 'parent') {
+        const { data: link } = await supabase
+          .from('parent_student_links')
+          .select('id')
+          .eq('parent_id', userId)
+          .eq('student_id', asset.user_id)
+          .eq('consent_status', 'approved')
+          .maybeSingle();
+        if (link) isAuthorized = true;
+      } else if (userRole === 'teacher') {
+        const { data: link } = await supabase
+          .from('teacher_student_links')
+          .select('id')
+          .eq('teacher_id', userId)
+          .eq('student_id', asset.user_id)
+          .eq('consent_status', 'approved')
+          .maybeSingle();
+        if (link) isAuthorized = true;
+      }
+
+      if (!isAuthorized) {
+        throw new ForbiddenError('You do not have permission to access this file');
+      }
     }
 
     return {

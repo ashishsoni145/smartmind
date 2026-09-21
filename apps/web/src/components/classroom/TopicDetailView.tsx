@@ -13,6 +13,7 @@ import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { FormulaCard } from '@/components/ui/MathFormula';
 import { VisualLearningViewer } from '@/components/visual/VisualLearningViewer';
+import { apiClient } from '@/lib/api-client';
 import styles from './TopicDetailView.module.css';
 
 export type TopicTab = 'notes' | 'formulas' | 'artifacts' | 'questions';
@@ -38,6 +39,18 @@ export const TopicDetailView: React.FC<TopicDetailViewProps> = ({
 }) => {
   const [currentTab, setCurrentTab] = useState<TopicTab>(activeTab);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
+  const [evaluations, setEvaluations] = useState<
+    Record<
+      string,
+      {
+        isCorrect: boolean;
+        explanation?: string;
+        correctOptions?: string[];
+        marksAwarded?: number;
+      }
+    >
+  >({});
+  const [validatingQuestionId, setValidatingQuestionId] = useState<string | null>(null);
   const [revealedHints, setRevealedHints] = useState<Record<string, boolean>>({});
   const [revealedSolutions, setRevealedSolutions] = useState<Record<string, boolean>>({});
   const [is3DActive, setIs3DActive] = useState<boolean>(true);
@@ -50,8 +63,27 @@ export const TopicDetailView: React.FC<TopicDetailViewProps> = ({
     }
   };
 
-  const handleOptionSelect = (questionId: string, optionKey: string) => {
+  const handleOptionSelect = async (questionId: string, optionKey: string) => {
     setSelectedAnswers((prev) => ({ ...prev, [questionId]: optionKey }));
+    setValidatingQuestionId(questionId);
+    try {
+      const result = await apiClient.questions.validate(questionId, {
+        selectedOptions: [optionKey],
+      });
+      setEvaluations((prev) => ({
+        ...prev,
+        [questionId]: {
+          isCorrect: result.isCorrect,
+          explanation: result.explanation,
+          correctOptions: result.correctOptions || [],
+          marksAwarded: result.marksAwarded,
+        },
+      }));
+    } catch (err) {
+      console.error('Failed to validate question answer:', err);
+    } finally {
+      setValidatingQuestionId(null);
+    }
   };
 
   const toggleHint = (questionId: string) => {
@@ -586,18 +618,21 @@ export const TopicDetailView: React.FC<TopicDetailViewProps> = ({
                   {q.options && q.options.length > 0 && (
                     <div className={styles.optionsList}>
                       {q.options.map((opt) => {
+                        const evalResult = evaluations[q.id];
                         const isSelected = userAns === opt.optionKey;
-                        const isCorrect = opt.isCorrect;
+                        const isCorrectOption = evalResult?.correctOptions?.includes(opt.optionKey) || (isSelected && evalResult?.isCorrect);
                         let optionClass = styles.optionItem;
 
-                        if (userAns) {
+                        if (evalResult) {
                           if (isSelected) {
-                            optionClass += isCorrect
+                            optionClass += evalResult.isCorrect
                               ? ` ${styles.optionCorrect}`
                               : ` ${styles.optionIncorrect}`;
-                          } else if (isCorrect) {
+                          } else if (isCorrectOption) {
                             optionClass += ` ${styles.optionCorrect}`;
                           }
+                        } else if (isSelected) {
+                          optionClass += ` ${styles.optionCorrect}`;
                         }
 
                         return (
@@ -605,6 +640,7 @@ export const TopicDetailView: React.FC<TopicDetailViewProps> = ({
                             key={opt.id}
                             type="button"
                             className={optionClass}
+                            disabled={validatingQuestionId === q.id}
                             onClick={() => handleOptionSelect(q.id, opt.optionKey)}
                           >
                             <span className={styles.optionLetter}>{opt.optionKey}</span>
@@ -612,6 +648,51 @@ export const TopicDetailView: React.FC<TopicDetailViewProps> = ({
                           </button>
                         );
                       })}
+                    </div>
+                  )}
+
+                  {/* Server Validation Feedback */}
+                  {evaluations[q.id] && (
+                    <div
+                      style={{
+                        marginTop: '12px',
+                        padding: '12px 16px',
+                        borderRadius: '8px',
+                        background: evaluations[q.id].isCorrect
+                          ? 'rgba(16, 185, 129, 0.1)'
+                          : 'rgba(239, 68, 68, 0.1)',
+                        border: `1px solid ${
+                          evaluations[q.id].isCorrect
+                            ? 'rgba(16, 185, 129, 0.3)'
+                            : 'rgba(239, 68, 68, 0.3)'
+                        }`,
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontWeight: 600,
+                          fontSize: '0.875rem',
+                          color: evaluations[q.id].isCorrect ? '#10b981' : '#ef4444',
+                          marginBottom: '4px',
+                        }}
+                      >
+                        {evaluations[q.id].isCorrect
+                          ? `✓ Correct Answer! (+${evaluations[q.id].marksAwarded || q.marks || 4} Marks)`
+                          : '✗ Incorrect. Review the verified derivation below.'}
+                      </div>
+                      {evaluations[q.id].explanation && (
+                        <p
+                          style={{
+                            margin: '4px 0 0',
+                            fontSize: '0.8125rem',
+                            lineHeight: 1.5,
+                            color: 'var(--color-text-secondary)',
+                          }}
+                        >
+                          <strong>Solution: </strong>
+                          {evaluations[q.id].explanation}
+                        </p>
+                      )}
                     </div>
                   )}
 
@@ -628,7 +709,7 @@ export const TopicDetailView: React.FC<TopicDetailViewProps> = ({
                       </button>
                     )}
 
-                    {q.explanation && (
+                    {Boolean(evaluations[q.id]?.explanation) && (
                       <button
                         type="button"
                         className={styles.solBtn}
@@ -651,8 +732,13 @@ export const TopicDetailView: React.FC<TopicDetailViewProps> = ({
                   {/* Solution Reveal */}
                   {isSolOpen && (
                     <div className={styles.solutionBox}>
-                      <strong>Verified Step-by-Step Derivation: </strong>
-                      {q.explanation}
+                      <div className={styles.solutionHeader}>
+                        <Icon name="check" size="xs" />
+                        <span>Authentic Examination Solution & Derivation</span>
+                      </div>
+                      <div className={styles.solutionText}>
+                        {evaluations[q.id]?.explanation || 'Solution steps verified against standard syllabus.'}
+                      </div>
                     </div>
                   )}
                 </div>

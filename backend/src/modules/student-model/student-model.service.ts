@@ -230,9 +230,24 @@ export class StudentModelService {
       .eq('id', studentId)
       .maybeSingle();
 
-    if (!studentProfile) throw new NotFoundError(`Student profile not found: ${studentId}`);
+    // 2. Idempotency check: if sourceRefId is provided, avoid duplicate evidence insertion
+    if (input.sourceRefId) {
+      const { data: existingEv } = await supabase
+        .from('evidence_logs')
+        .select('*')
+        .eq('student_id', studentId)
+        .eq('source_ref_id', input.sourceRefId)
+        .maybeSingle();
 
-    // 2. Insert immutable evidence log
+      if (existingEv) {
+        return {
+          evidenceLog: mapEvidenceLogRow(existingEv),
+          updatedState: null,
+        };
+      }
+    }
+
+    // 3. Insert immutable evidence log
     const evidencePayload = {
       student_id: studentId,
       curriculum_node_id: input.curriculumNodeId || null,

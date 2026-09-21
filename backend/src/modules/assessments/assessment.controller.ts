@@ -1,19 +1,25 @@
 import { Request, Response, NextFunction } from 'express';
 import { AssessmentService } from './assessment.service';
-import { sendCreated, sendPaginated, sendSuccess } from '../../lib/api-response';
-import type {
+import { sendCreated, sendSuccess } from '../../lib/api-response';
+import {
   ListAssessmentsQueryInput,
   CreateAssessmentInput,
   AutosaveAnswerInput,
   SubmitAssessmentInput,
 } from './assessment.schema';
+import { IdentityService } from '../auth/identity.service';
 
 export class AssessmentController {
+  private static async resolveStudentProfileId(req: Request): Promise<string> {
+    if (req.studentProfileId) return req.studentProfileId;
+    return IdentityService.getStudentProfileIdForUser(req.user!.id);
+  }
+
   public static async listAssessments(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const filters = req.query as unknown as ListAssessmentsQueryInput;
-      const { assessments, total } = await AssessmentService.listAssessments(filters);
-      sendPaginated(res, assessments, total, filters.page || 1, filters.limit || 20);
+      const assessments = await AssessmentService.listAssessments(filters);
+      sendSuccess(res, assessments);
     } catch (err) {
       next(err);
     }
@@ -42,8 +48,8 @@ export class AssessmentController {
   public static async startAttempt(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
-      const studentId = req.user!.id;
-      const session = await AssessmentService.startTestAttempt(id, studentId);
+      const studentProfileId = await AssessmentController.resolveStudentProfileId(req);
+      const session = await AssessmentService.startTestAttempt(id, studentProfileId);
       sendCreated(res, session);
     } catch (err) {
       next(err);
@@ -53,9 +59,9 @@ export class AssessmentController {
   public static async autosaveAnswer(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { submissionId } = req.params;
-      const studentId = req.user!.id;
+      const studentProfileId = await AssessmentController.resolveStudentProfileId(req);
       const input = req.body as AutosaveAnswerInput;
-      const result = await AssessmentService.autosaveAnswer(submissionId, studentId, input);
+      const result = await AssessmentService.autosaveAnswer(submissionId, studentProfileId, input);
       sendSuccess(res, result);
     } catch (err) {
       next(err);
@@ -65,8 +71,8 @@ export class AssessmentController {
   public static async resumeAttempt(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { submissionId } = req.params;
-      const studentId = req.user!.id;
-      const session = await AssessmentService.resumeTestAttempt(submissionId, studentId);
+      const studentProfileId = await AssessmentController.resolveStudentProfileId(req);
+      const session = await AssessmentService.resumeTestAttempt(submissionId, studentProfileId);
       sendSuccess(res, session);
     } catch (err) {
       next(err);
@@ -76,9 +82,9 @@ export class AssessmentController {
   public static async submitAttempt(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { submissionId } = req.params;
-      const studentId = req.user!.id;
+      const studentProfileId = await AssessmentController.resolveStudentProfileId(req);
       const input = req.body as SubmitAssessmentInput;
-      const submission = await AssessmentService.submitTestAttempt(submissionId, studentId, input);
+      const submission = await AssessmentService.submitTestAttempt(submissionId, studentProfileId, input);
       sendSuccess(res, submission);
     } catch (err) {
       next(err);

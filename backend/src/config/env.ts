@@ -6,7 +6,7 @@ import { z } from 'zod';
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 dotenv.config(); // fallback to local cwd .env
 
-const envSchema = z.object({
+export const envSchema = z.object({
   PORT: z.coerce.number().default(4000),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   SUPABASE_URL: z.string().url().default(
@@ -19,11 +19,25 @@ const envSchema = z.object({
   CORS_ORIGIN: z.string().default('http://localhost:3000'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
   API_PREFIX: z.string().default('/api/v1'),
-  AI_PROVIDER_PRIMARY: z.enum(['groq', 'gemini', 'openrouter', 'mock']).default('mock'),
+  AI_PROVIDER_PRIMARY: z.enum(['groq', 'gemini', 'openrouter', 'mock']).default('gemini'),
   AI_GROQ_API_KEY: z.string().optional().default(process.env.GROQ_API_KEY || ''),
   AI_GEMINI_API_KEY: z.string().optional().default(process.env.GEMINI_API_KEY || ''),
   AI_OPENROUTER_API_KEY: z.string().optional().default(process.env.OPENROUTER_API_KEY || ''),
-});
+  APP_MODE: z.enum(['production', 'development', 'demo', 'test']).optional().default(
+    (process.env.APP_MODE as any) || 'development'
+  ),
+}).refine(
+  (data) => {
+    if (data.NODE_ENV === 'production' && data.APP_MODE !== 'demo') {
+      return data.AI_PROVIDER_PRIMARY !== 'mock';
+    }
+    return true;
+  },
+  {
+    message: 'AI_PROVIDER_PRIMARY cannot be set to "mock" in production mode unless APP_MODE is demo',
+    path: ['AI_PROVIDER_PRIMARY'],
+  }
+);
 
 const parseEnv = () => {
   const result = envSchema.safeParse({
@@ -39,6 +53,7 @@ const parseEnv = () => {
     AI_GROQ_API_KEY: process.env.AI_GROQ_API_KEY || process.env.GROQ_API_KEY,
     AI_GEMINI_API_KEY: process.env.AI_GEMINI_API_KEY || process.env.GEMINI_API_KEY,
     AI_OPENROUTER_API_KEY: process.env.AI_OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY,
+    APP_MODE: process.env.APP_MODE,
   });
 
   if (!result.success) {

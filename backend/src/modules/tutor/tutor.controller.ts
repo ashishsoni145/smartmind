@@ -9,7 +9,7 @@ import { UnauthorizedError } from '../../lib/errors';
 
 export class TutorController {
   private static getUserId(req: Request): string {
-    const userId = req.user?.id || (req.headers['x-student-id'] as string);
+    const userId = req.user?.id;
     if (!userId) {
       throw new UnauthorizedError('User ID could not be identified');
     }

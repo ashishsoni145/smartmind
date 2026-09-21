@@ -29,36 +29,9 @@ export function NotificationsDrawer({ isOpen, onClose }: NotificationsDrawerProp
     try {
       const res = await apiClient.notifications.list({ limit: 20 });
       setNotifications(res.notifications || []);
-    } catch {
-      // Fallback
-      setNotifications([
-        {
-          id: 'notif-1',
-          studentId: 'student',
-          type: 'action_required',
-          title: 'Foundational Diagnostic Ready',
-          message: 'Take your calibrated 45-minute assessment to unlock personalized recommendations.',
-          actionUrl: '/app/diagnostic',
-          actionRequired: true,
-          actionLabel: 'Begin Diagnostic',
-          isRead: false,
-          scheduledFor: new Date().toISOString(),
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: 'notif-2',
-          studentId: 'student',
-          type: 'revision_due',
-          title: 'Spaced Repetition Queue',
-          message: 'Active cards in Electrostatics and Mechanics are due for optimal memory consolidation.',
-          actionUrl: '/app/revision',
-          actionRequired: true,
-          actionLabel: 'Review Queue',
-          isRead: false,
-          scheduledFor: new Date().toISOString(),
-          createdAt: new Date().toISOString(),
-        },
-      ]);
+    } catch (err) {
+      console.error('Failed to load notifications from backend:', err);
+      setNotifications([]);
     } finally {
       setIsLoading(false);
     }

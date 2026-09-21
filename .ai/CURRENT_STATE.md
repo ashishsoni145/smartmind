@@ -391,3 +391,52 @@ All 9 parts of Phase 01 (Foundation, Database, Auth, Onboarding, Authenticated S
     - 216/216 backend Vitest tests passed across all 24 suites.
     - TypeScript compilation (`npm run typecheck:all`): 0 errors in backend and web.
     - Production Next.js build (`npm run build`): 36/36 static pages exported cleanly with 0 errors.
+
+- Priority P0/P1 Remediation Completed: Canonical Identity, Tenant Isolation, Zero-Leakage & Production AI Security (2026-09-21):
+  - Canonical Identity Resolution Architecture:
+    - Built `IdentityService` (`backend/src/modules/auth/identity.service.ts`) resolving both `auth.users.id` / `profiles.id` and `student_profiles.id` with memory caching and automatic initialization for legacy student profiles.
+    - Added `req.studentProfileId` to Express types (`backend/src/types/express.d.ts`).
+    - Implemented `resolveStudentProfile` middleware (`backend/src/middleware/identity.ts`).
+  - Cross-Tenant Isolation Enforcement:
+    - Implemented `requireStudentOrMentor` and `requireResourceOwner` middlewares (`backend/src/middleware/authorization.ts`).
+    - Protected all 14 student endpoints across the entire backend:
+      - Student model routes (`student-model.routes.ts`)
+      - Diagnostic routes (`diagnostic.routes.ts`)
+      - Backlog & Planner routes (`backlog.routes.ts`, `planner.routes.ts`)
+      - Revision routes (`revision.routes.ts`)
+      - Readiness scoring (`readiness.routes.ts`, `readiness.controller.ts`)
+      - Mistake notebook (`mistake.routes.ts`, `mistake.controller.ts`)
+      - Assessments & test attempts (`assessment.routes.ts`, `assessment.controller.ts`)
+      - Study & focus sessions (`focus.routes.ts`, `focus.controller.ts`, removed insecure `x-student-id`)
+      - AI tutor sessions (`tutor.routes.ts`, `tutor.controller.ts`)
+      - Study materials (`material.routes.ts`, `material.controller.ts`)
+      - Files & uploads (`file.routes.ts`, `file.service.ts`, verified student/mentor relationship)
+      - Notifications (`notification.routes.ts`, `notification.controller.ts`)
+      - Analytics (`analytics.routes.ts`, `analytics.controller.ts`)
+  - Question Answer-Key Zero-Leakage Protection:
+    - Implemented server-side `sanitizeQuestionForClient` (`question.rules.ts`) stripping `isCorrect`, `is_correct`, `explanation`, `solution_steps`, `hints`.
+    - Sanitized all student question endpoints in `question.controller.ts` (`listQuestions`, `getPyqs`, `getImportantQuestions`, `getQuestionById`, `selectAdaptive`).
+    - Applied Supabase RLS migration `20260921000005_question_answer_security_and_rls.sql`: created secure public views `student_questions` and `student_question_options`; revoked public table read on `question_options`.
+    - Updated `@sharpmind/types` and `@sharpmind/api-client` with `apiClient.questions.validate` for secure server-side answer verification.
+    - Updated `TopicDetailView.tsx` to validate answers via API rather than reading client-side booleans.
+  - Production AI Guardrails & Mock Removal:
+    - In `backend/src/ai/router/model-router.ts`, eliminated mock fallback in production.
+    - Throws `AiServiceUnavailableError` when all configured AI providers fail in production.
+    - Validated in `backend/src/config/env.ts` that `AI_PROVIDER_PRIMARY` cannot be `'mock'` when `NODE_ENV === 'production'`.
+  - CORS Security Hardening:
+    - In `backend/src/app.ts`, eliminated the permissive `callback(null, true)` fallback.
+    - Enforces configured origin allowlist; rejects unauthorized cross-origin callers.
+  - Idempotent Assessment Submissions & Mistake Logging:
+    - In `backend/src/modules/assessments/assessment.service.ts`, `submitTestAttempt` returns existing completed submissions without error or duplicate records.
+    - Mistake logging guards against duplicates per submission and question.
+    - Evidence logging trace-linked via `sourceRefId`.
+  - Elimination of Fake Academic Data:
+    - Removed hardcoded fake baseline diagnostic questions and client-side scoring from `apps/web/src/app/app/page.tsx`; routed to `/app/tests?type=diagnostic`.
+    - Removed fake notifications from `NotificationsDrawer.tsx`.
+    - Removed fake local study session IDs from `apps/web/src/app/app/focus/page.tsx`.
+    - Removed hardcoded default student identities from `local-settings-adapter.ts` and `settings/page.tsx`.
+  - Comprehensive Verification:
+    - Added automated security and tenant isolation test suite `backend/src/__tests__/security-authorization.test.ts`.
+    - 25/25 test files passed, 227/227 tests passed.
+    - Full monorepo typecheck passed with 0 errors (`npm run typecheck:all`).
+    - Next.js production build (`npm run build`) and backend build (`npm run build:backend`) passed with 0 errors.

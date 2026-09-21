@@ -8,12 +8,11 @@ import {
 import { UnauthorizedError } from '../../lib/errors';
 
 export class NotificationController {
-  private static getStudentId(req: Request): string {
-    const studentId = req.user?.id || (req.headers['x-student-id'] as string);
-    if (!studentId) {
+  private static async getStudentId(req: Request): Promise<string> {
+    if (!req.user) {
       throw new UnauthorizedError('Student authentication required');
     }
-    return studentId;
+    return req.user.id;
   }
 
   /**
@@ -21,7 +20,7 @@ export class NotificationController {
    */
   public static async getPreferences(req: Request, res: Response, next: NextFunction) {
     try {
-      const studentId = NotificationController.getStudentId(req);
+      const studentId = await NotificationController.getStudentId(req);
       const prefs = await NotificationService.getPreferences(studentId);
       res.json({ success: true, data: prefs });
     } catch (err) {
@@ -34,7 +33,7 @@ export class NotificationController {
    */
   public static async updatePreferences(req: Request, res: Response, next: NextFunction) {
     try {
-      const studentId = NotificationController.getStudentId(req);
+      const studentId = await NotificationController.getStudentId(req);
       const input = updateNotificationPreferencesSchema.parse(req.body);
       const prefs = await NotificationService.updatePreferences(studentId, input);
       res.json({ success: true, data: prefs });
@@ -48,7 +47,7 @@ export class NotificationController {
    */
   public static async createNotification(req: Request, res: Response, next: NextFunction) {
     try {
-      const studentId = NotificationController.getStudentId(req);
+      const studentId = await NotificationController.getStudentId(req);
       const input = createNotificationSchema.parse(req.body);
       const notif = await NotificationService.createNotification(studentId, input);
       res.status(201).json({ success: true, data: notif });
@@ -62,7 +61,7 @@ export class NotificationController {
    */
   public static async listNotifications(req: Request, res: Response, next: NextFunction) {
     try {
-      const studentId = NotificationController.getStudentId(req);
+      const studentId = await NotificationController.getStudentId(req);
       const query = listNotificationsQuerySchema.parse(req.query);
       const result = await NotificationService.listNotifications(studentId, query);
       res.json({
@@ -82,7 +81,7 @@ export class NotificationController {
    */
   public static async getPendingActionRequired(req: Request, res: Response, next: NextFunction) {
     try {
-      const studentId = NotificationController.getStudentId(req);
+      const studentId = await NotificationController.getStudentId(req);
       const items = await NotificationService.getPendingActionRequired(studentId);
       res.json({ success: true, data: items });
     } catch (err) {
@@ -95,7 +94,7 @@ export class NotificationController {
    */
   public static async markAsRead(req: Request, res: Response, next: NextFunction) {
     try {
-      const studentId = NotificationController.getStudentId(req);
+      const studentId = await NotificationController.getStudentId(req);
       const notif = await NotificationService.markAsRead(req.params.notificationId, studentId);
       res.json({ success: true, data: notif });
     } catch (err) {
@@ -108,7 +107,7 @@ export class NotificationController {
    */
   public static async markAllAsRead(req: Request, res: Response, next: NextFunction) {
     try {
-      const studentId = NotificationController.getStudentId(req);
+      const studentId = await NotificationController.getStudentId(req);
       const count = await NotificationService.markAllAsRead(studentId);
       res.json({ success: true, markedCount: count });
     } catch (err) {

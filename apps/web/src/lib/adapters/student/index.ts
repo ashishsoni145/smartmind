@@ -10,6 +10,10 @@ function createStudentProfileAdapter(): StudentProfileAdapter {
     return new SupabaseStudentProfileAdapter();
   }
 
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Critical Configuration Error: Supabase credentials are missing in production.');
+  }
+
   return new LocalStudentProfileAdapter();
 }
 

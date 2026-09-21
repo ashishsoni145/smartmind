@@ -26,85 +26,6 @@ const SUBJECT_CATALOG: Record<string, SubjectInfo> = {
   english: { id: 'english', name: 'English Core', icon: 'english' },
 };
 
-// Authentic baseline questions linked to canonical Supabase question records
-const BASELINE_DIAGNOSTIC_QUESTIONS = [
-  {
-    id: 'diag-q1',
-    questionUuid: 'd0000001-0000-0000-0000-000000000001',
-    subject: 'Physics',
-    topic: 'Kinematics & Projectile Motion',
-    difficulty: 'medium',
-    text: 'A particle moves along the x-axis such that its position is given by x(t) = 3t^2 - 12t + 5 (in SI units). At what time does the velocity of the particle become zero?',
-    options: [
-      { key: 'A', text: 't = 1 second' },
-      { key: 'B', text: 't = 2 seconds' },
-      { key: 'C', text: 't = 4 seconds' },
-      { key: 'D', text: 't = 0 seconds' },
-    ],
-    correctKey: 'B',
-  },
-  {
-    id: 'diag-q2',
-    questionUuid: 'd0000001-0000-0000-0000-000000000004',
-    subject: 'Chemistry',
-    topic: 'Chemical Bonding & VSEPR',
-    difficulty: 'medium',
-    text: 'Which of the following molecules has a zero dipole moment due to symmetric planar geometry according to VSEPR theory?',
-    options: [
-      { key: 'A', text: 'NH3 (Ammonia)' },
-      { key: 'B', text: 'BF3 (Boron Trifluoride)' },
-      { key: 'C', text: 'PCl3 (Phosphorus Trichloride)' },
-      { key: 'D', text: 'ClF3 (Chlorine Trifluoride)' },
-    ],
-    correctKey: 'B',
-  },
-  {
-    id: 'diag-q3',
-    questionUuid: 'd0000001-0000-0000-0000-000000000005',
-    subject: 'Mathematics',
-    topic: 'Differential Calculus & Derivatives',
-    difficulty: 'hard',
-    text: 'Find the derivative of f(x) = ln(sin(x)) with respect to x for 0 < x < pi.',
-    options: [
-      { key: 'A', text: 'cot(x)' },
-      { key: 'B', text: 'tan(x)' },
-      { key: 'C', text: '1 / sin(x)' },
-      { key: 'D', text: '-cot(x)' },
-    ],
-    correctKey: 'A',
-  },
-  {
-    id: 'diag-q4',
-    questionUuid: 'd0000001-0000-0000-0000-000000000002',
-    subject: 'Physics',
-    topic: 'Electrostatics & Potential',
-    difficulty: 'hard',
-    text: 'Two point charges +q and -q are placed at distance d apart in vacuum. The electric potential at the midpoint between them is:',
-    options: [
-      { key: 'A', text: '2kq / d' },
-      { key: 'B', text: '4kq / d' },
-      { key: 'C', text: '0 (Zero)' },
-      { key: 'D', text: 'kq / (2d)' },
-    ],
-    correctKey: 'C',
-  },
-  {
-    id: 'diag-q5',
-    questionUuid: 'd0000001-0000-0000-0000-000000000003',
-    subject: 'Chemistry',
-    topic: 'Solutions & Concentration',
-    difficulty: 'easy',
-    text: 'What is the molarity of a solution prepared by dissolving 4.0 g of NaOH in water to form 250 mL of solution? (Molar mass of NaOH = 40 g/mol)',
-    options: [
-      { key: 'A', text: '0.1 M' },
-      { key: 'B', text: '0.2 M' },
-      { key: 'C', text: '0.4 M' },
-      { key: 'D', text: '0.05 M' },
-    ],
-    correctKey: 'C',
-  },
-];
-
 interface DashboardTask {
   id: string;
   sessionId?: string;
@@ -163,15 +84,6 @@ export default function WorkspaceDashboard() {
 
   // Spaced Repetition Due State (SM-2)
   const [dueRevisions, setDueRevisions] = useState<DashboardRevisionItem[]>([]);
-
-  // Diagnostic Modal State
-  const [isDiagnosticOpen, setIsDiagnosticOpen] = useState(false);
-  const [currentQIndex, setCurrentQIndex] = useState(0);
-  const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
-  const [userConfidences, setUserConfidences] = useState<Record<string, number>>({});
-  const [diagnosticSubmitted, setDiagnosticSubmitted] = useState(false);
-  const [diagnosticScore, setDiagnosticScore] = useState<{ correct: number; total: number } | null>(null);
-  const [isSubmittingDiagnostic, setIsSubmittingDiagnostic] = useState(false);
 
   const loadProfileAndState = useCallback(async (userId: string) => {
     setIsLoading(true);
@@ -301,81 +213,6 @@ export default function WorkspaceDashboard() {
       loadProfileAndState(user.id);
     }
   }, [user?.id, loadProfileAndState]);
-
-  // Handle Diagnostic Answer Selection
-  const handleSelectOption = (questionId: string, optionKey: string) => {
-    setUserAnswers((prev) => ({ ...prev, [questionId]: optionKey }));
-  };
-
-  const handleSelectConfidence = (questionId: string, level: number) => {
-    setUserConfidences((prev) => ({ ...prev, [questionId]: level }));
-  };
-
-  const handleSubmitDiagnostic = async () => {
-    if (!user?.id) return;
-    setIsSubmittingDiagnostic(true);
-
-    try {
-      let correct = 0;
-      const total = BASELINE_DIAGNOSTIC_QUESTIONS.length;
-
-      // Authentically record evidence logs for every question
-      for (const q of BASELINE_DIAGNOSTIC_QUESTIONS) {
-        const isCorrect = userAnswers[q.id] === q.correctKey;
-        if (isCorrect) correct++;
-        const confidence = userConfidences[q.id] || 3;
-
-        try {
-          await apiClient.studentModel.recordEvidence(user.id, {
-            questionId: q.questionUuid,
-            evidenceType: 'diagnostic_test',
-            scoreOrPerformance: isCorrect ? 100 : 0,
-            isCorrect,
-            confidenceSelfReport: confidence,
-            difficultyLevel: q.difficulty as any,
-            sessionType: 'baseline_diagnostic',
-            provenanceSource: 'baseline_modal',
-          });
-        } catch (evErr) {
-          console.warn('Failed recording evidence for question', q.id, evErr);
-        }
-      }
-
-      setDiagnosticScore({ correct, total });
-      setDiagnosticSubmitted(true);
-
-      // Trigger server-side backlog generation and model update
-      try {
-        await apiClient.backlog.refresh(user.id);
-      } catch {
-        // Handled server-side
-      }
-
-      // Update profile onboarding status
-      if (profile) {
-        const updatedProfile: StudentProfile = {
-          ...profile,
-          knowledgeModelAttachment: {
-            status: 'calibrated',
-            lastCalibratedAt: new Date().toISOString(),
-          },
-          onboardingStatus: {
-            ...profile.onboardingStatus,
-            nextAction: 'go_to_dashboard',
-          },
-        };
-        await studentProfileAdapter.completeOnboarding(user.id, updatedProfile);
-        setProfile(updatedProfile);
-      }
-
-      // Reload real calibrated state from backend
-      await loadProfileAndState(user.id);
-    } catch (err) {
-      console.error('Error submitting diagnostic assessment:', err);
-    } finally {
-      setIsSubmittingDiagnostic(false);
-    }
-  };
 
   // Handle Spaced Repetition Review (SM-2 feedback loop)
   const handleReviewOutcome = async (revId: string, outcome: 'recalled' | 'partially_recalled' | 'forgot') => {
@@ -585,7 +422,7 @@ export default function WorkspaceDashboard() {
                     </div>
                   </div>
                   <div className={styles.heroActionRow}>
-                    <Button onClick={() => setIsDiagnosticOpen(true)} variant="primary" size="lg">
+                    <Button href="/app/tests?type=diagnostic" variant="primary" size="lg">
                       Launch Baseline Diagnostic &rarr;
                     </Button>
                     <Button href="/app/tests" variant="outline" size="lg">
@@ -996,143 +833,6 @@ export default function WorkspaceDashboard() {
           </>
         )}
 
-        {/* ----------------------------------------------------------- */}
-        {/* Interactive Baseline Diagnostic Modal                       */}
-        {/* ----------------------------------------------------------- */}
-        {isDiagnosticOpen && (
-          <div className={styles.diagnosticOverlay} role="dialog" aria-modal="true">
-            <div className={styles.diagnosticModal}>
-              {!diagnosticSubmitted ? (
-                <>
-                  <div className={styles.diagnosticProgressHeader}>
-                    <div>
-                      <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: '#34d399' }}>
-                        QUESTION {currentQIndex + 1} OF {BASELINE_DIAGNOSTIC_QUESTIONS.length}
-                      </span>
-                      <h3 style={{ fontSize: '1.125rem', color: 'var(--color-text-primary)', marginTop: '4px' }}>
-                        {BASELINE_DIAGNOSTIC_QUESTIONS[currentQIndex].subject} — {BASELINE_DIAGNOSTIC_QUESTIONS[currentQIndex].topic}
-                      </h3>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setIsDiagnosticOpen(false)}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: 'var(--color-text-tertiary)',
-                        cursor: 'pointer',
-                        fontSize: '1.25rem',
-                      }}
-                      aria-label="Close diagnostic"
-                    >
-                      ✕
-                    </button>
-                  </div>
-
-                  <p style={{ fontSize: '1rem', color: 'var(--color-text-primary)', lineHeight: 1.6 }}>
-                    {BASELINE_DIAGNOSTIC_QUESTIONS[currentQIndex].text}
-                  </p>
-
-                  <div className={styles.optionList}>
-                    {BASELINE_DIAGNOSTIC_QUESTIONS[currentQIndex].options.map((opt) => {
-                      const qId = BASELINE_DIAGNOSTIC_QUESTIONS[currentQIndex].id;
-                      const isSelected = userAnswers[qId] === opt.key;
-                      return (
-                        <div
-                          key={opt.key}
-                          className={`${styles.optionItem} ${isSelected ? styles.optionSelected : ''}`}
-                          onClick={() => handleSelectOption(qId, opt.key)}
-                        >
-                          <strong style={{ fontFamily: 'var(--font-mono)' }}>{opt.key}.</strong>
-                          <span>{opt.text}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <div>
-                    <label style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--color-text-secondary)' }}>
-                      Self-Reported Confidence (Calibrates Uncertainty):
-                    </label>
-                    <div className={styles.confidenceSelector}>
-                      {[1, 2, 3, 4, 5].map((level) => {
-                        const qId = BASELINE_DIAGNOSTIC_QUESTIONS[currentQIndex].id;
-                        const isSelected = userConfidences[qId] === level;
-                        return (
-                          <button
-                            key={level}
-                            type="button"
-                            className={`${styles.confBtn} ${isSelected ? styles.confBtnSelected : ''}`}
-                            onClick={() => handleSelectConfidence(qId, level)}
-                          >
-                            {level === 1 ? '1 - Guess' : level === 5 ? '5 - Certain' : level}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem' }}>
-                    <Button
-                      onClick={() => setCurrentQIndex((prev) => Math.max(0, prev - 1))}
-                      disabled={currentQIndex === 0}
-                      variant="outline"
-                      size="sm"
-                    >
-                      &larr; Previous
-                    </Button>
-
-                    {currentQIndex < BASELINE_DIAGNOSTIC_QUESTIONS.length - 1 ? (
-                      <Button
-                        onClick={() => setCurrentQIndex((prev) => prev + 1)}
-                        variant="primary"
-                        size="sm"
-                      >
-                        Next &rarr;
-                      </Button>
-                    ) : (
-                      <Button
-                        onClick={handleSubmitDiagnostic}
-                        disabled={isSubmittingDiagnostic}
-                        variant="primary"
-                        size="md"
-                      >
-                        {isSubmittingDiagnostic ? 'Recording Evidence...' : 'Submit Diagnostic →'}
-                      </Button>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <div style={{ textAlign: 'center', padding: '1rem 0' }}>
-                  <span style={{ fontSize: '3rem' }}>🎯</span>
-                  <h3 style={{ fontSize: '1.5rem', color: 'var(--color-text-primary)', marginTop: '0.5rem' }}>
-                    Diagnostic Assessment Completed!
-                  </h3>
-                  <p style={{ color: 'var(--color-text-secondary)', marginTop: '0.5rem' }}>
-                    You scored {diagnosticScore?.correct} out of {diagnosticScore?.total} correct (
-                    {Math.round(((diagnosticScore?.correct || 0) / (diagnosticScore?.total || 1)) * 100)}% accuracy).
-                  </p>
-                  <div style={{
-                    margin: '1.5rem 0',
-                    padding: '1rem',
-                    borderRadius: 'var(--radius-md)',
-                    background: 'rgba(52, 211, 153, 0.08)',
-                    border: '1px solid rgba(52, 211, 153, 0.25)',
-                    fontSize: '0.875rem',
-                    color: '#34d399',
-                  }}>
-                    ✓ Observed evidence records committed to immutable database ledger.<br />
-                    ✓ Baseline mastery vector calculated with explicit uncertainty tracking.<br />
-                    ✓ Backlog and revision queues updated with your identified strengths and weaknesses.
-                  </div>
-                  <Button onClick={() => setIsDiagnosticOpen(false)} variant="primary" size="lg">
-                    Return to Intelligent Dashboard &rarr;
-                  </Button>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
       </div>
     </WorkspaceShell>
   );

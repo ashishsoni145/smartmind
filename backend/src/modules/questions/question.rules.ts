@@ -208,6 +208,39 @@ export function sanitizeQuestionForActiveTest(question: Question): SanitizedQues
   };
 }
 
+/**
+ * Universal student-facing sanitization function preventing answer-key leakage.
+ * Strips is_correct, isCorrect, explanation, solution_steps, and hints from all question outputs.
+ */
+export function sanitizeQuestionForClient(question: any): any {
+  if (!question) return question;
+
+  const rawOptions = question.options || question.question_options || [];
+  const sanitizedOptions = rawOptions.map((opt: any) => ({
+    id: opt.id,
+    optionKey: opt.optionKey || opt.option_key,
+    optionText: opt.optionText || opt.option_text,
+  }));
+
+  const {
+    explanation,
+    hint,
+    hints,
+    solution_steps,
+    solutionSteps,
+    solution_proof,
+    is_correct,
+    isCorrect,
+    question_options,
+    ...safeQuestion
+  } = question;
+
+  return {
+    ...safeQuestion,
+    options: sanitizedOptions,
+  };
+}
+
 // -----------------------------------------------------------------------------
 // 3. Adaptive Question Selection Engine
 // -----------------------------------------------------------------------------

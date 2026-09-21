@@ -55,45 +55,42 @@ export class SupabaseSettingsAdapter implements SettingsAdapter {
     userId: string,
     data: Partial<Pick<UserSettings, 'name' | 'username' | 'avatarUrl'>>
   ): Promise<UserSettings> {
-    const updated = await this.localFallback.updateProfile(userId, data);
     const supabase = getSupabaseClient();
     if (supabase && data.name) {
-      try {
-        await supabase
-          .from('profiles')
-          .update({ full_name: data.name, updated_at: new Date().toISOString() })
-          .eq('id', userId);
-      } catch {
-        // Fallback kept
+      const { error } = await supabase
+        .from('profiles')
+        .update({ full_name: data.name, updated_at: new Date().toISOString() })
+        .eq('id', userId);
+      if (error) {
+        throw new Error(`Failed to save profile changes: ${error.message}`);
       }
     }
-    return updated;
+    return this.getSettings(userId);
   }
 
   public async updateAcademicProfile(
     userId: string,
     data: Partial<AcademicSettings>
   ): Promise<UserSettings> {
-    const updated = await this.localFallback.updateAcademicProfile(userId, data);
     const supabase = getSupabaseClient();
     if (supabase) {
-      try {
-        const updatePayload: Record<string, any> = {
-          updated_at: new Date().toISOString(),
-        };
-        if (data.targetExams) updatePayload.target_exams = data.targetExams;
-        if (data.dailyAvailableHours) updatePayload.daily_available_hours = data.dailyAvailableHours;
-        if (data.preferredStudyTime) updatePayload.preferred_study_time = data.preferredStudyTime;
+      const updatePayload: Record<string, any> = {
+        updated_at: new Date().toISOString(),
+      };
+      if (data.targetExams) updatePayload.target_exams = data.targetExams;
+      if (data.dailyAvailableHours) updatePayload.daily_available_hours = data.dailyAvailableHours;
+      if (data.preferredStudyTime) updatePayload.preferred_study_time = data.preferredStudyTime;
 
-        await supabase
-          .from('student_profiles')
-          .update(updatePayload)
-          .eq('user_id', userId);
-      } catch {
-        // Fallback kept
+      const { error } = await supabase
+        .from('student_profiles')
+        .update(updatePayload)
+        .eq('user_id', userId);
+
+      if (error) {
+        throw new Error(`Failed to save academic profile: ${error.message}`);
       }
     }
-    return updated;
+    return this.getSettings(userId);
   }
 
   public async updatePreferences(
@@ -107,6 +104,22 @@ export class SupabaseSettingsAdapter implements SettingsAdapter {
     userId: string,
     data: Partial<NotificationSettings>
   ): Promise<UserSettings> {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      const { error } = await supabase
+        .from('notification_preferences')
+        .update({
+          email_enabled: data.emailNotifications,
+          in_app_enabled: data.inAppNotifications,
+          revision_reminders: data.studyReminders,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('student_id', userId);
+
+      if (error) {
+        throw new Error(`Failed to save notification preferences: ${error.message}`);
+      }
+    }
     return this.localFallback.updateNotifications(userId, data);
   }
 

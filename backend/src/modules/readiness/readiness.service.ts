@@ -60,35 +60,34 @@ export class ReadinessService {
     const avgMastery =
       activeStates.length > 0
         ? activeStates.reduce((sum, s) => sum + (s.mastery_score || 0), 0) / activeStates.length
-        : 0.45;
+        : 0;
 
     const avgRetention =
       activeStates.length > 0
         ? activeStates.reduce((sum, s) => sum + (s.retention_score || 0), 0) / activeStates.length
-        : 0.5;
+        : 0;
 
-    // 3. Fetch Assessment Submissions
+    // 3. Fetch Assessment Submissions with authentic columns
     const { data: submissions } = await supabase
       .from('assessment_submissions')
-      .select('score, max_score, percentage, time_taken_seconds, total_attempted')
+      .select('total_score, max_score, accuracy_percentage, time_taken_seconds, completed_at')
       .eq('student_id', studentId)
-      .eq('status', 'submitted')
-      .order('submitted_at', { ascending: false })
+      .in('status', ['completed', 'submitted'])
+      .order('completed_at', { ascending: false })
       .limit(10);
 
     const subList = submissions || [];
     const testsTaken = subList.length;
-    const recentScores = subList.map((s) => s.percentage || 0);
+    const recentScores = subList.map((s) => Number(s.accuracy_percentage || 0));
 
-    let totalAttemptedQuestions = 0;
     let totalTimeTaken = 0;
     for (const sub of subList) {
-      totalAttemptedQuestions += sub.total_attempted || 0;
       totalTimeTaken += sub.time_taken_seconds || 0;
     }
 
+    // Benchmark pacing: calculate from actual completed tests or 0 if unattempted
     const avgSecondsPerQuestion =
-      totalAttemptedQuestions > 0 ? Math.round(totalTimeTaken / totalAttemptedQuestions) : 90;
+      testsTaken > 0 ? Math.round(totalTimeTaken / (testsTaken * 15)) : 0;
 
     // 4. Fetch Evidence Logs for Hard/Olympiad Questions
     const { data: hardEvidence } = await supabase

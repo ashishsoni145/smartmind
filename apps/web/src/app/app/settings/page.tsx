@@ -40,8 +40,9 @@ export default function SettingsPage() {
   }, [user]);
 
   useEffect(() => {
-    const userId = user?.id || 'usr_dev_student_01';
-    loadSettings(userId);
+    if (user?.id) {
+      loadSettings(user.id);
+    }
   }, [user?.id, loadSettings]);
 
   const handleSignOut = async () => {
@@ -53,7 +54,7 @@ export default function SettingsPage() {
     }
   };
 
-  const userId = user?.id || 'usr_dev_student_01';
+  const userId = user?.id || '';
 
   return (
     <WorkspaceShell>

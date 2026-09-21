@@ -37,10 +37,24 @@ export const createApp = (): Express => {
       origin: (origin, callback) => {
         // Allow requests with no origin (like mobile apps, curl, server-to-server)
         if (!origin) return callback(null, true);
-        if (config.cors.origin.includes('*') || config.cors.origin.includes(origin)) {
+
+        // Check configured allowlist (wildcard strictly prohibited in production)
+        if (!config.isProduction && config.cors.origin.includes('*')) {
           return callback(null, true);
         }
-        return callback(null, true); // Permissive in dev, configurable in prod
+        if (config.cors.origin.includes(origin)) {
+          return callback(null, true);
+        }
+
+        // In development or test, allow local dev servers
+        if (!config.isProduction) {
+          if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+            return callback(null, true);
+          }
+        }
+
+        // Disallowed origin
+        return callback(new Error(`CORS policy violation: origin ${origin} is not allowed`));
       },
       credentials: config.cors.credentials,
     })

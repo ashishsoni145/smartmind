@@ -130,7 +130,7 @@ export interface QuestionOption {
   id: string;
   optionKey: string;
   optionText: string;
-  isCorrect: boolean;
+  isCorrect?: boolean;
 }
 
 export interface CurriculumQuestion {

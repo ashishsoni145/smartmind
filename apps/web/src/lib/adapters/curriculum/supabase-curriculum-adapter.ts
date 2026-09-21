@@ -186,8 +186,8 @@ export class SupabaseCurriculumAdapter implements CurriculumAdapter {
 
     try {
       let { data, error } = await supabase
-        .from('questions')
-        .select('*, question_options(*)')
+        .from('student_questions')
+        .select('*')
         .eq('curriculum_node_id', nodeId);
 
       // If no direct questions on this node, check if concepts are mapped to this curriculum node
@@ -200,8 +200,8 @@ export class SupabaseCurriculumAdapter implements CurriculumAdapter {
         if (mappings && mappings.length > 0) {
           const conceptIds = mappings.map((m) => m.concept_id);
           const { data: cData } = await supabase
-            .from('questions')
-            .select('*, question_options(*)')
+            .from('student_questions')
+            .select('*')
             .in('concept_id', conceptIds);
           data = cData;
         }
@@ -221,8 +221,8 @@ export class SupabaseCurriculumAdapter implements CurriculumAdapter {
         questionType: q.question_type,
         difficultyLevel: q.difficulty_level,
         marks: q.marks ? Number(q.marks) : 4,
-        explanation: q.explanation || '',
-        hint: q.hint || '',
+        explanation: '', // Zero leakage: explanations delivered strictly post-submission
+        hint: '',        // Zero leakage: hints not exposed in initial payload
         sourceExam: q.source_exam,
         sourceYear: q.source_year,
         sourceSession: q.source_session,
@@ -234,9 +234,8 @@ export class SupabaseCurriculumAdapter implements CurriculumAdapter {
         isVerified: Boolean(q.is_verified),
         options: (q.question_options || []).map((opt: any) => ({
           id: opt.id,
-          optionKey: opt.option_key,
-          optionText: opt.option_text,
-          isCorrect: opt.is_correct,
+          optionKey: opt.optionKey || opt.option_key,
+          optionText: opt.optionText || opt.option_text,
         })),
       }));
     } catch {
@@ -254,8 +253,8 @@ export class SupabaseCurriculumAdapter implements CurriculumAdapter {
 
     try {
       let query = supabase
-        .from('questions')
-        .select('*, question_options(*)')
+        .from('student_questions')
+        .select('*')
         .eq('is_pyq', true);
 
       if (filters?.subjectId) {
@@ -285,8 +284,8 @@ export class SupabaseCurriculumAdapter implements CurriculumAdapter {
         questionType: q.question_type,
         difficultyLevel: q.difficulty_level,
         marks: q.marks ? Number(q.marks) : 4,
-        explanation: q.explanation || '',
-        hint: q.hint || '',
+        explanation: '', // Zero leakage: explanations delivered strictly post-submission
+        hint: '',        // Zero leakage: hints not exposed in initial payload
         sourceExam: q.source_exam,
         sourceYear: q.source_year,
         sourceSession: q.source_session,
@@ -298,9 +297,8 @@ export class SupabaseCurriculumAdapter implements CurriculumAdapter {
         isVerified: Boolean(q.is_verified),
         options: (q.question_options || []).map((opt: any) => ({
           id: opt.id,
-          optionKey: opt.option_key,
-          optionText: opt.option_text,
-          isCorrect: opt.is_correct,
+          optionKey: opt.optionKey || opt.option_key,
+          optionText: opt.optionText || opt.option_text,
         })),
       }));
     } catch {

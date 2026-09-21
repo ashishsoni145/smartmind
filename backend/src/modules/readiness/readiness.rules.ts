@@ -65,7 +65,7 @@ export function calculateReadinessFactors(input: ReadinessComputationInput): Rea
   const coverageScore =
     totalSyllabusNodes > 0
       ? Math.min(100, Math.round((coveredSyllabusNodes / totalSyllabusNodes) * 100))
-      : 50;
+      : 0;
 
   // 2. Concept Mastery (0 - 100)
   const masteryScore = Math.min(100, Math.max(0, Math.round(avgMastery * 100)));
@@ -77,18 +77,18 @@ export function calculateReadinessFactors(input: ReadinessComputationInput): Rea
   const experienceScore = Math.min(100, Math.round((testsTaken / 10) * 100));
 
   // 5. Speed & Pacing (0 - 100)
-  let pacingScore = 70;
-  if (avgSecondsPerQuestion > 0) {
+  let pacingScore = 0;
+  if (avgSecondsPerQuestion > 0 && testsTaken > 0) {
     const ratio = avgSecondsPerQuestion / targetSecondsPerQuestion;
     if (ratio >= 0.75 && ratio <= 1.15) {
       pacingScore = 100;
     } else if (ratio < 0.75) {
       // Too fast, risk of careless mistakes
-      pacingScore = Math.max(50, Math.round(ratio * 100));
+      pacingScore = Math.max(20, Math.round(ratio * 100));
     } else {
       // Too slow, risk of leaving questions unattempted
       const penalty = Math.min(50, (ratio - 1.15) * 60);
-      pacingScore = Math.max(30, Math.round(100 - penalty));
+      pacingScore = Math.max(10, Math.round(100 - penalty));
     }
   }
 
@@ -96,25 +96,29 @@ export function calculateReadinessFactors(input: ReadinessComputationInput): Rea
   const hardAccuracy =
     hardQuestionsAttempted > 0
       ? Math.round((hardQuestionsCorrect / hardQuestionsAttempted) * 100)
-      : 40; // baseline if no hard questions attempted yet
+      : 0;
 
   // 7. Consistency & Volatility (0 - 100)
-  let consistencyScore = 75;
+  let consistencyScore = 0;
   if (recentTestScores.length >= 2) {
     const mean = recentTestScores.reduce((a, b) => a + b, 0) / recentTestScores.length;
     const variance =
       recentTestScores.reduce((sum, score) => sum + Math.pow(score - mean, 2), 0) /
       recentTestScores.length;
     const stdDev = Math.sqrt(variance);
-    consistencyScore = Math.max(20, Math.min(100, Math.round(100 - stdDev * 2.5)));
+    consistencyScore = Math.max(10, Math.min(100, Math.round(100 - stdDev * 2.5)));
+  } else if (recentTestScores.length === 1) {
+    consistencyScore = Math.round(recentTestScores[0]);
   }
 
   // 8. Revision Health & Mistake Clearance (0 - 100)
-  let revisionScore = 80;
+  let revisionScore = 0;
   if (totalMistakes > 0) {
     const resolvedRate = resolvedMistakes / totalMistakes;
     const overduePenalty = Math.min(0.5, (overdueMistakes / totalMistakes) * 0.8);
     revisionScore = Math.max(10, Math.min(100, Math.round((resolvedRate * 0.7 + (1 - overduePenalty) * 0.3) * 100)));
+  } else if (coveredSyllabusNodes > 0) {
+    revisionScore = 100;
   }
 
   return [

@@ -148,8 +148,18 @@ export class FocusService {
       throw new NotFoundError(`Study session ${sessionId} not found`);
     }
 
+    // Idempotent completion: if already completed, return existing record
+    if (session.status === 'completed') {
+      return this.mapSessionRow(session);
+    }
+
     const endedAt = new Date().toISOString();
-    const actualSeconds = input.actualDurationSeconds;
+    // Validate duration against server-authoritative elapsed wall-clock time (prevents clock manipulation/interval drift)
+    const elapsedWallClockSeconds = Math.max(
+      0,
+      Math.floor((new Date(endedAt).getTime() - new Date(session.started_at).getTime()) / 1000)
+    );
+    const actualSeconds = Math.max(0, Math.min(input.actualDurationSeconds, elapsedWallClockSeconds + 10));
 
     const { data: updated, error: updateErr } = await supabase
       .from('study_sessions')
@@ -161,11 +171,17 @@ export class FocusService {
         updated_at: endedAt,
       })
       .eq('id', sessionId)
+      .eq('status', 'active')
       .select('*')
-      .single();
+      .maybeSingle();
 
-    if (updateErr || !updated) {
+    if (updateErr) {
       throw new BadRequestError(`Failed to finalize study session: ${updateErr?.message}`);
+    }
+
+    if (!updated) {
+      // Handled concurrently
+      return this.mapSessionRow(session);
     }
 
     // Closed-loop integration with Student Model
@@ -177,7 +193,10 @@ export class FocusService {
           input.reflection
         );
 
-        await StudentModelService.recordEvidence(studentId, {
+        const { IdentityService } = await import('../auth/identity.service');
+        const studentProfileId = await IdentityService.resolveStudentProfileId(studentId);
+
+        await StudentModelService.recordEvidence(studentProfileId, {
           curriculumNodeId: evidence.curriculumNodeId,
           evidenceType: 'self_assessment',
           scoreOrPerformance: Math.round(evidence.score * 100),

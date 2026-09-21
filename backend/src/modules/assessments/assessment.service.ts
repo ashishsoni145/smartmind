@@ -19,6 +19,7 @@ import type {
   ActiveTestSession,
   AssessmentSubmission,
   AssessmentAnswerItem,
+  QuestionAnswerStatus,
   Question,
 } from '@sharpmind/types';
 
@@ -342,7 +343,36 @@ export class AssessmentService {
     }
 
     if (sub.status === 'completed') {
-      throw new BadRequestError('This test has already been submitted');
+      const { data: existingAnswers } = await supabase
+        .from('assessment_answers')
+        .select('*')
+        .eq('submission_id', submissionId);
+
+      return {
+        id: sub.id,
+        assessmentId: sub.assessment_id,
+        studentId: sub.student_id,
+        totalScore: Number(sub.total_score || 0),
+        maxScore: Number(sub.max_score || 0),
+        accuracyPercentage: Number(sub.accuracy_percentage || 0),
+        timeTakenSeconds: Number(sub.time_taken_seconds || 0),
+        timeRemainingSeconds: 0,
+        status: 'completed',
+        startedAt: sub.started_at,
+        completedAt: sub.completed_at,
+        postTestAnalysis: sub.post_test_analysis,
+        answers: (existingAnswers || []).map((a: any) => ({
+          questionId: a.question_id,
+          selectedOptions: a.selected_options || [],
+          numericalAnswer: a.numerical_answer,
+          isCorrect: a.is_correct,
+          marksAwarded: a.marks_awarded,
+          timeSpentSeconds: a.time_spent_seconds || 0,
+          status: ((a.selected_options && a.selected_options.length > 0) || a.numerical_answer != null
+            ? 'answered'
+            : 'unanswered') as QuestionAnswerStatus,
+        })),
+      };
     }
 
     const assessment = await this.getAssessmentById(sub.assessment_id);
@@ -428,7 +458,7 @@ export class AssessmentService {
       timeTakenSeconds: input.timeTakenSeconds,
     });
 
-    // 5. Update submission record
+    // 5. Update submission record atomically (concurrency and rapid double-submit protection)
     const completedAt = new Date().toISOString();
     const { data: updatedSub, error: updateErr } = await supabase
       .from('assessment_submissions')
@@ -442,11 +472,17 @@ export class AssessmentService {
         post_test_analysis: postTestAnalysis,
       })
       .eq('id', submissionId)
+      .eq('status', 'in_progress')
       .select('*')
-      .single();
+      .maybeSingle();
 
-    if (updateErr || !updatedSub) {
+    if (updateErr) {
       throw new BadRequestError(`Failed to finalize submission: ${updateErr?.message}`);
+    }
+
+    if (!updatedSub) {
+      // Already finalized concurrently or double submitted — return canonical completed state
+      return this.submitTestAttempt(submissionId, studentId, input);
     }
 
     // 6. Feed validated evidence into Student Model
@@ -458,6 +494,7 @@ export class AssessmentService {
         curriculumNodeId: q.curriculumNodeId || undefined,
         conceptId: q.conceptId || undefined,
         evidenceType: 'assessment_submission',
+        sourceRefId: `${submissionId}:${q.id}`,
         questionId: q.id,
         isCorrect: Boolean(evaluated.isCorrect),
         timeTakenSeconds: evaluated.timeSpentSeconds,
@@ -474,7 +511,9 @@ export class AssessmentService {
     }
 
     // 7. Record mistakes for all incorrect attempts
-    const incorrectItems = scoreResult.scoredAnswers.filter((a) => !a.isCorrect && (a.marksAwarded ?? 0) < 0);
+    const incorrectItems = scoreResult.scoredAnswers.filter(
+      (a) => !a.isCorrect && ((a.selectedOptions && a.selectedOptions.length > 0) || a.numericalAnswer != null || (a.marksAwarded ?? 0) < 0)
+    );
     for (const inc of incorrectItems) {
       const q = questionMap.get(inc.questionId);
       if (!q) continue;
@@ -488,26 +527,36 @@ export class AssessmentService {
         ? 'calculation_error'
         : 'conceptual_misunderstanding';
 
-      await supabase.from('mistakes').insert({
-        student_id: studentId,
-        question_id: q.id,
-        submission_id: submissionId,
-        curriculum_node_id: q.curriculumNodeId || null,
-        mistake_type: rootCause,
-        root_cause: rootCause,
-        status: 'open',
-        correction_state: 'unreviewed',
-        attempt_count: 1,
-        repetition_count: 1,
-        student_answer_payload: {
-          selectedOptions: inc.selectedOptions,
-          numericalAnswer: inc.numericalAnswer,
-        },
-        correct_answer_payload: {
-          explanation: q.explanation,
-          correctOptions: q.options?.filter((o) => o.isCorrect),
-        },
-      });
+      // Avoid duplicate mistake insertion for the same submission and question
+      const { data: existingMistake } = await supabase
+        .from('mistakes')
+        .select('id')
+        .eq('submission_id', submissionId)
+        .eq('question_id', q.id)
+        .maybeSingle();
+
+      if (!existingMistake) {
+        await supabase.from('mistakes').insert({
+          student_id: studentId,
+          question_id: q.id,
+          submission_id: submissionId,
+          curriculum_node_id: q.curriculumNodeId || null,
+          mistake_type: rootCause,
+          root_cause: rootCause,
+          status: 'open',
+          correction_state: 'unreviewed',
+          attempt_count: 1,
+          repetition_count: 1,
+          student_answer_payload: {
+            selectedOptions: inc.selectedOptions,
+            numericalAnswer: inc.numericalAnswer,
+          },
+          correct_answer_payload: {
+            explanation: q.explanation,
+            correctOptions: q.options?.filter((o) => o.isCorrect),
+          },
+        });
+      }
     }
 
     return {

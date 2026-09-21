@@ -332,6 +332,22 @@ export class SharpMindApiClient {
       const res = await this.request<any>(`/questions/${id}`);
       return res.data!;
     },
+    validate: async (
+      id: string,
+      data: { selectedOptions?: string[]; numericalAnswer?: string; textAnswer?: string }
+    ) => {
+      const res = await this.request<{
+        isCorrect: boolean;
+        marksAwarded: number;
+        explanation?: string;
+        hint?: string;
+        correctOptions?: string[];
+      }>(`/questions/${id}/validate`, {
+        method: 'POST',
+        body: JSON.stringify({ questionId: id, ...data }),
+      });
+      return res.data!;
+    },
   };
 
   // Student Model Module

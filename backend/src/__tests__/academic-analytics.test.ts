@@ -147,10 +147,11 @@ describe('Part 04: Academic Analytics & Review Surfaces', () => {
             ])),
           };
         }
-        if (table === 'test_attempts') {
+        if (table === 'assessment_submissions' || table === 'test_attempts') {
           const chain: any = {
             eq: vi.fn(() => chain),
-            then: (resolve: any) => Promise.resolve({ data: [{ score: 80, total_marks: 100 }] }).then(resolve),
+            in: vi.fn(() => chain),
+            then: (resolve: any) => Promise.resolve({ data: [{ total_score: 80, max_score: 100 }] }).then(resolve),
           };
           return {
             select: vi.fn().mockReturnValue(chain),

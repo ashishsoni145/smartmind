@@ -21,6 +21,7 @@ export default function FocusPage() {
   const [timeLeft, setTimeLeft] = useState(25 * 60);
   const [isRunning, setIsRunning] = useState(false);
   const [interruptionsCount, setInterruptionsCount] = useState(0);
+  const [startError, setStartError] = useState<string | null>(null);
 
   // Reflection modal state
   const [showReflectionModal, setShowReflectionModal] = useState(false);
@@ -86,6 +87,7 @@ export default function FocusPage() {
   };
 
   const handleStartSession = async () => {
+    setStartError(null);
     const cleanObjective = objective.trim() || 'Deep Academic Focus Session';
     try {
       const session = await apiClient.focus.startSession({
@@ -93,44 +95,44 @@ export default function FocusPage() {
         targetDurationMinutes: selectedPresetMins,
       });
       setSessionId(session.id);
-    } catch {
-      // Allow local session if network fails
-      setSessionId(`local-${Date.now()}`);
+      setIsRunning(true);
+    } catch (err: any) {
+      console.error('Failed to start study session on server:', err);
+      setStartError('Could not create focus study session on server. Please check backend connectivity and retry.');
     }
-    setIsRunning(true);
   };
 
   const handlePause = async () => {
     setIsRunning(false);
-    if (sessionId && !sessionId.startsWith('local-')) {
+    if (sessionId) {
       try {
         await apiClient.focus.pauseSession(sessionId);
-      } catch {
-        // Ignore
+      } catch (err) {
+        console.error('Failed to pause focus session on server:', err);
       }
     }
   };
 
   const handleResume = async () => {
     setIsRunning(true);
-    if (sessionId && !sessionId.startsWith('local-')) {
+    if (sessionId) {
       try {
         await apiClient.focus.resumeSession(sessionId);
-      } catch {
-        // Ignore
+      } catch (err) {
+        console.error('Failed to resume focus session on server:', err);
       }
     }
   };
 
   const handleLogInterruption = async () => {
     setInterruptionsCount(prev => prev + 1);
-    if (sessionId && !sessionId.startsWith('local-')) {
+    if (sessionId) {
       try {
         await apiClient.focus.logInterruption(sessionId, {
           reason: 'Student logged external distraction',
         });
-      } catch {
-        // Ignore
+      } catch (err) {
+        console.error('Failed to log interruption on server:', err);
       }
     }
   };
@@ -144,7 +146,7 @@ export default function FocusPage() {
     setIsSubmittingReflection(true);
     const actualSeconds = elapsedSecondsRef.current > 0 ? elapsedSecondsRef.current : selectedPresetMins * 60;
 
-    if (sessionId && !sessionId.startsWith('local-')) {
+    if (sessionId) {
       try {
         await apiClient.focus.completeSession(sessionId, {
           actualDurationSeconds: actualSeconds,
@@ -155,8 +157,8 @@ export default function FocusPage() {
             keyLearnings: reflectionNotes,
           },
         });
-      } catch {
-        // Ignore
+      } catch (err) {
+        console.error('Failed to complete focus session on server:', err);
       }
     }
 
@@ -278,6 +280,13 @@ export default function FocusPage() {
               </div>
             </div>
           </div>
+
+          {/* Error Notice */}
+          {startError && (
+            <div style={{ margin: '1rem 0', padding: '0.75rem 1rem', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '8px', color: '#ef4444', fontSize: '0.875rem', textAlign: 'center' }}>
+              {startError}
+            </div>
+          )}
 
           {/* Controls */}
           <div className={styles.controls}>

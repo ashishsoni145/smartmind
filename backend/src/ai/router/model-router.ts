@@ -15,21 +15,43 @@ import { env } from '../../config/env';
 import { logger } from '../../lib/logger';
 import { supabase } from '../../db/client';
 
+export class AiServiceUnavailableError extends Error {
+  constructor(message = 'AI tutoring services are temporarily unavailable. Please try again shortly.') {
+    super(message);
+    this.name = 'AiServiceUnavailableError';
+  }
+}
+
 export class ModelRouter {
   private providers = new Map<AiProviderName, AiProviderAdapter>();
   private config: ModelRoutingConfig;
   private studentTokenUsage = new Map<string, { count: number; resetAt: number }>();
 
+  private isMockAllowed(): boolean {
+    const nodeEnv = process.env.NODE_ENV || env.NODE_ENV;
+    const appMode = process.env.APP_MODE;
+    if (appMode === 'demo') return true;
+    if (nodeEnv === 'production') return false;
+    return nodeEnv === 'test' || nodeEnv === 'development';
+  }
+
   constructor(customConfig?: Partial<ModelRoutingConfig>) {
+    const isMockAllowed = this.isMockAllowed();
+
     // Register all adapters
     this.registerProvider(new MockAiAdapter());
     this.registerProvider(new GroqAiAdapter());
     this.registerProvider(new GeminiAiAdapter());
     this.registerProvider(new OpenRouterAiAdapter());
 
+    const defaultFallbacks: AiProviderName[] = ['groq', 'gemini', 'openrouter'];
+    if (isMockAllowed) {
+      defaultFallbacks.push('mock');
+    }
+
     this.config = {
-      primaryProvider: (env.AI_PROVIDER_PRIMARY as AiProviderName) || 'mock',
-      fallbackProviders: ['groq', 'gemini', 'openrouter', 'mock'],
+      primaryProvider: (env.AI_PROVIDER_PRIMARY as AiProviderName) || (isMockAllowed ? 'mock' : 'gemini'),
+      fallbackProviders: defaultFallbacks,
       taskModelMapping: {
         tutor_socratic: {
           primaryModel: 'llama-3.3-70b-versatile',
@@ -93,7 +115,7 @@ export class ModelRouter {
         },
         guardrail_eval: {
           primaryModel: 'gemini-1.5-flash',
-          fallbackModel: 'mock',
+          fallbackModel: 'llama-3.3-70b-versatile',
           temperature: 0.1,
           maxTokens: 1000,
         },
@@ -195,21 +217,27 @@ export class ModelRouter {
       timeoutMs: request.timeoutMs ?? this.config.timeoutMs,
     };
 
+    const isMockAllowed = this.isMockAllowed();
+
     // Construct provider fallback chain
     const candidateChain: AiProviderName[] = [];
-    if (request.preferredProvider) {
+    if (request.preferredProvider && (request.preferredProvider !== 'mock' || isMockAllowed)) {
       candidateChain.push(request.preferredProvider);
     }
     if (!candidateChain.includes(this.config.primaryProvider)) {
-      candidateChain.push(this.config.primaryProvider);
+      if (this.config.primaryProvider !== 'mock' || isMockAllowed) {
+        candidateChain.push(this.config.primaryProvider);
+      }
     }
     for (const p of this.config.fallbackProviders) {
       if (!candidateChain.includes(p)) {
-        candidateChain.push(p);
+        if (p !== 'mock' || isMockAllowed) {
+          candidateChain.push(p);
+        }
       }
     }
-    // Always ensure mock is at the end of the chain
-    if (!candidateChain.includes('mock')) {
+    // Only allow mock at the end if allowed in test/demo/dev
+    if (isMockAllowed && !candidateChain.includes('mock')) {
       candidateChain.push('mock');
     }
 
@@ -282,6 +310,11 @@ export class ModelRouter {
 
     // If everything failed
     this.logAudit(enrichedRequest, undefined, lastError || new Error('All AI providers exhausted'), true);
+    if (!this.isMockAllowed()) {
+      throw new AiServiceUnavailableError(
+        lastError?.message ? `AI service unavailable: ${lastError.message}` : undefined
+      );
+    }
     throw lastError || new Error('All AI providers exhausted and failed to respond');
   }
 }

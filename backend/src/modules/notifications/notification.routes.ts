@@ -1,11 +1,13 @@
 import { Router } from 'express';
 import { NotificationController } from './notification.controller';
 import { requireAuth } from '../../middleware/auth';
+import { resolveStudentProfile } from '../../middleware/identity';
 
 const router = Router();
 
-// Require student authentication
+// Require student authentication and resolve student profile
 router.use(requireAuth);
+router.use(resolveStudentProfile);
 
 router.get('/preferences', NotificationController.getPreferences);
 router.patch('/preferences', NotificationController.updatePreferences);

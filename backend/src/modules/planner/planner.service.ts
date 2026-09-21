@@ -111,6 +111,14 @@ export class PlannerService {
     const sessions: PlanSession[] = [];
     const sessionSize = Math.max(1, Math.ceil(fitted.length / MAX_DAILY_SESSIONS));
 
+    // Clean up any prior unstarted scheduled sessions for this date to guarantee zero duplicate sessions
+    await supabase
+      .from('plan_sessions')
+      .delete()
+      .eq('student_id', studentId)
+      .eq('session_date', targetDate)
+      .eq('status', 'scheduled');
+
     for (let i = 0; i < fitted.length; i += sessionSize) {
       const sessionTasks = fitted.slice(i, i + sessionSize);
       const totalMinutes = sessionTasks.reduce((s, t) => s + t.estimatedMinutes, 0);

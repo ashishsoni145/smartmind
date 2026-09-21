@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { QuestionService } from './question.service';
+import { sanitizeQuestionForClient } from './question.rules';
 import { sendCreated, sendPaginated, sendSuccess } from '../../lib/api-response';
 import { ListQuestionsQueryInput, IngestQuestionsInput } from './question.schema';
 
@@ -8,7 +9,8 @@ export class QuestionController {
     try {
       const filters = req.query as unknown as ListQuestionsQueryInput;
       const { questions, total } = await QuestionService.listQuestions(filters);
-      sendPaginated(res, questions, total, filters.page || 1, filters.limit || 20);
+      const sanitized = questions.map(sanitizeQuestionForClient);
+      sendPaginated(res, sanitized, total, filters.page || 1, filters.limit || 20);
     } catch (err) {
       next(err);
     }
@@ -24,7 +26,8 @@ export class QuestionController {
         year: year ? parseInt(year, 10) : undefined,
         limit: limit ? parseInt(limit, 10) : undefined,
       });
-      sendSuccess(res, pyqs);
+      const sanitized = pyqs.map(sanitizeQuestionForClient);
+      sendSuccess(res, sanitized);
     } catch (err) {
       next(err);
     }
@@ -38,7 +41,8 @@ export class QuestionController {
     try {
       const { curriculumNodeId } = req.query as { curriculumNodeId?: string };
       const questions = await QuestionService.getImportantQuestions(curriculumNodeId);
-      sendSuccess(res, questions);
+      const sanitized = questions.map(sanitizeQuestionForClient);
+      sendSuccess(res, sanitized);
     } catch (err) {
       next(err);
     }
@@ -48,7 +52,8 @@ export class QuestionController {
     try {
       const { id } = req.params;
       const question = await QuestionService.getQuestionById(id);
-      sendSuccess(res, question);
+      const sanitized = sanitizeQuestionForClient(question);
+      sendSuccess(res, sanitized);
     } catch (err) {
       next(err);
     }
@@ -76,7 +81,7 @@ export class QuestionController {
 
   public static async selectAdaptive(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const studentId = req.user?.id || (req.query.studentId as string);
+      const studentId = req.studentProfileId || req.user?.id || (req.query.studentId as string);
       const { subjectId, curriculumNodeId, conceptId, targetExamId, count } = req.query as any;
       const questions = await QuestionService.selectAdaptive(studentId, {
         subjectId,
@@ -85,7 +90,8 @@ export class QuestionController {
         targetExamId,
         count: count ? parseInt(count, 10) : 10,
       });
-      sendSuccess(res, questions);
+      const sanitized = questions.map(sanitizeQuestionForClient);
+      sendSuccess(res, sanitized);
     } catch (err) {
       next(err);
     }
@@ -101,4 +107,3 @@ export class QuestionController {
     }
   }
 }
-
