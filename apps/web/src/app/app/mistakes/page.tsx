@@ -4,18 +4,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { WorkspaceShell } from '@/components/workspace/WorkspaceShell';
 import { Icon } from '@/components/ui/Icon';
 import styles from './mistakes.module.css';
-import type { MistakeRecord, MistakeRootCause } from '@sharpmind/types';
-import SharpMindApiClient from '@sharpmind/api-client';
-
-const api = new SharpMindApiClient({
-  baseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1',
-  getToken: () => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('supabase_access_token');
-    }
-    return null;
-  },
-});
+import type { MistakeRecord } from '@sharpmind/types';
+import { apiClient as api } from '@/lib/api-client';
 
 export default function MistakesPage() {
   const [mistakes, setMistakes] = useState<MistakeRecord[]>([]);
@@ -28,12 +18,14 @@ export default function MistakesPage() {
   });
   const [selectedFilter, setSelectedFilter] = useState<string>('all');
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Retry Modal State
   const [activeRetryMistake, setActiveRetryMistake] = useState<MistakeRecord | null>(null);
   const [retryAnswer, setRetryAnswer] = useState<string>('');
   const [retryResult, setRetryResult] = useState<{ isCorrect: boolean; explanation?: string } | null>(null);
   const [retrying, setRetrying] = useState(false);
+  const [retryError, setRetryError] = useState<string | null>(null);
 
   useEffect(() => {
     loadMistakes();
@@ -42,37 +34,34 @@ export default function MistakesPage() {
   async function loadMistakes() {
     try {
       setLoading(true);
+      setErrorMsg(null);
       const res = await api.mistakes.list({ limit: 50 });
-      if (res.mistakes && res.mistakes.length > 0) {
+      if (res && res.mistakes) {
         setMistakes(res.mistakes);
-        setMetrics(res.metrics);
+        if (res.metrics) {
+          setMetrics(res.metrics);
+        } else {
+          setMetrics({
+            totalMistakes: res.mistakes.length,
+            resolvedCount: res.mistakes.filter((m) => m.isResolved).length,
+            unresolvedCount: res.mistakes.filter((m) => !m.isResolved).length,
+            overdueCount: res.mistakes.filter(
+              (m) => !m.isResolved && m.nextRetryAt && m.nextRetryAt <= new Date().toISOString()
+            ).length,
+            rootCauseDistribution: res.mistakes.reduce((acc: Record<string, number>, m) => {
+              const cause = m.rootCause || 'unclassified';
+              acc[cause] = (acc[cause] || 0) + 1;
+              return acc;
+            }, {}),
+          });
+        }
       } else {
-        setMistakes(DEFAULT_MISTAKES);
-        setMetrics({
-          totalMistakes: 3,
-          resolvedCount: 1,
-          unresolvedCount: 2,
-          overdueCount: 1,
-          rootCauseDistribution: {
-            conceptual: 1,
-            calculation: 1,
-            guessing: 1,
-          },
-        });
+        setMistakes([]);
       }
-    } catch {
-      setMistakes(DEFAULT_MISTAKES);
-      setMetrics({
-        totalMistakes: 3,
-        resolvedCount: 1,
-        unresolvedCount: 2,
-        overdueCount: 1,
-        rootCauseDistribution: {
-          conceptual: 1,
-          calculation: 1,
-          guessing: 1,
-        },
-      });
+    } catch (err: any) {
+      console.error('Failed to load mistakes from API:', err);
+      setErrorMsg('Could not sync mistake notebook with server. Please check backend connectivity.');
+      setMistakes([]);
     } finally {
       setLoading(false);
     }
@@ -82,11 +71,13 @@ export default function MistakesPage() {
     setActiveRetryMistake(mistake);
     setRetryAnswer('');
     setRetryResult(null);
+    setRetryError(null);
   }
 
   async function handleExecuteRetry() {
     if (!activeRetryMistake) return;
     setRetrying(true);
+    setRetryError(null);
 
     try {
       const q = activeRetryMistake.question;
@@ -114,25 +105,9 @@ export default function MistakesPage() {
           unresolvedCount: Math.max(0, prev.unresolvedCount - 1),
         }));
       }
-    } catch {
-      // Fallback local simulation
-      const correctTarget = activeRetryMistake.question?.options?.find((o) => o.isCorrect)?.optionKey || activeRetryMistake.correctAnswer;
-      const isCorrect = String(retryAnswer).trim().toUpperCase() === String(correctTarget).trim().toUpperCase();
-
-      setRetryResult({
-        isCorrect,
-        explanation: activeRetryMistake.question?.explanation || 'Reviewed in Spaced Repetition queue.',
-      });
-
-      if (isCorrect) {
-        setMistakes((prev) =>
-          prev.map((m) =>
-            m.id === activeRetryMistake.id
-              ? { ...m, isResolved: true, resolvedAt: new Date().toISOString() }
-              : m
-          )
-        );
-      }
+    } catch (err: any) {
+      console.error('Failed to execute retry:', err);
+      setRetryError(`Validation failed: ${err.message || 'Server error'}. Please try again.`);
     } finally {
       setRetrying(false);
     }
@@ -176,6 +151,35 @@ export default function MistakesPage() {
           </div>
         </header>
 
+        {errorMsg && (
+          <div style={{
+            padding: '1rem 1.25rem',
+            background: 'rgba(239, 68, 68, 0.1)',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+            borderRadius: 'var(--radius-md)',
+            color: '#f87171',
+            fontSize: '0.875rem',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}>
+            <span>⚠️ {errorMsg}</span>
+            <button
+              onClick={loadMistakes}
+              style={{
+                background: 'rgba(255, 255, 255, 0.1)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                color: '#fff',
+                padding: '0.25rem 0.75rem',
+                borderRadius: 'var(--radius-sm)',
+                cursor: 'pointer',
+              }}
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
         {/* Metrics Banner */}
         <div className={styles.metricsBanner}>
           <div className={styles.metricCard}>
@@ -197,7 +201,7 @@ export default function MistakesPage() {
           <div className={styles.metricCard}>
             <span className={styles.metricLabel}>PRIMARY FAILURE MODE</span>
             <div className={styles.metricValue} style={{ fontSize: '1.125rem', color: '#cbd5e1' }}>
-              {Object.keys(metrics.rootCauseDistribution)[0]?.replace('_', ' ').toUpperCase() || 'CONCEPTUAL'}
+              {Object.keys(metrics.rootCauseDistribution)[0]?.replace(/_/g, ' ').toUpperCase() || 'NONE LOGGED'}
             </div>
           </div>
         </div>
@@ -222,85 +226,107 @@ export default function MistakesPage() {
         </div>
 
         {/* Mistakes List */}
-        <div className={styles.listContainer}>
-          {filteredMistakes.map((m) => {
-            const isOverdue = !m.isResolved && m.nextRetryAt && m.nextRetryAt <= new Date().toISOString();
-            const rootCauseLabel = m.rootCause.replace('_', ' ').toUpperCase();
+        {loading ? (
+          <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+            Loading mistake records...
+          </div>
+        ) : filteredMistakes.length === 0 ? (
+          <div style={{
+            padding: '3rem 2rem',
+            textAlign: 'center',
+            background: 'rgba(255, 255, 255, 0.02)',
+            border: '1px solid rgba(255, 255, 255, 0.06)',
+            borderRadius: 'var(--radius-lg)',
+            color: 'var(--color-text-secondary)',
+          }}>
+            <p style={{ fontSize: '1.125rem', fontWeight: 500, color: 'var(--color-text-primary)' }}>
+              No mistake records found in this view.
+            </p>
+            <p style={{ fontSize: '0.875rem', marginTop: '0.5rem' }}>
+              When you answer questions incorrectly in practice drills or assessments, they are automatically cataloged here with spaced retry intervals.
+            </p>
+          </div>
+        ) : (
+          <div className={styles.listContainer}>
+            {filteredMistakes.map((m) => {
+              const isOverdue = !m.isResolved && m.nextRetryAt && m.nextRetryAt <= new Date().toISOString();
+              const rootCauseLabel = (m.rootCause || 'Unclassified').replace(/_/g, ' ').toUpperCase();
 
-            return (
-              <div key={m.id} className={styles.mistakeCard}>
-                <div className={styles.mistakeCardHeader}>
-                  <div className={styles.tagGroup}>
-                    <span className={`${styles.badge} ${styles.badgeCause}`}>
-                      {rootCauseLabel}
-                    </span>
-                    <span className={`${styles.badge} ${styles.badgeRepetition}`}>
-                      Repetition {m.repetitionCount} • Interval: {m.spacedIntervalDays}d
-                    </span>
-                    {m.isResolved && (
-                      <span className={`${styles.badge} ${styles.badgeResolved}`}>
-                        Mastered
+              return (
+                <div key={m.id} className={styles.mistakeCard}>
+                  <div className={styles.mistakeCardHeader}>
+                    <div className={styles.tagGroup}>
+                      <span className={`${styles.badge} ${styles.badgeCause}`}>
+                        {rootCauseLabel}
+                      </span>
+                      <span className={`${styles.badge} ${styles.badgeRepetition}`}>
+                        Repetition {m.repetitionCount} • Interval: {m.spacedIntervalDays}d
+                      </span>
+                      {m.isResolved && (
+                        <span className={`${styles.badge} ${styles.badgeResolved}`}>
+                          Mastered
+                        </span>
+                      )}
+                    </div>
+
+                    {!m.isResolved && (
+                      <span className={styles.dueText}>
+                        {isOverdue ? 'Overdue for Spaced Retry' : 'Next review scheduled'}
                       </span>
                     )}
                   </div>
 
-                  {!m.isResolved && (
-                    <span className={styles.dueText}>
-                      {isOverdue ? 'Overdue for Spaced Retry' : 'Next review scheduled'}
-                    </span>
+                  <div className={styles.questionText}>
+                    {m.question?.questionText || 'Question statement logged from assessment.'}
+                  </div>
+
+                  {/* Comparison Grid */}
+                  <div className={styles.comparisonGrid}>
+                    <div className={`${styles.ansBox} ${styles.ansWrong}`}>
+                      <span className={styles.ansLabel}>YOUR SUBMITTED ANSWER</span>
+                      <span className={styles.ansContent}>
+                        {typeof m.studentAnswer === 'object' ? JSON.stringify(m.studentAnswer) : String(m.studentAnswer || 'Unattempted / Empty')}
+                      </span>
+                    </div>
+                    <div className={`${styles.ansBox} ${styles.ansCorrect}`}>
+                      <span className={styles.ansLabel}>VERIFIED CORRECT KEY</span>
+                      <span className={styles.ansContent}>
+                        {typeof m.correctAnswer === 'object' ? JSON.stringify(m.correctAnswer) : String(m.correctAnswer || 'Verified Key')}
+                      </span>
+                    </div>
+                  </div>
+
+                  {m.question?.explanation && (
+                    <div className={styles.explanationBox}>
+                      <strong>Pedagogical Proof: </strong>
+                      {m.question.explanation}
+                    </div>
                   )}
-                </div>
 
-                <div className={styles.questionText}>
-                  {m.question?.questionText || 'Question statement logged from assessment.'}
-                </div>
-
-                {/* Comparison Grid */}
-                <div className={styles.comparisonGrid}>
-                  <div className={`${styles.ansBox} ${styles.ansWrong}`}>
-                    <span className={styles.ansLabel}>YOUR SUBMITTED ANSWER</span>
-                    <span className={styles.ansContent}>
-                      {JSON.stringify(m.studentAnswer) || 'Unattempted / Empty'}
+                  <div className={styles.cardActions}>
+                    <span className={styles.metricLabel}>
+                      Logged from: {m.assessmentId ? 'Diagnostic Assessment' : 'Practice Session'}
                     </span>
-                  </div>
-                  <div className={`${styles.ansBox} ${styles.ansCorrect}`}>
-                    <span className={styles.ansLabel}>VERIFIED CORRECT KEY</span>
-                    <span className={styles.ansContent}>
-                      {JSON.stringify(m.correctAnswer)}
-                    </span>
+
+                    {!m.isResolved ? (
+                      <button
+                        className={styles.retryBtn}
+                        onClick={() => handleOpenRetry(m)}
+                      >
+                        <Icon name="refresh" size="xs" />
+                        Solve Again (Spaced Retry)
+                      </button>
+                    ) : (
+                      <span className={styles.dueText} style={{ color: '#34d399' }}>
+                        Concept Mastered
+                      </span>
+                    )}
                   </div>
                 </div>
-
-                {m.question?.explanation && (
-                  <div className={styles.explanationBox}>
-                    <strong>Pedagogical Proof: </strong>
-                    {m.question.explanation}
-                  </div>
-                )}
-
-                <div className={styles.cardActions}>
-                  <span className={styles.metricLabel}>
-                    Logged from: {m.assessmentId ? 'Diagnostic Assessment' : 'Practice Session'}
-                  </span>
-
-                  {!m.isResolved ? (
-                    <button
-                      className={styles.retryBtn}
-                      onClick={() => handleOpenRetry(m)}
-                    >
-                      <Icon name="refresh" size="xs" />
-                      Solve Again (Spaced Retry)
-                    </button>
-                  ) : (
-                    <span className={styles.dueText} style={{ color: '#34d399' }}>
-                      Concept Mastered
-                    </span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Spaced Retry Modal */}
         {activeRetryMistake && (
@@ -321,6 +347,19 @@ export default function MistakesPage() {
               <div className={styles.questionText}>
                 {activeRetryMistake.question?.questionText}
               </div>
+
+              {retryError && (
+                <div style={{
+                  padding: '0.75rem',
+                  background: 'rgba(239, 68, 68, 0.15)',
+                  border: '1px solid rgba(239, 68, 68, 0.4)',
+                  borderRadius: '0.5rem',
+                  color: '#f87171',
+                  fontSize: '0.8125rem',
+                }}>
+                  ⚠️ {retryError}
+                </div>
+              )}
 
               {activeRetryMistake.question?.questionType === 'numerical' ? (
                 <div>
@@ -412,117 +451,3 @@ export default function MistakesPage() {
     </WorkspaceShell>
   );
 }
-
-const DEFAULT_MISTAKES: MistakeRecord[] = [
-  {
-    id: 'mistake-rotational-1',
-    studentId: 'me',
-    questionId: 'q-rot-1',
-    assessmentId: 'assess-jee-kinematics',
-    rootCause: 'calculation',
-    studentAnswer: ['B'],
-    correctAnswer: ['A'],
-    repetitionCount: 1,
-    spacedIntervalDays: 1,
-    nextRetryAt: new Date(Date.now() - 3600000).toISOString(), // Overdue
-    isResolved: false,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    question: {
-      id: 'q-rot-1',
-      subjectId: 'physics',
-      curriculumNodeId: 'node-rotational',
-      conceptId: 'concept-moment-inertia',
-      questionType: 'single_choice',
-      pedagogicalType: 'conceptual',
-      difficultyLevel: 'medium',
-      questionText: 'A solid sphere and hollow sphere of same mass and radius roll down an incline without slipping. Which reaches the bottom first?',
-      marks: 4,
-      isPyq: true,
-      isImportant: true,
-      appearanceFrequency: 4,
-      patternTags: ['Rotational Motion', 'Rolling Dynamics'],
-      isVerified: true,
-      isGenerated: false,
-      explanation: 'The solid sphere has a smaller moment of inertia (2/5 MR^2 vs 2/3 MR^2), thus greater linear acceleration a = g sin(theta) / (1 + I/MR^2).',
-      options: [
-        { optionKey: 'A', optionText: 'Solid sphere reaches first', isCorrect: true },
-        { optionKey: 'B', optionText: 'Hollow sphere reaches first', isCorrect: false },
-        { optionKey: 'C', optionText: 'Both reach simultaneously', isCorrect: false },
-        { optionKey: 'D', optionText: 'Depends on the angle of inclination', isCorrect: false },
-      ],
-    },
-  },
-  {
-    id: 'mistake-electro-2',
-    studentId: 'me',
-    questionId: 'q-elec-2',
-    assessmentId: 'assess-full-mock-01',
-    rootCause: 'conceptual',
-    studentAnswer: '4.5',
-    correctAnswer: '9.0',
-    repetitionCount: 2,
-    spacedIntervalDays: 3,
-    nextRetryAt: new Date(Date.now() + 86400000).toISOString(),
-    isResolved: false,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    question: {
-      id: 'q-elec-2',
-      subjectId: 'physics',
-      curriculumNodeId: 'node-electrostatics',
-      conceptId: 'concept-gauss-law',
-      questionType: 'numerical',
-      pedagogicalType: 'application',
-      difficultyLevel: 'hard',
-      questionText: 'Calculate the total electric flux in N m^2/C through a Gaussian cube enclosing a net charge of 79.65 pC (epsilon_0 = 8.85 x 10^-12 C^2/N m^2).',
-      marks: 4,
-      isPyq: true,
-      isImportant: true,
-      appearanceFrequency: 3,
-      patternTags: ['Gauss Law', 'Electric Flux'],
-      isVerified: true,
-      isGenerated: false,
-      explanation: 'Flux Phi = q_enclosed / epsilon_0 = (79.65 * 10^-12) / (8.85 * 10^-12) = 9.0 N m^2/C.',
-    },
-  },
-  {
-    id: 'mistake-thermo-3',
-    studentId: 'me',
-    questionId: 'q-thermo-3',
-    rootCause: 'guessing',
-    studentAnswer: ['C'],
-    correctAnswer: ['B'],
-    repetitionCount: 3,
-    spacedIntervalDays: 7,
-    nextRetryAt: new Date().toISOString(),
-    isResolved: true,
-    resolvedAt: new Date().toISOString(),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    question: {
-      id: 'q-thermo-3',
-      subjectId: 'physics',
-      curriculumNodeId: 'node-thermo',
-      conceptId: 'concept-carnot',
-      questionType: 'single_choice',
-      pedagogicalType: 'conceptual',
-      difficultyLevel: 'medium',
-      questionText: 'In an isothermal expansion of an ideal gas, the change in internal energy Delta U is:',
-      marks: 4,
-      isPyq: true,
-      isImportant: false,
-      appearanceFrequency: 2,
-      patternTags: ['Thermodynamics', 'Isothermal Process'],
-      isVerified: true,
-      isGenerated: false,
-      explanation: 'For an ideal gas, internal energy depends only on temperature. Since temperature is constant in an isothermal process, Delta U = 0.',
-      options: [
-        { optionKey: 'A', optionText: 'Positive', isCorrect: false },
-        { optionKey: 'B', optionText: 'Zero', isCorrect: true },
-        { optionKey: 'C', optionText: 'Negative', isCorrect: false },
-        { optionKey: 'D', optionText: 'Equal to work done', isCorrect: false },
-      ],
-    },
-  },
-];

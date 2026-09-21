@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, Suspense, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { WorkspaceShell } from '@/components/workspace/WorkspaceShell';
 import { Icon } from '@/components/ui/Icon';
@@ -16,7 +16,7 @@ import styles from './tutor.module.css';
 
 function TutorPageContent() {
   const { user } = useAuth();
-  const currentUserId = user?.id || 'a0ee61e9-3af8-462c-bcea-cdafd72468f3';
+  const currentUserId = user?.id;
 
   const searchParams = useSearchParams();
   const topicParam = searchParams.get('topic');
@@ -30,50 +30,45 @@ function TutorPageContent() {
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
   const [showSimModal, setShowSimModal] = useState<boolean>(false);
 
-  // Load sessions on mount
-  useEffect(() => {
-    let isMounted = true;
-    async function loadSessions() {
-      try {
-        const sessionList = await tutorAdapter.getSessions(currentUserId);
-        if (!isMounted) return;
-        setSessions(sessionList);
+  // Load sessions on mount or when user changes
+  const loadSessions = useCallback(async () => {
+    if (!currentUserId) return;
+    try {
+      const sessionList = await tutorAdapter.getSessions(currentUserId);
+      setSessions(sessionList);
 
-        if (sessionList.length > 0) {
-          setActiveSession(sessionList[0]);
-          const msgs = await tutorAdapter.getMessages(sessionList[0].id);
-          if (isMounted) setMessages(msgs);
-        } else {
-          // Create initial default dialogue
-          const initialTitle = topicParam
-            ? `Doubt Session: ${topicParam.replace(/-/g, ' ')}`
-            : 'Kinematics & Dynamics Doubt Session';
-          const newSession = await tutorAdapter.createSession(
-            currentUserId,
-            initialTitle,
-            modeParam,
-            {
-              topicId: topicParam || 'top-phy-11-01',
-              topicTitle: topicParam ? topicParam.replace(/-/g, ' ') : 'Projectile Motion & Vectors',
-              subjectId: 'physics',
-              targetExam: 'jee_main',
-            }
-          );
-          if (isMounted) {
-            setSessions([newSession]);
-            setActiveSession(newSession);
-            setMessages([]);
+      if (sessionList.length > 0) {
+        // If topicParam matches an existing session, or default to first
+        setActiveSession(sessionList[0]);
+        const msgs = await tutorAdapter.getMessages(sessionList[0].id);
+        setMessages(msgs);
+      } else if (topicParam) {
+        // Only auto-create session if explicitly launched with a topic
+        const initialTitle = `Topic: ${topicParam.replace(/-/g, ' ')}`;
+        const newSession = await tutorAdapter.createSession(
+          currentUserId,
+          initialTitle,
+          modeParam,
+          {
+            topicTitle: topicParam.replace(/-/g, ' '),
+            targetExam: 'jee_main',
           }
-        }
-      } catch (err) {
-        console.error('Failed to load tutor sessions:', err);
+        );
+        setSessions([newSession]);
+        setActiveSession(newSession);
+        setMessages([]);
+      } else {
+        setActiveSession(null);
+        setMessages([]);
       }
+    } catch (err) {
+      console.error('Failed to load tutor sessions:', err);
     }
-    loadSessions();
-    return () => {
-      isMounted = false;
-    };
   }, [currentUserId, topicParam, modeParam]);
+
+  useEffect(() => {
+    loadSessions();
+  }, [loadSessions]);
 
   // Load messages when active session changes
   const handleSelectSession = async (session: TutorSession) => {
@@ -92,6 +87,7 @@ function TutorPageContent() {
 
   // Create new dialogue thread
   const handleNewSession = async () => {
+    if (!currentUserId) return;
     try {
       const newSession = await tutorAdapter.createSession(
         currentUserId,
@@ -128,11 +124,13 @@ function TutorPageContent() {
 
   // Send message
   const handleSendMessage = async (content: string, imageUrl?: string) => {
+    if (!currentUserId) return;
+
     let currentActive = activeSession;
     if (!currentActive) {
       const newSession = await tutorAdapter.createSession(
         currentUserId,
-        content.slice(0, 36) || 'New Academic Doubt',
+        content.slice(0, 36) || 'New Concept Dialogue',
         currentMode
       );
       setSessions((prev) => [newSession, ...prev]);
@@ -174,6 +172,14 @@ function TutorPageContent() {
     }
   };
 
+  if (!user) {
+    return (
+      <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+        Authenticating Socratic AI Tutor session...
+      </div>
+    );
+  }
+
   return (
     <div className={styles.tutorLayout}>
       {/* Session History Drawer */}
@@ -203,7 +209,7 @@ function TutorPageContent() {
             </button>
 
             <h1 className={styles.dialogueTitle}>
-              {activeSession?.title || 'Academic Doubt Session'}
+              {activeSession?.title || 'Socratic AI Dialogue'}
             </h1>
 
             {activeSession?.context?.topicTitle && (
@@ -236,12 +242,33 @@ function TutorPageContent() {
         />
 
         {/* Message Thread (Student + Assistant turns + Citations) */}
-        <TutorMessageThread
-          messages={messages}
-          isLoading={isLoading}
-          onOpenSimulation={() => setShowSimModal(true)}
-          onSelectSuggestion={(prompt) => handleSendMessage(prompt)}
-        />
+        {messages.length === 0 && !isLoading ? (
+          <div style={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '2rem',
+            textAlign: 'center',
+            color: 'var(--color-text-secondary)',
+          }}>
+            <span style={{ fontSize: '2.5rem' }}>💡</span>
+            <h3 style={{ fontSize: '1.25rem', color: 'var(--color-text-primary)', marginTop: '0.75rem' }}>
+              How can I guide your understanding today?
+            </h3>
+            <p style={{ fontSize: '0.875rem', maxWidth: '480px', marginTop: '0.5rem', lineHeight: 1.6 }}>
+              Ask a question about any concept, paste a difficult problem, or upload a diagram. I will help you deduce the principles step by step rather than just giving away the solution.
+            </p>
+          </div>
+        ) : (
+          <TutorMessageThread
+            messages={messages}
+            isLoading={isLoading}
+            onOpenSimulation={() => setShowSimModal(true)}
+            onSelectSuggestion={(prompt) => handleSendMessage(prompt)}
+          />
+        )}
 
         {/* Multiline Input Area with Image Attachment & Drag/Drop */}
         <TutorInputArea
@@ -260,8 +287,8 @@ function TutorPageContent() {
         >
           <div className={styles.simModalWrapper}>
             <VisualLearningViewer
-              title="Ballistic Trajectory 3D Spatial Simulator"
-              topicTitle={activeSession?.context?.topicTitle || 'Kinematics in 2D & 3D (NCERT)'}
+              title="Interactive Physics 3D Spatial Simulator"
+              topicTitle={activeSession?.context?.topicTitle || 'Spatial Vectors & Dynamics'}
               onClose={() => setShowSimModal(false)}
             />
           </div>

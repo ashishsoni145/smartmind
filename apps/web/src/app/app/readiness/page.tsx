@@ -1,26 +1,18 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { WorkspaceShell } from '@/components/workspace/WorkspaceShell';
 import { Icon } from '@/components/ui/Icon';
 import styles from './readiness.module.css';
-import type { StudentReadinessState, ReadinessFactor } from '@sharpmind/types';
-import SharpMindApiClient from '@sharpmind/api-client';
-
-const api = new SharpMindApiClient({
-  baseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1',
-  getToken: () => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('supabase_access_token');
-    }
-    return null;
-  },
-});
+import type { StudentReadinessState } from '@sharpmind/types';
+import { apiClient as api } from '@/lib/api-client';
 
 export default function ReadinessPage() {
   const [readinessState, setReadinessState] = useState<StudentReadinessState | null>(null);
   const [loading, setLoading] = useState(true);
   const [recalculating, setRecalculating] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Simulation Controls
   const [daysRemaining, setDaysRemaining] = useState(90);
@@ -37,6 +29,7 @@ export default function ReadinessPage() {
     recommendations: string[];
   } | null>(null);
   const [simulating, setSimulating] = useState(false);
+  const [simError, setSimError] = useState<string | null>(null);
 
   useEffect(() => {
     loadReadiness();
@@ -46,15 +39,18 @@ export default function ReadinessPage() {
     try {
       if (forceRecalculate) setRecalculating(true);
       else setLoading(true);
+      setErrorMsg(null);
 
       const res = await api.readiness.get({ recalculate: forceRecalculate });
       if (res && res.factors && res.factors.length > 0) {
         setReadinessState(res);
       } else {
-        setReadinessState(DEFAULT_READINESS_STATE);
+        setReadinessState(null);
       }
-    } catch {
-      setReadinessState(DEFAULT_READINESS_STATE);
+    } catch (err: any) {
+      console.error('Failed to load readiness state from API:', err);
+      setErrorMsg('Could not sync readiness metrics with intelligence engine.');
+      setReadinessState(null);
     } finally {
       setLoading(false);
       setRecalculating(false);
@@ -63,6 +59,8 @@ export default function ReadinessPage() {
 
   async function handleRunSimulation() {
     setSimulating(true);
+    setSimError(null);
+
     try {
       const res = await api.readiness.simulate({
         daysRemaining,
@@ -71,37 +69,17 @@ export default function ReadinessPage() {
         revisionAdherencePercent: revisionAdherence,
       });
       setSimResult(res);
-    } catch {
-      // Fallback local simulation logic
-      const currentScore = readinessState?.overallReadinessScore || 65;
-      const potentialDelta = Math.min(25, Math.round(daysRemaining * 0.12 * (dailyHours / 4) * (revisionAdherence / 85) * 10) / 10);
-      const projMarks = Math.round(((currentScore + potentialDelta) / 100) * 300);
-
-      setSimResult({
-        simulatedScore: projMarks,
-        simulatedReadinessDelta: potentialDelta,
-        scoreConfidenceInterval: {
-          min: Math.max(0, projMarks - 18),
-          max: Math.min(300, projMarks + 18),
-        },
-        assumptions: [
-          `Maintains strict ${dailyHours.toFixed(1)} hours/day study cadence across remaining ${daysRemaining} days.`,
-          `Completes ${targetMocks} full-length mock examinations under timed conditions.`,
-          `Maintains ${revisionAdherence}% adherence to spaced mistake retries and flash revisions.`,
-          `Reviews all post-test intelligence reports to fix recurring errors before final sitting.`,
-        ],
-        recommendations: [
-          'Prioritize clearing overdue rotational dynamics mistakes to protect against negative marks.',
-          'Schedule at least 1 mock exam every weekend to calibrate pacing under test strain.',
-        ],
-      });
+    } catch (err: any) {
+      console.error('Simulation execution failed:', err);
+      setSimError(`Target simulation failed: ${err.message || 'Server error'}. Please try again.`);
+      setSimResult(null);
     } finally {
       setSimulating(false);
     }
   }
 
-  const overallScore = readinessState?.overallReadinessScore || 65;
-  const factors = readinessState?.factors || DEFAULT_READINESS_STATE.factors;
+  const overallScore = readinessState?.overallReadinessScore || 0;
+  const factors = readinessState?.factors || [];
 
   return (
     <WorkspaceShell>
@@ -122,7 +100,7 @@ export default function ReadinessPage() {
 
           <button
             className={styles.recalcBtn}
-            disabled={recalculating}
+            disabled={recalculating || loading}
             onClick={() => loadReadiness(true)}
           >
             <Icon name="refresh" size="sm" />
@@ -130,109 +108,188 @@ export default function ReadinessPage() {
           </button>
         </header>
 
-        {/* Hero Overview Banner */}
-        <div className={styles.overviewHero}>
-          <div className={styles.scoreGaugeBox}>
-            <div
-              className={styles.gaugeCircle}
-              style={{ '--readiness-percent': `${Math.round(overallScore)}%` } as React.CSSProperties}
+        {errorMsg && (
+          <div style={{
+            padding: '1rem 1.25rem',
+            background: 'rgba(239, 68, 68, 0.1)',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+            borderRadius: 'var(--radius-md)',
+            color: '#f87171',
+            fontSize: '0.875rem',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}>
+            <span>⚠️ {errorMsg}</span>
+            <button
+              onClick={() => loadReadiness(false)}
+              style={{
+                background: 'rgba(255, 255, 255, 0.1)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                color: '#fff',
+                padding: '0.25rem 0.75rem',
+                borderRadius: 'var(--radius-sm)',
+                cursor: 'pointer',
+              }}
             >
-              <div className={styles.gaugeInner}>
-                <span className={styles.gaugeScore}>{overallScore}%</span>
-                <span className={styles.gaugeLabel}>EXAM READINESS</span>
-              </div>
-            </div>
+              Retry
+            </button>
           </div>
+        )}
 
-          <div className={styles.heroDetails}>
-            <div>
-              <span className={styles.factorWeight}>TARGET EXAMINATION: JEE MAIN 2026</span>
-              <h3 className={styles.pageTitle} style={{ fontSize: '1.25rem', marginTop: '0.25rem' }}>
-                Statistical Trajectory Status: On Track
-              </h3>
-            </div>
-
-            <div className={styles.projectionBox}>
-              <div className={styles.projItem}>
-                <span className={styles.projLabel}>PROJECTED SCORE BAND</span>
-                <div className={styles.projValue}>
-                  {readinessState?.projectedScoreRange?.min || 185} – {readinessState?.projectedScoreRange?.max || 225} / 300
-                </div>
-              </div>
-              <div className={styles.projItem}>
-                <span className={styles.projLabel}>ESTIMATED PERCENTILE</span>
-                <div className={styles.projValue} style={{ color: '#34d399' }}>
-                  98.2 – 99.1 %ile
-                </div>
-              </div>
-              <div className={styles.projItem}>
-                <span className={styles.projLabel}>EMPIRICAL EVIDENCE BASIS</span>
-                <div className={styles.projValue} style={{ color: '#a855f7', fontSize: '1.125rem' }}>
-                  8 Verified Factors
-                </div>
-              </div>
-            </div>
+        {loading ? (
+          <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+            Evaluating 8-factor empirical readiness index...
           </div>
-        </div>
-
-        {/* The 8 Grounded Readiness Factors */}
-        <section className={styles.factorsSection}>
-          <h2 className={styles.sectionHeading}>8-Factor Grounded Readiness Index</h2>
-          <div className={styles.factorsGrid}>
-            {factors.map((f) => {
-              const statusClass =
-                f.status === 'strong'
-                  ? styles.statusStrong
-                  : f.status === 'good'
-                  ? styles.statusGood
-                  : f.status === 'needs_work'
-                  ? styles.statusNeedsWork
-                  : styles.statusCritical;
-
-              return (
-                <div key={f.key || f.factor} className={styles.factorCard}>
-                  <div className={styles.factorHeader}>
-                    <span className={styles.factorName}>{f.factor || f.name}</span>
-                    <span className={styles.factorWeight}>Weight: {Math.round(f.weight * 100)}%</span>
-                  </div>
-
-                  <div className={styles.factorScoreRow}>
-                    <span className={styles.factorScoreNum}>{f.score}%</span>
-                    <span className={`${styles.statusPill} ${statusClass}`}>
-                      {f.status ? f.status.replace('_', ' ') : 'STABLE'}
-                    </span>
-                  </div>
-
-                  <div className={styles.progressBarTrack}>
-                    <div
-                      className={styles.progressBarFill}
-                      style={{ width: `${Math.min(100, Math.max(0, f.score))}%` }}
-                    />
-                  </div>
-
-                  <p className={styles.factorDesc}>
-                    {f.description || f.explanation}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* Interactive Target Simulation */}
-        <section className={styles.simulatorBox}>
-          <div>
-            <h2 className={styles.sectionHeading}>Target Examination Trajectory Simulator</h2>
-            <p className={styles.pageSubtitle} style={{ marginTop: '0.25rem' }}>
-              Adjust your remaining preparation parameters to model projected readiness deltas under explicit, declared behavioral assumptions.
+        ) : !readinessState || factors.length === 0 ? (
+          <div style={{
+            padding: '3rem 2rem',
+            textAlign: 'center',
+            background: 'rgba(255, 255, 255, 0.02)',
+            border: '1px solid rgba(255, 255, 255, 0.06)',
+            borderRadius: 'var(--radius-lg)',
+            color: 'var(--color-text-secondary)',
+          }}>
+            <span style={{ fontSize: '2.5rem' }}>🎯</span>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-text-primary)', marginTop: '0.75rem' }}>
+              Readiness Model Uncalibrated
+            </h3>
+            <p style={{ fontSize: '0.875rem', maxWidth: '520px', margin: '0.5rem auto 1.5rem auto', lineHeight: 1.6 }}>
+              SharpMind refuses to fabricate scores. An objective readiness score requires observed evidence from your baseline diagnostic or practice tests.
             </p>
+            <Link
+              href="/app/tests"
+              style={{
+                display: 'inline-block',
+                padding: '0.625rem 1.25rem',
+                background: '#6366f1',
+                color: '#ffffff',
+                borderRadius: 'var(--radius-md)',
+                fontWeight: 500,
+                fontSize: '0.875rem',
+                textDecoration: 'none',
+              }}
+            >
+              Take Baseline Diagnostic Assessment &rarr;
+            </Link>
+          </div>
+        ) : (
+          <>
+            {/* Hero Overview Banner */}
+            <div className={styles.overviewHero}>
+              <div className={styles.scoreGaugeBox}>
+                <div
+                  className={styles.gaugeCircle}
+                  style={{ '--readiness-percent': `${Math.round(overallScore)}%` } as React.CSSProperties}
+                >
+                  <div className={styles.gaugeInner}>
+                    <span className={styles.gaugeScore}>{overallScore}%</span>
+                    <span className={styles.gaugeLabel}>EXAM READINESS</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className={styles.heroDetails}>
+                <div>
+                  <span className={styles.factorWeight}>
+                    TARGET EXAMINATION: {(readinessState.targetExamId || 'TARGET EXAM').toUpperCase()}
+                  </span>
+                  <h3 className={styles.pageTitle} style={{ fontSize: '1.25rem', marginTop: '0.25rem' }}>
+                    Statistical Trajectory: {overallScore >= 70 ? 'On Track' : overallScore >= 45 ? 'Developing Cadence' : 'Early Calibration'}
+                  </h3>
+                </div>
+
+                <div className={styles.projectionBox}>
+                  <div className={styles.projItem}>
+                    <span className={styles.projLabel}>PROJECTED SCORE BAND</span>
+                    <div className={styles.projValue}>
+                      {readinessState.projectedScoreRange?.min ?? '--'} – {readinessState.projectedScoreRange?.max ?? '--'} / 300
+                    </div>
+                  </div>
+                  <div className={styles.projItem}>
+                    <span className={styles.projLabel}>CALCULATION BASIS</span>
+                    <div className={styles.projValue} style={{ color: '#34d399' }}>
+                      {factors.length} Verified Factors
+                    </div>
+                  </div>
+                  <div className={styles.projItem}>
+                    <span className={styles.projLabel}>LAST COMPUTED</span>
+                    <div className={styles.projValue} style={{ color: '#a855f7', fontSize: '0.875rem' }}>
+                      {readinessState.lastCalculatedAt ? new Date(readinessState.lastCalculatedAt).toLocaleDateString() : 'Just now'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* The Grounded Readiness Factors */}
+            <section className={styles.factorsSection}>
+              <h2 className={styles.sectionHeading}>Grounded Readiness Breakdown</h2>
+              <div className={styles.factorsGrid}>
+                {factors.map((f) => {
+                  const statusClass =
+                    f.status === 'strong'
+                      ? styles.statusStrong
+                      : f.status === 'good'
+                      ? styles.statusGood
+                      : f.status === 'needs_work'
+                      ? styles.statusNeedsWork
+                      : styles.statusCritical;
+
+                  return (
+                    <div key={f.key || f.factor} className={styles.factorCard}>
+                      <div className={styles.factorHeader}>
+                        <span className={styles.factorName}>{f.factor || f.name}</span>
+                        <span className={styles.factorWeight}>Weight: {Math.round(f.weight * 100)}%</span>
+                      </div>
+
+                      <div className={styles.factorScoreRow}>
+                        <span className={styles.factorScoreNum}>{f.score}%</span>
+                        <span className={`${styles.statusPill} ${statusClass}`}>
+                          {f.status ? f.status.replace(/_/g, ' ') : 'STABLE'}
+                        </span>
+                      </div>
+
+                      <div className={styles.progressBarTrack}>
+                        <div
+                          className={styles.progressBarFill}
+                          style={{ width: `${Math.min(100, Math.max(0, f.score))}%` }}
+                        />
+                      </div>
+
+                      <p className={styles.factorDesc}>
+                        {f.description || f.explanation}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          </>
+        )}
+
+        {/* Target Simulation Sandbox */}
+        <section className={styles.simulationSection}>
+          <div className={styles.simHeader}>
+            <div className={styles.simIcon}>
+              <Icon name="target" size="md" />
+            </div>
+            <div>
+              <h2 className={styles.pageTitle} style={{ fontSize: '1.25rem' }}>
+                Counterfactual Trajectory Simulation
+              </h2>
+              <p className={styles.pageSubtitle}>
+                Model how changes to daily study hours, mock exam frequency, and revision adherence alter your projected score distribution.
+              </p>
+            </div>
           </div>
 
-          <div className={styles.simControlsGrid}>
-            <div className={styles.sliderGroup}>
-              <div className={styles.sliderHeader}>
-                <span className={styles.sliderLabel}>Days Remaining Until Exam</span>
-                <span className={styles.sliderValue}>{daysRemaining} Days</span>
+          <div className={styles.slidersGrid}>
+            {/* Slider 1: Days */}
+            <div className={styles.sliderCard}>
+              <div className={styles.sliderLabelRow}>
+                <span className={styles.metricLabel}>DAYS UNTIL EXAM</span>
+                <span className={styles.sliderValDisplay}>{daysRemaining} Days</span>
               </div>
               <input
                 type="range"
@@ -240,47 +297,50 @@ export default function ReadinessPage() {
                 max="180"
                 step="5"
                 value={daysRemaining}
-                className={styles.sliderInput}
                 onChange={(e) => setDaysRemaining(Number(e.target.value))}
+                className={styles.rangeInput}
               />
             </div>
 
-            <div className={styles.sliderGroup}>
-              <div className={styles.sliderHeader}>
-                <span className={styles.sliderLabel}>Daily Dedicated Study Hours</span>
-                <span className={styles.sliderValue}>{dailyHours} Hours/Day</span>
+            {/* Slider 2: Daily Hours */}
+            <div className={styles.sliderCard}>
+              <div className={styles.sliderLabelRow}>
+                <span className={styles.metricLabel}>DAILY STUDY ALLOCATION</span>
+                <span className={styles.sliderValDisplay}>{dailyHours} Hours/Day</span>
               </div>
               <input
                 type="range"
-                min="1.0"
-                max="10.0"
+                min="1"
+                max="10"
                 step="0.5"
                 value={dailyHours}
-                className={styles.sliderInput}
                 onChange={(e) => setDailyHours(Number(e.target.value))}
+                className={styles.rangeInput}
               />
             </div>
 
-            <div className={styles.sliderGroup}>
-              <div className={styles.sliderHeader}>
-                <span className={styles.sliderLabel}>Target Full-Length Mocks</span>
-                <span className={styles.sliderValue}>{targetMocks} Mocks</span>
+            {/* Slider 3: Target Mocks */}
+            <div className={styles.sliderCard}>
+              <div className={styles.sliderLabelRow}>
+                <span className={styles.metricLabel}>TARGET FULL-LENGTH MOCKS</span>
+                <span className={styles.sliderValDisplay}>{targetMocks} Mocks</span>
               </div>
               <input
                 type="range"
                 min="2"
-                max="25"
+                max="30"
                 step="1"
                 value={targetMocks}
-                className={styles.sliderInput}
                 onChange={(e) => setTargetMocks(Number(e.target.value))}
+                className={styles.rangeInput}
               />
             </div>
 
-            <div className={styles.sliderGroup}>
-              <div className={styles.sliderHeader}>
-                <span className={styles.sliderLabel}>Spaced Revision Adherence</span>
-                <span className={styles.sliderValue}>{revisionAdherence}%</span>
+            {/* Slider 4: Revision Adherence */}
+            <div className={styles.sliderCard}>
+              <div className={styles.sliderLabelRow}>
+                <span className={styles.metricLabel}>SPACED REVISION ADHERENCE</span>
+                <span className={styles.sliderValDisplay}>{revisionAdherence}%</span>
               </div>
               <input
                 type="range"
@@ -288,69 +348,100 @@ export default function ReadinessPage() {
                 max="100"
                 step="5"
                 value={revisionAdherence}
-                className={styles.sliderInput}
                 onChange={(e) => setRevisionAdherence(Number(e.target.value))}
+                className={styles.rangeInput}
               />
             </div>
           </div>
 
-          <button
-            className={styles.runSimBtn}
-            disabled={simulating}
-            onClick={handleRunSimulation}
-          >
-            <Icon name="target" size="sm" />
-            {simulating ? 'Computing Simulation...' : 'Simulate Trajectory Projections'}
-          </button>
+          <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end' }}>
+            <button
+              className={styles.simBtn}
+              disabled={simulating}
+              onClick={handleRunSimulation}
+            >
+              <Icon name="sparkles" size="sm" />
+              {simulating ? 'Computing Trajectory...' : 'Run Counterfactual Simulation'}
+            </button>
+          </div>
 
-          {/* Simulation Output */}
+          {simError && (
+            <div style={{
+              marginTop: '1rem',
+              padding: '0.75rem 1rem',
+              background: 'rgba(239, 68, 68, 0.15)',
+              border: '1px solid rgba(239, 68, 68, 0.4)',
+              borderRadius: '0.5rem',
+              color: '#f87171',
+              fontSize: '0.875rem',
+            }}>
+              ⚠️ {simError}
+            </div>
+          )}
+
+          {/* Simulation Output Card */}
           {simResult && (
             <div className={styles.simResultCard}>
-              <div className={styles.simScoreRow}>
-                <div>
-                  <span className={styles.projLabel}>SIMULATED PROJECTED SCORE</span>
-                  <div className={styles.simBigScore}>
-                    {simResult.simulatedScore} / 300 Marks
-                  </div>
+              <div className={styles.simResultHeader}>
+                <span className={styles.factorWeight}>COUNTERFACTUAL MODEL OUTPUT</span>
+                <h3 className={styles.pageTitle} style={{ fontSize: '1.25rem', marginTop: '0.25rem' }}>
+                  Projected Trajectory at Scheduled Study Cadence
+                </h3>
+              </div>
+
+              <div className={styles.simMetricsGrid}>
+                <div className={styles.simScoreCard}>
+                  <span className={styles.metricLabel}>PROJECTED SCORE</span>
+                  <span className={styles.simScoreBig}>
+                    {simResult.simulatedScore}
+                    <span style={{ fontSize: '1rem', color: '#94a3b8' }}> / 300</span>
+                  </span>
                 </div>
-                <div className={styles.simDeltaBadge}>
-                  +{simResult.simulatedReadinessDelta}% Readiness Delta
+                <div className={styles.simScoreCard}>
+                  <span className={styles.metricLabel}>READINESS DELTA</span>
+                  <span className={styles.simScoreBig} style={{ color: '#34d399' }}>
+                    +{simResult.simulatedReadinessDelta}%
+                  </span>
                 </div>
-                <div>
-                  <span className={styles.projLabel}>CONFIDENCE BOUND</span>
-                  <div className={styles.projValue} style={{ fontSize: '1.125rem' }}>
-                    {simResult.scoreConfidenceInterval.min} – {simResult.scoreConfidenceInterval.max} Marks
-                  </div>
+                <div className={styles.simScoreCard}>
+                  <span className={styles.metricLabel}>95% CONFIDENCE BAND</span>
+                  <span className={styles.simScoreBig} style={{ fontSize: '1.25rem' }}>
+                    {simResult.scoreConfidenceInterval?.min} – {simResult.scoreConfidenceInterval?.max}
+                  </span>
                 </div>
               </div>
 
-              <div>
-                <strong style={{ fontSize: '0.8125rem', color: '#cbd5e1', display: 'block', marginBottom: '0.5rem' }}>
-                  Explicit Simulation Assumptions:
-                </strong>
-                <div className={styles.assumptionsList}>
-                  {simResult.assumptions.map((asm, idx) => (
-                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span style={{ color: '#6366f1' }}>•</span>
-                      <span>{asm}</span>
-                    </div>
-                  ))}
+              {simResult.assumptions?.length > 0 && (
+                <div style={{ marginBottom: '1rem' }}>
+                  <strong style={{ fontSize: '0.8125rem', color: '#cbd5e1', display: 'block', marginBottom: '0.5rem' }}>
+                    Grounded Model Assumptions:
+                  </strong>
+                  <div className={styles.assumptionsList}>
+                    {simResult.assumptions.map((assump, idx) => (
+                      <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span style={{ color: '#6366f1' }}>•</span>
+                        <span>{assump}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
-              <div>
-                <strong style={{ fontSize: '0.8125rem', color: '#cbd5e1', display: 'block', marginBottom: '0.5rem' }}>
-                  Recommended Priority Interventions:
-                </strong>
-                <div className={styles.assumptionsList}>
-                  {simResult.recommendations.map((rec, idx) => (
-                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span style={{ color: '#10b981' }}>✓</span>
-                      <span>{rec}</span>
-                    </div>
-                  ))}
+              {simResult.recommendations?.length > 0 && (
+                <div>
+                  <strong style={{ fontSize: '0.8125rem', color: '#cbd5e1', display: 'block', marginBottom: '0.5rem' }}>
+                    Recommended Priority Interventions:
+                  </strong>
+                  <div className={styles.assumptionsList}>
+                    {simResult.recommendations.map((rec, idx) => (
+                      <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span style={{ color: '#10b981' }}>✓</span>
+                        <span>{rec}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
         </section>
@@ -358,99 +449,3 @@ export default function ReadinessPage() {
     </WorkspaceShell>
   );
 }
-
-const DEFAULT_READINESS_STATE: StudentReadinessState = {
-  id: 'readiness-default',
-  studentId: 'me',
-  targetExamId: 'jee_main',
-  overallReadinessScore: 68.4,
-  projectedScoreRange: { min: 195, max: 235 },
-  factors: [
-    {
-      factor: 'Syllabus Coverage',
-      key: 'syllabusCoverage',
-      weight: 0.2,
-      score: 75,
-      contribution: 15.0,
-      explanation: '75 of 100 chapters and topics active with practice data.',
-      description: '75 of 100 chapters and topics active with practice data.',
-      status: 'good',
-    },
-    {
-      factor: 'Concept Mastery',
-      key: 'conceptMastery',
-      weight: 0.25,
-      score: 82,
-      contribution: 20.5,
-      explanation: 'Weighted Bayesian mastery across syllabus concepts.',
-      description: 'Weighted Bayesian mastery across syllabus concepts.',
-      status: 'strong',
-    },
-    {
-      factor: 'Retention Stability',
-      key: 'retentionStability',
-      weight: 0.15,
-      score: 74,
-      contribution: 11.1,
-      explanation: 'Ebbinghaus memory decay estimate based on elapsed practice recency.',
-      description: 'Ebbinghaus memory decay estimate based on elapsed practice recency.',
-      status: 'good',
-    },
-    {
-      factor: 'Test Experience & Volume',
-      key: 'testExperience',
-      weight: 0.1,
-      score: 60,
-      contribution: 6.0,
-      explanation: '6 tests taken against target benchmark of 10 mock assessments.',
-      description: '6 tests taken against target benchmark of 10 mock assessments.',
-      status: 'needs_work',
-    },
-    {
-      factor: 'Speed & Pacing Discipline',
-      key: 'speedPacing',
-      weight: 0.1,
-      score: 85,
-      contribution: 8.5,
-      explanation: 'Average 110s/question compared to exam benchmark (120s).',
-      description: 'Average 110s/question compared to exam benchmark (120s).',
-      status: 'strong',
-    },
-    {
-      factor: 'High-Difficulty Performance',
-      key: 'highDifficultyAccuracy',
-      weight: 0.1,
-      score: 55,
-      contribution: 5.5,
-      explanation: '55% accuracy across hard and multi-concept questions.',
-      description: '55% accuracy across hard and multi-concept questions.',
-      status: 'needs_work',
-    },
-    {
-      factor: 'Performance Consistency',
-      key: 'consistency',
-      weight: 0.05,
-      score: 80,
-      contribution: 4.0,
-      explanation: 'Test-to-test variance and stability across recent mock sittings.',
-      description: 'Test-to-test variance and stability across recent mock sittings.',
-      status: 'good',
-    },
-    {
-      factor: 'Revision & Mistake Health',
-      key: 'revisionHealth',
-      weight: 0.05,
-      score: 70,
-      contribution: 3.5,
-      explanation: '2 resolved mistakes, 1 pending spaced review.',
-      description: '2 resolved mistakes, 1 pending spaced review.',
-      status: 'good',
-    },
-  ],
-  simulationScenarios: [],
-  recommendedInterventions: [
-    'Take at least 2 full-syllabus mock assessments this month to build exam temperament and stamina.',
-    'Clear pending rotational dynamics mistake retry to prevent recurring negative marks.',
-  ],
-  lastCalculatedAt: new Date().toISOString(),
-};

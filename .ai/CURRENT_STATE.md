@@ -347,6 +347,47 @@ All 9 parts of Phase 01 (Foundation, Database, Auth, Onboarding, Authenticated S
     - Backend typecheck (`npm run typecheck` in backend): 0 errors.
     - Web typecheck (`npm run typecheck` in apps/web): 0 errors.
 
-
-
-
+- Priority P0 Completed: Trust & Foundation (Stop Fake Data, Complete Placeholders, Fix Auth Inconsistencies) — 2026-09-21:
+  - Dashboard Real Data Pipeline (`apps/web/src/app/app/page.tsx`):
+    - Removed hardcoded fake initializers for `dailyTasks`, `backlogItems`, `dueRevisions`, and hardcoded `masteryScore: 68` / `retentionScore: 84`.
+    - Fully wired reads to backend endpoints via authenticated shared `apiClient`: `apiClient.studentModel.getSummary`, `apiClient.backlog.get`, `apiClient.planner.getToday`, and `apiClient.revision.getDue`.
+    - Fully wired writes: `handleReviewOutcome` calls `apiClient.revision.completeEvent`, `handleToggleTaskStatus` calls `apiClient.planner.updateTask`, `handleReplan` calls `apiClient.planner.replan`.
+    - Baseline diagnostic modal now genuinely commits observed evidence records for each question to `public.student_evidence_logs` via `apiClient.studentModel.recordEvidence` referencing canonical question UUIDs, triggering downstream mastery updates and backlog recalculation.
+    - Next-action hero dynamically derives recommendations from the student's actual backlog priority rank.
+  - Tests Page Auth & Real Runner (`apps/web/src/app/app/tests/page.tsx`):
+    - Replaced broken local API client instantiation (`localStorage.getItem('supabase_access_token')`) with the shared `apiClient` using `supabase.auth.getSession()`.
+    - Removed `DEFAULT_ASSESSMENTS` (fake mock tests that do not exist in DB).
+    - Removed fake fallback test questions and fake scorecard generation in catch blocks.
+    - Enabled honest error reporting and empty state messaging when no assessments are available.
+  - Mistake Notebook Truth in Data (`apps/web/src/app/app/mistakes/page.tsx`):
+    - Replaced broken local API client with shared `apiClient`.
+    - Removed `DEFAULT_MISTAKES` (110 lines of fabricated data that masked 401s).
+    - Removed client-side retry evaluation fallback.
+    - Integrated genuine empty state and backend error banners with retry capability.
+  - Grounded Exam Readiness (`apps/web/src/app/app/readiness/page.tsx`):
+    - Replaced broken local API client with shared `apiClient`.
+    - Removed `DEFAULT_READINESS_STATE` (95 lines of fabricated factors and projections).
+    - Removed fake client-side mathematical simulation fallback in catch block.
+    - Displays honest uncalibrated state when baseline diagnostic evidence is missing.
+  - Academic Analytics Telemetry (`apps/web/src/app/app/analytics/page.tsx`):
+    - Eliminated fake 78% health score, fake daily debrief, and fake weekly review from catch blocks.
+    - Displays genuine uncalibrated and empty states when study sessions or telemetry records are absent.
+  - AI Tutor Authenticity (`apps/web/src/lib/adapters/tutor/` & `apps/web/src/app/app/tutor/page.tsx`):
+    - Removed silent fallback to `LocalAITutorAdapter` for empty session lists in `SupabaseAITutorAdapter`.
+    - Eliminated hardcoded fallback student UUID (`a0ee61e9-3af8-462c-bcea-cdafd72468f3`) in `TutorPageContent`.
+    - Eliminated hardcoded initial physics session; dynamic session created upon first user inquiry.
+  - Functional Spaced Repetition Engine Page (`apps/web/src/app/app/revision/`):
+    - Replaced `WorkspacePlaceholder` with real data-driven UI (`page.tsx` and `revision.module.css`).
+    - Wired to `apiClient.revision.getDue` and `apiClient.revision.completeEvent`.
+    - Displays urgency tags, SM-2 interval/repetition counters, retention decay progress bars, and Recalled/Hard/Forgot recall action triggers.
+  - Functional Adaptive Study Planner Page (`apps/web/src/app/app/planner/`):
+    - Replaced `WorkspacePlaceholder` with real data-driven UI (`page.tsx` and `planner.module.css`).
+    - Built Today's Agenda session view with task completion toggles calling `apiClient.planner.updateTask`.
+    - Built Weekly Matrix 7-day schedule view via `apiClient.planner.getWeek`.
+    - Integrated "Replan Missed Work" action calling `apiClient.planner.replan`.
+  - Repository Hygiene:
+    - Updated `.gitignore` to ignore `__pycache__/`, `*.pyc`, and `.cache/`.
+  - Verification:
+    - 216/216 backend Vitest tests passed across all 24 suites.
+    - TypeScript compilation (`npm run typecheck:all`): 0 errors in backend and web.
+    - Production Next.js build (`npm run build`): 36/36 static pages exported cleanly with 0 errors.

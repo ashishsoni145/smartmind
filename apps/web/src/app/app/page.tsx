@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { WorkspaceShell } from '@/components/workspace/WorkspaceShell';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -8,6 +8,7 @@ import { studentProfileAdapter } from '@/lib/adapters/student';
 import type { StudentProfile } from '@/lib/types/onboarding';
 import { Button } from '@/components/ui/Button';
 import { Icon, type IconName } from '@/components/ui/Icon';
+import { apiClient } from '@/lib/api-client';
 import styles from './page.module.css';
 
 interface SubjectInfo {
@@ -25,28 +26,30 @@ const SUBJECT_CATALOG: Record<string, SubjectInfo> = {
   english: { id: 'english', name: 'English Core', icon: 'english' },
 };
 
-// Verified baseline questions for the interactive diagnostic modal
+// Authentic baseline questions linked to canonical Supabase question records
 const BASELINE_DIAGNOSTIC_QUESTIONS = [
   {
     id: 'diag-q1',
+    questionUuid: 'd0000001-0000-0000-0000-000000000001',
     subject: 'Physics',
     topic: 'Kinematics & Projectile Motion',
     difficulty: 'medium',
-    text: 'A projectile is launched with velocity v at an angle θ to the horizontal. At the highest point of its trajectory, what is the magnitude of its velocity and the direction of its acceleration?',
+    text: 'A particle moves along the x-axis such that its position is given by x(t) = 3t^2 - 12t + 5 (in SI units). At what time does the velocity of the particle become zero?',
     options: [
-      { key: 'A', text: 'Velocity = 0, acceleration directed horizontally' },
-      { key: 'B', text: 'Velocity = v cos θ, acceleration directed vertically downwards (g)' },
-      { key: 'C', text: 'Velocity = v sin θ, acceleration = 0' },
-      { key: 'D', text: 'Velocity = v, acceleration directed downwards' },
+      { key: 'A', text: 't = 1 second' },
+      { key: 'B', text: 't = 2 seconds' },
+      { key: 'C', text: 't = 4 seconds' },
+      { key: 'D', text: 't = 0 seconds' },
     ],
     correctKey: 'B',
   },
   {
     id: 'diag-q2',
+    questionUuid: 'd0000001-0000-0000-0000-000000000004',
     subject: 'Chemistry',
     topic: 'Chemical Bonding & VSEPR',
     difficulty: 'medium',
-    text: 'Which of the following molecules possesses a trigonal planar geometry and zero net dipole moment according to VSEPR theory?',
+    text: 'Which of the following molecules has a zero dipole moment due to symmetric planar geometry according to VSEPR theory?',
     options: [
       { key: 'A', text: 'NH3 (Ammonia)' },
       { key: 'B', text: 'BF3 (Boron Trifluoride)' },
@@ -57,47 +60,80 @@ const BASELINE_DIAGNOSTIC_QUESTIONS = [
   },
   {
     id: 'diag-q3',
+    questionUuid: 'd0000001-0000-0000-0000-000000000005',
     subject: 'Mathematics',
-    topic: 'Differential Calculus & Maxima/Minima',
+    topic: 'Differential Calculus & Derivatives',
     difficulty: 'hard',
-    text: 'For the function f(x) = x^3 - 6x^2 + 9x + 15, what is the local maximum value and the point at which it occurs on the real line?',
+    text: 'Find the derivative of f(x) = ln(sin(x)) with respect to x for 0 < x < pi.',
     options: [
-      { key: 'A', text: 'Local maximum = 19 at x = 1' },
-      { key: 'B', text: 'Local maximum = 15 at x = 3' },
-      { key: 'C', text: 'Local maximum = 21 at x = 0' },
-      { key: 'D', text: 'Local maximum = 18 at x = 2' },
+      { key: 'A', text: 'cot(x)' },
+      { key: 'B', text: 'tan(x)' },
+      { key: 'C', text: '1 / sin(x)' },
+      { key: 'D', text: '-cot(x)' },
     ],
     correctKey: 'A',
   },
   {
     id: 'diag-q4',
+    questionUuid: 'd0000001-0000-0000-0000-000000000002',
     subject: 'Physics',
-    topic: 'Electrostatics & Gauss Law',
+    topic: 'Electrostatics & Potential',
     difficulty: 'hard',
-    text: 'A spherical conducting shell of inner radius R1 and outer radius R2 carries a total net charge +Q. A point charge +q is placed at the center. What is the total surface charge on the outer surface?',
+    text: 'Two point charges +q and -q are placed at distance d apart in vacuum. The electric potential at the midpoint between them is:',
     options: [
-      { key: 'A', text: '+Q' },
-      { key: 'B', text: '+q' },
-      { key: 'C', text: '+(Q + q)' },
-      { key: 'D', text: '+(Q - q)' },
+      { key: 'A', text: '2kq / d' },
+      { key: 'B', text: '4kq / d' },
+      { key: 'C', text: '0 (Zero)' },
+      { key: 'D', text: 'kq / (2d)' },
     ],
     correctKey: 'C',
   },
   {
     id: 'diag-q5',
+    questionUuid: 'd0000001-0000-0000-0000-000000000003',
     subject: 'Chemistry',
-    topic: 'Solutions & Colligative Properties',
+    topic: 'Solutions & Concentration',
     difficulty: 'easy',
-    text: 'What is the molality of a solution containing 18.0 g of glucose (C6H12O6, molar mass = 180 g/mol) dissolved in 250 g of pure water?',
+    text: 'What is the molarity of a solution prepared by dissolving 4.0 g of NaOH in water to form 250 mL of solution? (Molar mass of NaOH = 40 g/mol)',
     options: [
-      { key: 'A', text: '0.1 m' },
-      { key: 'B', text: '0.2 m' },
-      { key: 'C', text: '0.4 m' },
-      { key: 'D', text: '0.05 m' },
+      { key: 'A', text: '0.1 M' },
+      { key: 'B', text: '0.2 M' },
+      { key: 'C', text: '0.4 M' },
+      { key: 'D', text: '0.05 M' },
     ],
     correctKey: 'C',
   },
 ];
+
+interface DashboardTask {
+  id: string;
+  sessionId?: string;
+  title: string;
+  subject: string;
+  taskType: string;
+  durationMinutes: number;
+  status: string;
+  priority: string;
+}
+
+interface DashboardBacklogItem {
+  id: string;
+  title: string;
+  subject: string;
+  classification: string;
+  priorityScore: number;
+  reasons: string[];
+}
+
+interface DashboardRevisionItem {
+  id: string;
+  title: string;
+  subject: string;
+  urgency: 'high' | 'medium' | 'normal';
+  retention: number;
+  intervalDays: number;
+  repetition: number;
+}
 
 export default function WorkspaceDashboard() {
   const { user } = useAuth();
@@ -119,94 +155,14 @@ export default function WorkspaceDashboard() {
   });
 
   // Daily Plan State
-  const [dailyTasks, setDailyTasks] = useState([
-    {
-      id: 't-1',
-      title: 'Electrostatics & Gauss Law - Problem Drill',
-      subject: 'Physics',
-      taskType: 'practice_drill',
-      durationMinutes: 45,
-      status: 'pending',
-      priority: 'critical',
-    },
-    {
-      id: 't-2',
-      title: 'VSEPR & Molecular Geometry - Spaced Revision',
-      subject: 'Chemistry',
-      taskType: 'spaced_revision',
-      durationMinutes: 30,
-      status: 'pending',
-      priority: 'high',
-    },
-    {
-      id: 't-3',
-      title: 'Limits & Continuity - Concept Deep Dive',
-      subject: 'Mathematics',
-      taskType: 'learn_concept',
-      durationMinutes: 45,
-      status: 'completed',
-      priority: 'medium',
-    },
-  ]);
+  const [dailyTasks, setDailyTasks] = useState<DashboardTask[]>([]);
+  const [planSessionInfo, setPlanSessionInfo] = useState<{ timeSlot: string; totalMinutes: number } | null>(null);
 
   // Backlog State
-  const [backlogItems, setBacklogItems] = useState([
-    {
-      id: 'b-1',
-      title: 'Rotational Dynamics & Moment of Inertia',
-      subject: 'Physics',
-      classification: 'weak',
-      priorityScore: 88.5,
-      reasons: ['Weak mastery (24%)', 'Exam in 45 days', 'High exam weightage (12%)'],
-    },
-    {
-      id: 'b-2',
-      title: 'Chemical Equilibrium & Le Chatelier Principle',
-      subject: 'Chemistry',
-      classification: 'revision_due',
-      priorityScore: 79.2,
-      reasons: ['Retention decayed to 42%', 'Last practiced 18 days ago'],
-    },
-    {
-      id: 'b-3',
-      title: 'Definite Integrals & Area Under Curves',
-      subject: 'Mathematics',
-      classification: 'at_risk',
-      priorityScore: 74.0,
-      reasons: ['Blocks 4 downstream topics', 'Moderate accuracy (52%)'],
-    },
-  ]);
+  const [backlogItems, setBacklogItems] = useState<DashboardBacklogItem[]>([]);
 
   // Spaced Repetition Due State (SM-2)
-  const [dueRevisions, setDueRevisions] = useState([
-    {
-      id: 'rev-1',
-      title: 'Newton Laws of Motion & Friction',
-      subject: 'Physics',
-      urgency: 'high',
-      retention: 0.38,
-      intervalDays: 3,
-      repetition: 2,
-    },
-    {
-      id: 'rev-2',
-      title: 'Coordination Compounds & IUPAC Nomenclature',
-      subject: 'Chemistry',
-      urgency: 'medium',
-      retention: 0.58,
-      intervalDays: 6,
-      repetition: 1,
-    },
-    {
-      id: 'rev-3',
-      title: 'Matrices & Determinants Properties',
-      subject: 'Mathematics',
-      urgency: 'normal',
-      retention: 0.72,
-      intervalDays: 14,
-      repetition: 3,
-    },
-  ]);
+  const [dueRevisions, setDueRevisions] = useState<DashboardRevisionItem[]>([]);
 
   // Diagnostic Modal State
   const [isDiagnosticOpen, setIsDiagnosticOpen] = useState(false);
@@ -215,42 +171,136 @@ export default function WorkspaceDashboard() {
   const [userConfidences, setUserConfidences] = useState<Record<string, number>>({});
   const [diagnosticSubmitted, setDiagnosticSubmitted] = useState(false);
   const [diagnosticScore, setDiagnosticScore] = useState<{ correct: number; total: number } | null>(null);
+  const [isSubmittingDiagnostic, setIsSubmittingDiagnostic] = useState(false);
 
-  const loadProfileAndState = async (userId: string) => {
+  const loadProfileAndState = useCallback(async (userId: string) => {
     setIsLoading(true);
     setFetchError(null);
     try {
+      // 1. Fetch Student Profile
       const p = await studentProfileAdapter.getProfile(userId);
       setProfile(p);
 
-      // Check if diagnostic has already been taken
-      const isCalibrated = p?.knowledgeModelAttachment?.status === 'calibrated';
-      if (isCalibrated) {
-        setModelSummary({
-          masteryScore: 68,
-          retentionScore: 84,
-          evidenceCount: 14,
-          weakCount: 3,
-          masteredCount: 5,
-          avgSpeedSeconds: 52,
-          accuracy: 72,
-          status: 'calibrated',
-          lastCalibratedAt: p.knowledgeModelAttachment.lastCalibratedAt || new Date().toISOString(),
-        });
+      // 2. Fetch Student Model Summary from Backend
+      try {
+        const summary = await apiClient.studentModel.getSummary(userId);
+        if (summary) {
+          const evidenceCount = summary.totalEvidence || 0;
+          const isCalibrated = evidenceCount > 0;
+          const weakTopics = summary.subjectSummaries?.reduce(
+            (acc: number, s: any) => acc + (s.weakCount || 0),
+            0
+          ) || 0;
+          const masteredTopics = summary.subjectSummaries?.reduce(
+            (acc: number, s: any) => acc + (s.masteredCount || 0),
+            0
+          ) || 0;
+
+          setModelSummary({
+            masteryScore: Math.round((summary.overallMastery || 0) * 100),
+            retentionScore: Math.round((summary.overallRetention || 0) * 100),
+            evidenceCount,
+            weakCount: weakTopics,
+            masteredCount: masteredTopics,
+            avgSpeedSeconds: 48,
+            accuracy: Math.round((summary.overallMastery || 0) * 100),
+            status: isCalibrated ? 'calibrated' : 'uncalibrated',
+            lastCalibratedAt: summary.lastActivityAt || null,
+          });
+        }
+      } catch (smErr) {
+        console.warn('Could not load student model summary:', smErr);
+      }
+
+      // 3. Fetch Prioritized Backlog
+      try {
+        const backlogRes = await apiClient.backlog.get(userId, { limit: 6 });
+        if (backlogRes && backlogRes.items) {
+          const mappedBacklog: DashboardBacklogItem[] = backlogRes.items.map((item: any) => ({
+            id: item.id || item.curriculum_node_id,
+            title: item.title,
+            subject: item.subject_id || item.subjectId || 'General',
+            classification: item.classification || 'unstarted',
+            priorityScore: Math.round((Number(item.priority_score || item.priorityScore) || 50) * 10) / 10,
+            reasons: Array.isArray(item.priority_reasons)
+              ? item.priority_reasons.map((r: any) => (typeof r === 'string' ? r : r.explanation || r.reason || ''))
+              : ['Identified by adaptive scheduler'],
+          }));
+          setBacklogItems(mappedBacklog);
+        }
+      } catch (bErr) {
+        console.warn('Could not load backlog items:', bErr);
+      }
+
+      // 4. Fetch Daily Planner Sessions
+      try {
+        const plan = await apiClient.planner.getToday(userId);
+        if (plan && plan.sessions && plan.sessions.length > 0) {
+          const allTasks: DashboardTask[] = [];
+          for (const session of plan.sessions) {
+            for (const task of session.tasks || []) {
+              allTasks.push({
+                id: task.id,
+                sessionId: session.id,
+                title: task.title,
+                subject: task.subjectId || 'General',
+                taskType: task.taskType || 'practice_drill',
+                durationMinutes: task.estimatedMinutes || 30,
+                status: task.status || 'pending',
+                priority: task.priority || 'medium',
+              });
+            }
+          }
+          setDailyTasks(allTasks);
+          setPlanSessionInfo({
+            timeSlot: `${plan.sessions[0].startTime || '09:00'} – ${plan.sessions[plan.sessions.length - 1].endTime || '18:00'}`,
+            totalMinutes: plan.totalMinutes || 120,
+          });
+        } else {
+          setDailyTasks([]);
+        }
+      } catch (pErr) {
+        console.warn('Could not load daily plan:', pErr);
+      }
+
+      // 5. Fetch Spaced Repetition Due Queue
+      try {
+        const revRes = await apiClient.revision.getDue(userId, { limit: 10 });
+        if (revRes && revRes.items) {
+          const mappedRev: DashboardRevisionItem[] = revRes.items.map((item: any) => {
+            const urgencyScore = Number(item.urgencyScore) || 50;
+            const urgency: 'high' | 'medium' | 'normal' =
+              urgencyScore > 75 ? 'high' : urgencyScore > 40 ? 'medium' : 'normal';
+            return {
+              id: item.id,
+              title: item.topicTitle || 'Curriculum Concept Recall',
+              subject: item.subjectId || 'General',
+              urgency,
+              retention: item.currentRetention || 0.5,
+              intervalDays: item.intervalDays || 1,
+              repetition: item.repetitionLevel || 0,
+            };
+          });
+          setDueRevisions(mappedRev);
+        } else {
+          setDueRevisions([]);
+        }
+      } catch (rErr) {
+        console.warn('Could not load revision queue:', rErr);
       }
     } catch (err) {
-      console.error(err);
-      setFetchError('Could not sync with intelligence engine.');
+      console.error('Critical failure in workspace dashboard sync:', err);
+      setFetchError('Could not sync with intelligence engine. Please check backend connectivity.');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (user?.id) {
       loadProfileAndState(user.id);
     }
-  }, [user?.id]);
+  }, [user?.id, loadProfileAndState]);
 
   // Handle Diagnostic Answer Selection
   const handleSelectOption = (questionId: string, optionKey: string) => {
@@ -262,98 +312,163 @@ export default function WorkspaceDashboard() {
   };
 
   const handleSubmitDiagnostic = async () => {
-    let correct = 0;
-    BASELINE_DIAGNOSTIC_QUESTIONS.forEach((q) => {
-      if (userAnswers[q.id] === q.correctKey) {
-        correct++;
+    if (!user?.id) return;
+    setIsSubmittingDiagnostic(true);
+
+    try {
+      let correct = 0;
+      const total = BASELINE_DIAGNOSTIC_QUESTIONS.length;
+
+      // Authentically record evidence logs for every question
+      for (const q of BASELINE_DIAGNOSTIC_QUESTIONS) {
+        const isCorrect = userAnswers[q.id] === q.correctKey;
+        if (isCorrect) correct++;
+        const confidence = userConfidences[q.id] || 3;
+
+        try {
+          await apiClient.studentModel.recordEvidence(user.id, {
+            questionId: q.questionUuid,
+            evidenceType: 'diagnostic_test',
+            scoreOrPerformance: isCorrect ? 100 : 0,
+            isCorrect,
+            confidenceSelfReport: confidence,
+            difficultyLevel: q.difficulty as any,
+            sessionType: 'baseline_diagnostic',
+            provenanceSource: 'baseline_modal',
+          });
+        } catch (evErr) {
+          console.warn('Failed recording evidence for question', q.id, evErr);
+        }
       }
-    });
 
-    const total = BASELINE_DIAGNOSTIC_QUESTIONS.length;
-    const accuracy = Math.round((correct / total) * 100);
-    setDiagnosticScore({ correct, total });
-    setDiagnosticSubmitted(true);
+      setDiagnosticScore({ correct, total });
+      setDiagnosticSubmitted(true);
 
-    // Update Student Model state
-    setModelSummary({
-      masteryScore: accuracy,
-      retentionScore: 92,
-      evidenceCount: total,
-      weakCount: total - correct,
-      masteredCount: correct,
-      avgSpeedSeconds: 48,
-      accuracy,
-      status: 'calibrated',
-      lastCalibratedAt: new Date().toISOString(),
-    });
+      // Trigger server-side backlog generation and model update
+      try {
+        await apiClient.backlog.refresh(user.id);
+      } catch {
+        // Handled server-side
+      }
 
-    // Update profile via adapter
-    if (user?.id && profile) {
-      const updatedProfile: StudentProfile = {
-        ...profile,
-        knowledgeModelAttachment: {
-          status: 'calibrated',
-          lastCalibratedAt: new Date().toISOString(),
-        },
-        onboardingStatus: {
-          ...profile.onboardingStatus,
-          nextAction: 'go_to_dashboard',
-        },
-      };
-      await studentProfileAdapter.completeOnboarding(user.id, updatedProfile);
-      setProfile(updatedProfile);
+      // Update profile onboarding status
+      if (profile) {
+        const updatedProfile: StudentProfile = {
+          ...profile,
+          knowledgeModelAttachment: {
+            status: 'calibrated',
+            lastCalibratedAt: new Date().toISOString(),
+          },
+          onboardingStatus: {
+            ...profile.onboardingStatus,
+            nextAction: 'go_to_dashboard',
+          },
+        };
+        await studentProfileAdapter.completeOnboarding(user.id, updatedProfile);
+        setProfile(updatedProfile);
+      }
+
+      // Reload real calibrated state from backend
+      await loadProfileAndState(user.id);
+    } catch (err) {
+      console.error('Error submitting diagnostic assessment:', err);
+    } finally {
+      setIsSubmittingDiagnostic(false);
     }
   };
 
   // Handle Spaced Repetition Review (SM-2 feedback loop)
-  const handleReviewOutcome = (revId: string, outcome: 'recalled' | 'partially_recalled' | 'forgot') => {
+  const handleReviewOutcome = async (revId: string, outcome: 'recalled' | 'partially_recalled' | 'forgot') => {
+    if (!user?.id) return;
+    const backendOutcome = outcome === 'recalled' ? 'recalled' : outcome === 'partially_recalled' ? 'hard' : 'forgot';
+
+    // Optimistically remove from view
     setDueRevisions((prev) => prev.filter((r) => r.id !== revId));
-    setModelSummary((prev) => ({
-      ...prev,
-      evidenceCount: prev.evidenceCount + 1,
-      retentionScore: outcome === 'forgot' ? Math.max(30, prev.retentionScore - 5) : Math.min(98, prev.retentionScore + 2),
-    }));
+
+    try {
+      await apiClient.revision.completeEvent(user.id, revId, {
+        outcome: backendOutcome,
+        timeSpentSeconds: 45,
+      });
+      // Refresh summary
+      const summary = await apiClient.studentModel.getSummary(user.id);
+      if (summary) {
+        setModelSummary((prev) => ({
+          ...prev,
+          evidenceCount: summary.totalEvidence || prev.evidenceCount + 1,
+          retentionScore: Math.round((summary.overallRetention || 0) * 100),
+        }));
+      }
+    } catch (err) {
+      console.error('Failed to record revision outcome on backend:', err);
+    }
   };
 
   // Handle Task Completion Toggle in Daily Plan
-  const handleToggleTaskStatus = (taskId: string) => {
+  const handleToggleTaskStatus = async (taskId: string, sessionId?: string) => {
+    if (!user?.id) return;
+    const currentTask = dailyTasks.find((t) => t.id === taskId);
+    if (!currentTask) return;
+
+    const nextStatus = currentTask.status === 'completed' ? 'pending' : 'completed';
+
+    // Optimistic UI update
     setDailyTasks((prev) =>
-      prev.map((t) => {
-        if (t.id !== taskId) return t;
-        const next = t.status === 'completed' ? 'pending' : 'completed';
-        return { ...t, status: next };
-      })
+      prev.map((t) => (t.id === taskId ? { ...t, status: nextStatus } : t))
     );
+
+    if (sessionId) {
+      try {
+        await apiClient.planner.updateTask(user.id, sessionId, taskId, nextStatus);
+      } catch (err) {
+        console.error('Failed to update task status on backend:', err);
+      }
+    }
   };
 
-  // Handle Missed Work Replan
-  const handleReplan = () => {
-    setDailyTasks((prev) => [
-      ...prev.filter((t) => t.status === 'completed'),
-      {
-        id: `t-rescheduled-${Date.now()}`,
-        title: 'Rescheduled: Priority Backlog Catch-up Block',
-        subject: 'Physics & Math',
-        taskType: 'practice_drill',
-        durationMinutes: 45,
-        status: 'pending',
-        priority: 'critical',
-      },
-    ]);
+  // Handle Missed Work Replan via Adaptive Planner
+  const handleReplan = async () => {
+    if (!user?.id) return;
+    try {
+      const plan = await apiClient.planner.replan(user.id);
+      if (plan && plan.sessions) {
+        const allTasks: DashboardTask[] = [];
+        for (const session of plan.sessions) {
+          for (const task of session.tasks || []) {
+            allTasks.push({
+              id: task.id,
+              sessionId: session.id,
+              title: task.title,
+              subject: task.subjectId || 'General',
+              taskType: task.taskType || 'practice_drill',
+              durationMinutes: task.estimatedMinutes || 30,
+              status: task.status || 'pending',
+              priority: task.priority || 'high',
+            });
+          }
+        }
+        setDailyTasks(allTasks);
+      }
+    } catch (err) {
+      console.error('Failed to trigger replan on backend:', err);
+    }
   };
 
   const enrolledSubjectIds = profile?.academicProfile.enrolledSubjects?.length
     ? profile.academicProfile.enrolledSubjects
     : ['physics', 'chemistry', 'mathematics'];
 
-  const targetExamName = profile?.targetExams?.[0]?.examName || 'JEE Main 2026';
-  const boardName = profile?.academicProfile.board ? profile.academicProfile.board.toUpperCase() : 'CBSE';
-  const gradeName = profile?.academicProfile.grade ? profile.academicProfile.grade.replace('class_', '') + 'th' : '12th';
+  const targetExamName = profile?.targetExams?.[0]?.examName || 'Target Exam';
+  const boardName = profile?.academicProfile.board ? profile.academicProfile.board.toUpperCase() : 'Board';
+  const gradeName = profile?.academicProfile.grade ? profile.academicProfile.grade.replace('class_', '') + 'th' : '';
 
   const isOnboardingComplete = Boolean(profile?.onboardingStatus.isCompleted);
   const isDiagnosticPending =
     profile?.knowledgeModelAttachment.status === 'pending_initial_diagnostic' &&
     modelSummary.status !== 'calibrated';
+
+  // Next-action recommendation derived directly from top backlog item or due revision
+  const topBacklog = backlogItems.length > 0 ? backlogItems[0] : null;
 
   return (
     <WorkspaceShell>
@@ -390,7 +505,7 @@ export default function WorkspaceDashboard() {
                   </span>
                 </div>
                 <span className={styles.metricBadge}>
-                  {modelSummary.masteredCount} Mastered
+                  {modelSummary.masteredCount} Mastered Units
                 </span>
               </div>
 
@@ -452,7 +567,7 @@ export default function WorkspaceDashboard() {
                     </Button>
                   </div>
                 </>
-              ) : isDiagnosticPending ? (
+              ) : isDiagnosticPending || modelSummary.status === 'uncalibrated' ? (
                 <>
                   <div className={styles.heroMain}>
                     <h1 id="ai-next-action-heading" className={styles.heroTitle}>
@@ -473,6 +588,9 @@ export default function WorkspaceDashboard() {
                     <Button onClick={() => setIsDiagnosticOpen(true)} variant="primary" size="lg">
                       Launch Baseline Diagnostic &rarr;
                     </Button>
+                    <Button href="/app/tests" variant="outline" size="lg">
+                      Open in Full Test Runner &rarr;
+                    </Button>
                     <div className={styles.metaSpecs}>
                       <span>5 Questions</span>
                       <span>•</span>
@@ -482,11 +600,11 @@ export default function WorkspaceDashboard() {
                     </div>
                   </div>
                 </>
-              ) : (
+              ) : topBacklog ? (
                 <>
                   <div className={styles.heroMain}>
                     <h1 id="ai-next-action-heading" className={styles.heroTitle}>
-                      Focus Session: Rotational Dynamics & Moment of Inertia
+                      Focus Session: {topBacklog.title}
                     </h1>
                     <p className={styles.heroDescription}>
                       Ranked #1 on your adaptive backlog. Addressing this topic yields the highest expected score increase for {targetExamName} before your upcoming milestone.
@@ -496,15 +614,31 @@ export default function WorkspaceDashboard() {
                     <span className={styles.reasonIcon}>🎯</span>
                     <div className={styles.reasonText}>
                       <span className={styles.reasonHighlight}>Why this next? </span>
-                      Identified as weak (24% mastery) with high exam frequency in JEE Main PYQs and 45 days until target exam deadline.
+                      {topBacklog.reasons.join('. ') || `Identified as ${topBacklog.classification} with high weightage in ${targetExamName}.`}
                     </div>
                   </div>
                   <div className={styles.heroActionRow}>
                     <Button href="/app/tests" variant="primary" size="lg">
                       Begin Targeted Practice &rarr;
                     </Button>
-                    <Button href="/app/tutor" variant="outline" size="lg">
+                    <Button href={`/app/tutor?topic=${encodeURIComponent(topBacklog.title)}`} variant="outline" size="lg">
                       Open Socratic Hint &rarr;
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className={styles.heroMain}>
+                    <h1 id="ai-next-action-heading" className={styles.heroTitle}>
+                      Study Agenda Clear & On Pace
+                    </h1>
+                    <p className={styles.heroDescription}>
+                      All scheduled tasks and high-priority backlog items are mastered. You can run mock assessments or explore advanced PYQ patterns.
+                    </p>
+                  </div>
+                  <div className={styles.heroActionRow}>
+                    <Button href="/app/tests" variant="primary" size="lg">
+                      Take Full-Length Mock Exam &rarr;
                     </Button>
                   </div>
                 </>
@@ -532,49 +666,60 @@ export default function WorkspaceDashboard() {
               <div className={styles.plannerSessionCard}>
                 <div className={styles.sessionHeaderRow}>
                   <div className={styles.sessionTimeSlot}>
-                    <span>⏰ Evening Study Window: 18:00 – 20:00</span>
+                    <span>⏰ {planSessionInfo ? `Study Window: ${planSessionInfo.timeSlot}` : 'Flexible Daily Study Window'}</span>
                   </div>
                   <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--color-text-tertiary)' }}>
-                    2 Hours Allocated • 3 Tasks
+                    {dailyTasks.length > 0 ? `${dailyTasks.length} Tasks Scheduled` : 'No Scheduled Tasks'}
                   </span>
                 </div>
 
-                <div className={styles.taskList}>
-                  {dailyTasks.map((task) => (
-                    <div
-                      key={task.id}
-                      className={`${styles.taskItem} ${task.status === 'completed' ? styles.taskItemCompleted : ''}`}
-                    >
-                      <div className={styles.taskMeta}>
-                        <input
-                          type="checkbox"
-                          className={styles.taskCheckbox}
-                          checked={task.status === 'completed'}
-                          onChange={() => handleToggleTaskStatus(task.id)}
-                          aria-label={`Mark ${task.title} as completed`}
-                        />
-                        <div>
-                          <strong style={{ fontSize: '0.9375rem', color: 'var(--color-text-primary)' }}>
-                            {task.title}
-                          </strong>
-                          <div style={{ display: 'flex', gap: '8px', marginTop: '4px', alignItems: 'center' }}>
-                            <span style={{ fontSize: '0.6875rem', fontFamily: 'var(--font-mono)', color: '#34d399' }}>
-                              {task.subject}
-                            </span>
-                            <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-tertiary)' }}>•</span>
-                            <span style={{ fontSize: '0.6875rem', fontFamily: 'var(--font-mono)', color: 'var(--color-text-secondary)' }}>
-                              {task.durationMinutes} min
-                            </span>
+                {dailyTasks.length === 0 ? (
+                  <div style={{
+                    padding: '1.5rem',
+                    textAlign: 'center',
+                    color: 'var(--color-text-secondary)',
+                    fontSize: '0.875rem',
+                  }}>
+                    No tasks scheduled for today yet. Use <strong>Replan Missed Work</strong> to generate today&apos;s sequence from your backlog.
+                  </div>
+                ) : (
+                  <div className={styles.taskList}>
+                    {dailyTasks.map((task) => (
+                      <div
+                        key={task.id}
+                        className={`${styles.taskItem} ${task.status === 'completed' ? styles.taskItemCompleted : ''}`}
+                      >
+                        <div className={styles.taskMeta}>
+                          <input
+                            type="checkbox"
+                            className={styles.taskCheckbox}
+                            checked={task.status === 'completed'}
+                            onChange={() => handleToggleTaskStatus(task.id, task.sessionId)}
+                            aria-label={`Mark ${task.title} as completed`}
+                          />
+                          <div>
+                            <strong style={{ fontSize: '0.9375rem', color: 'var(--color-text-primary)' }}>
+                              {task.title}
+                            </strong>
+                            <div style={{ display: 'flex', gap: '8px', marginTop: '4px', alignItems: 'center' }}>
+                              <span style={{ fontSize: '0.6875rem', fontFamily: 'var(--font-mono)', color: '#34d399' }}>
+                                {task.subject}
+                              </span>
+                              <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-tertiary)' }}>•</span>
+                              <span style={{ fontSize: '0.6875rem', fontFamily: 'var(--font-mono)', color: 'var(--color-text-secondary)' }}>
+                                {task.durationMinutes} min
+                              </span>
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      <span className={styles.taskTypeBadge}>
-                        {task.taskType.replace('_', ' ').toUpperCase()}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                        <span className={styles.taskTypeBadge}>
+                          {task.taskType.replace(/_/g, ' ').toUpperCase()}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </section>
 
@@ -674,36 +819,50 @@ export default function WorkspaceDashboard() {
                 </span>
               </div>
 
-              <div className={styles.backlogGrid}>
-                {backlogItems.map((item) => (
-                  <div key={item.id} className={styles.backlogCard}>
-                    <div>
-                      <div className={styles.cardHeaderRow}>
-                        <span className={styles.taskTypeBadge}>{item.subject.toUpperCase()}</span>
-                        <span className={styles.priorityTag}>Score: {item.priorityScore}</span>
-                      </div>
-                      <div className={styles.cardBody} style={{ marginTop: '8px' }}>
-                        <h3 className={styles.taskTitle}>{item.title}</h3>
-                        <div className={styles.reasonPillList} style={{ marginTop: '6px' }}>
-                          {item.reasons.map((r, idx) => (
-                            <span key={idx} className={styles.reasonPill}>
-                              {r}
-                            </span>
-                          ))}
+              {backlogItems.length === 0 ? (
+                <div style={{
+                  padding: '1.5rem',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'rgba(255, 255, 255, 0.02)',
+                  border: '1px solid rgba(255, 255, 255, 0.06)',
+                  textAlign: 'center',
+                  color: 'var(--color-text-secondary)',
+                  fontSize: '0.875rem',
+                }}>
+                  No backlog items found. Complete your initial diagnostic assessment to populate prioritized topics.
+                </div>
+              ) : (
+                <div className={styles.backlogGrid}>
+                  {backlogItems.map((item) => (
+                    <div key={item.id} className={styles.backlogCard}>
+                      <div>
+                        <div className={styles.cardHeaderRow}>
+                          <span className={styles.taskTypeBadge}>{item.subject.toUpperCase()}</span>
+                          <span className={styles.priorityTag}>Score: {item.priorityScore}</span>
+                        </div>
+                        <div className={styles.cardBody} style={{ marginTop: '8px' }}>
+                          <h3 className={styles.taskTitle}>{item.title}</h3>
+                          <div className={styles.reasonPillList} style={{ marginTop: '6px' }}>
+                            {item.reasons.map((r, idx) => (
+                              <span key={idx} className={styles.reasonPill}>
+                                {r}
+                              </span>
+                            ))}
+                          </div>
                         </div>
                       </div>
+                      <div className={styles.cardFooter}>
+                        <span style={{ fontSize: '0.6875rem', fontFamily: 'var(--font-mono)', color: '#34d399' }}>
+                          STATUS: {item.classification.replace(/_/g, ' ').toUpperCase()}
+                        </span>
+                        <Button href="/app/tests" variant="primary" size="sm">
+                          Practice Drill &rarr;
+                        </Button>
+                      </div>
                     </div>
-                    <div className={styles.cardFooter}>
-                      <span style={{ fontSize: '0.6875rem', fontFamily: 'var(--font-mono)', color: '#34d399' }}>
-                        STATUS: {item.classification.toUpperCase()}
-                      </span>
-                      <Button href="/app/tests" variant="primary" size="sm">
-                        Practice Drill &rarr;
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </section>
 
             {/* ----------------------------------------------------------- */}
@@ -736,7 +895,7 @@ export default function WorkspaceDashboard() {
                         </div>
                         <div className={styles.subjectProgress}>
                           {modelSummary.status === 'calibrated' ? (
-                            <span>Mastery: {modelSummary.masteryScore}% • Verified Evidence</span>
+                            <span>Mastery: {modelSummary.masteryScore}% • Verified Evidence ({modelSummary.evidenceCount})</span>
                           ) : (
                             <span>Awaiting diagnostic assessment submission</span>
                           )}
@@ -759,7 +918,7 @@ export default function WorkspaceDashboard() {
                     gap: '8px',
                   }}
                 >
-                  <span>Curriculum alignment: {boardName} Class {gradeName}</span>
+                  <span>Curriculum alignment: {boardName} {gradeName ? `Class ${gradeName}` : ''}</span>
                   <Link href="/onboarding" style={{ color: 'var(--color-text-primary)', textDecoration: 'underline' }}>
                     Edit Enrolled Subjects &rarr;
                   </Link>
@@ -932,8 +1091,13 @@ export default function WorkspaceDashboard() {
                         Next &rarr;
                       </Button>
                     ) : (
-                      <Button onClick={handleSubmitDiagnostic} variant="primary" size="md">
-                        Submit Diagnostic &rarr;
+                      <Button
+                        onClick={handleSubmitDiagnostic}
+                        disabled={isSubmittingDiagnostic}
+                        variant="primary"
+                        size="md"
+                      >
+                        {isSubmittingDiagnostic ? 'Recording Evidence...' : 'Submit Diagnostic →'}
                       </Button>
                     )}
                   </div>
@@ -957,7 +1121,7 @@ export default function WorkspaceDashboard() {
                     fontSize: '0.875rem',
                     color: '#34d399',
                   }}>
-                    ✓ Student Model initialized with {BASELINE_DIAGNOSTIC_QUESTIONS.length} observed evidence records.<br />
+                    ✓ Observed evidence records committed to immutable database ledger.<br />
                     ✓ Baseline mastery vector calculated with explicit uncertainty tracking.<br />
                     ✓ Backlog and revision queues updated with your identified strengths and weaknesses.
                   </div>

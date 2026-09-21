@@ -1,48 +1,57 @@
 # Last Session Handoff
 
-Session: Phase 07 (Study Material Intelligence, Interactive Visual Learning, Focus Mode, Academic Analytics & Health Score, Notification Infrastructure, and Action Required Toast System) Completed on 2026-09-21.
+Session: Priority P0 (Trust & Foundation — Stop Fake Data, Complete Placeholders, Fix Auth Inconsistencies) Completed on 2026-09-21.
 
 ### What Was Accomplished:
 
-1. **Database & Schema Layer (`infra/supabase/migrations/20260921000004_phase_07_study_material_focus_analytics_notifications.sql`)**:
-   - Successfully applied to remote Supabase via MCP tool.
-   - Extended `public.materials`: added `user_id`, `file_asset_id`, `processing_status`, `summary`, `extracted_concepts`, `formula_sheet`, `flashcards`, `quiz_questions`, `error_message`, and strict RLS policies.
-   - Created `public.study_sessions`: focus block tracking with duration, interruption telemetry, and post-session reflection notes with 100% RLS.
-   - Created `public.academic_reviews`: daily debriefs and weekly reviews grounded in empirical telemetry with 100% RLS.
-   - Created `public.notification_preferences`: student-controlled quiet hours (default: 22:00 to 07:00), timezone, and category toggles with 100% RLS.
-   - Created `public.notifications`: 10 distinct notification categories, `action_required` flags, and `action_label` with 100% RLS.
+1. **Dashboard Truth-in-Data Architecture (`apps/web/src/app/app/page.tsx`)**:
+   - Eliminated hardcoded fake states for `dailyTasks`, `backlogItems`, and `dueRevisions`.
+   - Eliminated hardcoded calibrated scores (`mastery: 68`, `retention: 84`, `evidence: 14`).
+   - Wired live reads via `@/lib/api-client`: `apiClient.studentModel.getSummary`, `apiClient.backlog.get`, `apiClient.planner.getToday`, and `apiClient.revision.getDue`.
+   - Wired live writes: `handleReviewOutcome` to `apiClient.revision.completeEvent`, `handleToggleTaskStatus` to `apiClient.planner.updateTask`, `handleReplan` to `apiClient.planner.replan`.
+   - Connected baseline diagnostic modal to `apiClient.studentModel.recordEvidence` using canonical question UUIDs (`d0000001-...`), creating real evidence logs in PostgreSQL and recalculating the knowledge state vector and backlog.
+   - Dynamic Next-Action Hero recommendation derived from actual top-ranked backlog item.
 
-2. **Part 01 — Study Material Intelligence (`backend/src/modules/materials/`)**:
-   - Sliding-window chunker with 250-word segments and 30-word semantic overlap assigning immutable citation tags (`DOC-<id>-CHUNK-<n>`).
-   - AI synthesis of summaries, formula sheets (`StudyFormulaItem`), flashcards (`Flashcard`), and rapid check quizzes (`MaterialQuizQuestion`) strictly via `StudyMaterialAgent` through provider-agnostic `aiOrchestrator` preserving document provenance.
-   - Unit tests: `backend/src/__tests__/study-materials.test.ts` (4/4 tests passed).
+2. **Assessment Center Auth & Real Runner (`apps/web/src/app/app/tests/page.tsx`)**:
+   - Replaced broken local API client instantiation (`localStorage.getItem('supabase_access_token')`) with shared `apiClient` using `supabase.auth.getSession()`.
+   - Removed `DEFAULT_ASSESSMENTS` (fake tests with non-existent database UUIDs).
+   - Removed fake fallback test questions and fake scorecard generation in catch blocks.
+   - Handled empty states and backend error notifications cleanly.
 
-3. **Part 02 — Interactive Visual-Learning Framework (`apps/web/src/components/visual/`)**:
-   - `visual-simulation.contract.ts`: Standardized contract registering 14 interactive simulations across Physics (Projectile Motion, Gauss's Law, Wave Optics), Chemistry (VSEPR Geometry, Atomic Orbitals, Chemical Equilibrium), and Mathematics (3D Vectors, Conic Sections).
-   - Mouse/touch rotation, zoom, drag inspection, parameter sliders, and accessible narrative fallbacks for screen readers and low-bandwidth environments.
-   - Unit tests: `backend/src/__tests__/visual-learning.test.ts` (4/4 tests passed).
+3. **Mistake Notebook Truth-in-Data (`apps/web/src/app/app/mistakes/page.tsx`)**:
+   - Replaced broken local API client with shared `apiClient`.
+   - Removed `DEFAULT_MISTAKES` (110 lines of fake mistakes).
+   - Removed client-side retry evaluation math fallback.
+   - Handled empty mistake states and backend error banners with retry action.
 
-4. **Part 03 — Focus Mode & Effort Telemetry (`backend/src/modules/focus/`, `apps/web/src/app/app/focus/`)**:
-   - Distraction-free study studio with interactive timer, circular SVG progress ring, distraction logger, and post-session reflection modal.
-   - Closed-loop Student Model integration: Records `self_assessment` evidence to `StudentModelService.recordEvidence` with calibrated uncertainty, acknowledging effort without fabricating concept mastery. Zero UI emojis.
-   - Unit tests: `backend/src/__tests__/focus-sessions.test.ts` (3/3 tests passed).
+4. **Grounded Exam Readiness & Simulation (`apps/web/src/app/app/readiness/page.tsx`)**:
+   - Replaced broken local API client with shared `apiClient`.
+   - Removed `DEFAULT_READINESS_STATE` (95 lines of fake factors and scores).
+   - Removed fake client-side mathematical simulation fallback in catch block.
+   - Shows honest uncalibrated state when baseline diagnostic evidence is absent.
 
-5. **Part 04 — Academic Analytics & Review Surfaces (`backend/src/modules/analytics/`, `apps/web/src/app/app/analytics/`)**:
-   - Explainable 7-dimension Academic Health Score: Syllabus Coverage (15%), Conceptual Mastery (20%), Revision Cadence (15%), Exam Readiness (20%), Time Pacing (10%), Problem Accuracy (10%), Habit Consistency (10%).
-   - Daily AI Debrief & Weekly Strategic Reviews grounded strictly in empirical telemetry.
-   - Unit tests: `backend/src/__tests__/academic-analytics.test.ts` (4/4 tests passed).
+5. **Academic Analytics Telemetry (`apps/web/src/app/app/analytics/page.tsx`)**:
+   - Removed fake hardcoded fallback health score (78), fake debrief, and fake weekly review from catch blocks.
+   - Displays genuine uncalibrated and empty states when study sessions or telemetry records are absent.
 
-6. **Part 05 — Notification & Reminder Infrastructure + Action Required Toast System (`backend/src/modules/notifications/`, `apps/web/src/components/ui/Toast/`)**:
-   - Timezone-aware quiet hours evaluation (`isWithinQuietHours`, `adjustForQuietHours`), 24-hour reminder deduplication, and channel delivery routing.
-   - User Request: Built `ActionToast` and `ActionToastProvider` displaying floating, dismissible glassmorphic banners with primary call-to-action buttons for urgent student tasks.
-   - Modernized `NotificationsDrawer.tsx` to display real backend notifications and action buttons with pure SVG icons.
-   - Unit tests: `backend/src/__tests__/notifications.test.ts` (6/6 tests passed).
+6. **AI Tutor Authenticity (`apps/web/src/lib/adapters/tutor/` & `apps/web/src/app/app/tutor/page.tsx`)**:
+   - Removed silent fallback to `LocalAITutorAdapter` for empty session lists in `SupabaseAITutorAdapter`.
+   - Eliminated hardcoded fallback student UUID (`a0ee61e9-3af8-462c-bcea-cdafd72468f3`).
+   - Removed hardcoded default physics session; dynamic session created upon first user inquiry.
 
-7. **Architecture Documentation & Workspace Integration**:
-   - Created ADR 0008: `docs/architecture/adr/0008-study-materials-visuals-focus-analytics-and-notifications.md`.
-   - Extended `@sharpmind/api-client` with `materials`, `focus`, `analytics`, and `notifications` modules.
-   - Mounted routes at `/api/v1/materials`, `/api/v1/focus`, `/api/v1/analytics`, and `/api/v1/notifications` in `backend/src/app.ts`.
-   - Updated `.ai/CURRENT_STATE.md` and `.ai/PROJECT_MAP.md`.
+7. **Functional Spaced Repetition Engine Page (`apps/web/src/app/app/revision/`)**:
+   - Replaced `WorkspacePlaceholder` with real data-driven UI (`page.tsx` and `revision.module.css`).
+   - Wired to `apiClient.revision.getDue` and `apiClient.revision.completeEvent`.
+   - Displays urgency tags, SM-2 interval/repetition counters, retention decay progress bars, and Recalled/Hard/Forgot recall action triggers.
+
+8. **Functional Adaptive Study Planner Page (`apps/web/src/app/app/planner/`)**:
+   - Replaced `WorkspacePlaceholder` with real data-driven UI (`page.tsx` and `planner.module.css`).
+   - Built Today's Agenda session view with task completion toggles calling `apiClient.planner.updateTask`.
+   - Built Weekly Matrix 7-day schedule view via `apiClient.planner.getWeek`.
+   - Integrated "Replan Missed Work" action calling `apiClient.planner.replan`.
+
+9. **Repository Hygiene**:
+   - Updated `.gitignore` to ignore `__pycache__/`, `*.pyc`, and `.cache/`.
 
 ### Verification Status:
 - Vitest backend tests: 216/216 tests passed across all 24 test suites in `backend` (0 failures).
@@ -51,4 +60,4 @@ Session: Phase 07 (Study Material Intelligence, Interactive Visual Learning, Foc
 - Web Next.js production build (`npm --prefix apps/web run build`): 36/36 static pages exported cleanly (0 errors).
 
 ### Next Checkpoint:
-- Phase 08: Classroom Collaboration, Mentorship & Real-Time Sync.
+- Priority P1: Core Academic Loop (PYQ Bank & Pattern Mining, Knowledge Graph DAG, Diagnostic & Adaptive Sequencing, Closed-Loop Evidence Flow).

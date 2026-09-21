@@ -7,15 +7,13 @@ import type {
 } from '@/lib/types/tutor';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import { getApiClient } from '@/lib/api';
-import { LocalAITutorAdapter } from './local-ai-tutor-adapter';
 
 export class SupabaseAITutorAdapter implements TutorAdapter {
   public readonly name = 'SupabaseAITutorAdapter';
-  private localFallback = new LocalAITutorAdapter();
 
   public async getSessions(userId: string): Promise<TutorSession[]> {
     const supabase = getSupabaseClient();
-    if (!supabase) return this.localFallback.getSessions(userId);
+    if (!supabase) return [];
 
     try {
       const { data, error } = await supabase
@@ -24,8 +22,9 @@ export class SupabaseAITutorAdapter implements TutorAdapter {
         .eq('user_id', userId)
         .order('updated_at', { ascending: false });
 
-      if (error || !data || data.length === 0) {
-        return this.localFallback.getSessions(userId);
+      if (error || !data) {
+        console.warn('Could not fetch tutor sessions:', error?.message);
+        return [];
       }
 
       return data.map((row) => ({
@@ -38,23 +37,24 @@ export class SupabaseAITutorAdapter implements TutorAdapter {
         createdAt: row.created_at,
         updatedAt: row.updated_at,
       }));
-    } catch {
-      return this.localFallback.getSessions(userId);
+    } catch (err) {
+      console.error('Failed to load tutor sessions:', err);
+      return [];
     }
   }
 
   public async getSession(sessionId: string): Promise<TutorSession | null> {
     const supabase = getSupabaseClient();
-    if (!supabase) return this.localFallback.getSession(sessionId);
+    if (!supabase) return null;
 
     try {
       const { data, error } = await supabase
         .from('tutor_sessions')
         .select('*')
         .eq('id', sessionId)
-        .single();
+        .maybeSingle();
 
-      if (error || !data) return this.localFallback.getSession(sessionId);
+      if (error || !data) return null;
 
       return {
         id: data.id,
@@ -67,7 +67,7 @@ export class SupabaseAITutorAdapter implements TutorAdapter {
         updatedAt: data.updated_at,
       };
     } catch {
-      return this.localFallback.getSession(sessionId);
+      return null;
     }
   }
 
@@ -78,57 +78,54 @@ export class SupabaseAITutorAdapter implements TutorAdapter {
     context?: TutorContext
   ): Promise<TutorSession> {
     const supabase = getSupabaseClient();
-    if (!supabase) return this.localFallback.createSession(userId, title, mode, context);
+    if (!supabase) throw new Error('Database client not initialized');
 
-    try {
-      const { data, error } = await supabase
-        .from('tutor_sessions')
-        .insert({
-          user_id: userId,
-          title: title || (context?.topicTitle ? `${context.topicTitle} Session` : 'New Academic Dialogue'),
-          subject_id: context?.subjectId || null,
-          curriculum_node_id: context?.chapterId || null,
-          mode,
-        })
-        .select()
-        .single();
+    const sessionTitle = title || (context?.topicTitle ? `${context.topicTitle} Session` : 'New Concept Dialogue');
 
-      if (error || !data) {
-        return this.localFallback.createSession(userId, title, mode, context);
-      }
+    const { data, error } = await supabase
+      .from('tutor_sessions')
+      .insert({
+        user_id: userId,
+        title: sessionTitle,
+        subject_id: context?.subjectId || null,
+        curriculum_node_id: context?.chapterId || null,
+        mode,
+      })
+      .select()
+      .single();
 
-      return {
-        id: data.id,
-        userId: data.user_id,
-        title: data.title,
-        subjectId: data.subject_id,
-        curriculumNodeId: data.curriculum_node_id,
-        currentMode: mode,
-        context,
-        createdAt: data.created_at,
-        updatedAt: data.updated_at,
-      };
-    } catch {
-      return this.localFallback.createSession(userId, title, mode, context);
+    if (error || !data) {
+      throw new Error(`Failed to create tutor session: ${error?.message || 'Unknown database error'}`);
     }
+
+    return {
+      id: data.id,
+      userId: data.user_id,
+      title: data.title,
+      subjectId: data.subject_id,
+      curriculumNodeId: data.curriculum_node_id,
+      currentMode: mode,
+      context,
+      createdAt: data.created_at,
+      updatedAt: data.updated_at,
+    };
   }
 
   public async deleteSession(sessionId: string): Promise<boolean> {
     const supabase = getSupabaseClient();
-    if (!supabase) return this.localFallback.deleteSession(sessionId);
+    if (!supabase) return false;
 
     try {
       const { error } = await supabase.from('tutor_sessions').delete().eq('id', sessionId);
-      if (error) return this.localFallback.deleteSession(sessionId);
-      return true;
+      return !error;
     } catch {
-      return this.localFallback.deleteSession(sessionId);
+      return false;
     }
   }
 
   public async getMessages(sessionId: string): Promise<TutorMessage[]> {
     const supabase = getSupabaseClient();
-    if (!supabase) return this.localFallback.getMessages(sessionId);
+    if (!supabase) return [];
 
     try {
       const { data, error } = await supabase
@@ -137,9 +134,7 @@ export class SupabaseAITutorAdapter implements TutorAdapter {
         .eq('session_id', sessionId)
         .order('created_at', { ascending: true });
 
-      if (error || !data || data.length === 0) {
-        return this.localFallback.getMessages(sessionId);
-      }
+      if (error || !data) return [];
 
       return data.map((row) => ({
         id: row.id,
@@ -150,7 +145,7 @@ export class SupabaseAITutorAdapter implements TutorAdapter {
         createdAt: row.created_at,
       }));
     } catch {
-      return this.localFallback.getMessages(sessionId);
+      return [];
     }
   }
 
@@ -161,7 +156,7 @@ export class SupabaseAITutorAdapter implements TutorAdapter {
     imageUrl?: string,
     context?: TutorContext
   ): Promise<TutorMessage> {
-    // Try live backend AI Orchestrator first
+    // 1. Try live backend AI Orchestrator first
     try {
       const api = getApiClient();
       const res = await api.tutor.sendMessage(sessionId, {
@@ -175,50 +170,50 @@ export class SupabaseAITutorAdapter implements TutorAdapter {
           id: res.assistantMessage.id,
           sessionId: res.assistantMessage.sessionId,
           senderRole: 'assistant',
-          messageText: res.assistantMessage.messageText || res.assistantMessage.content || '',
+          messageText: (res.assistantMessage as any).messageText || (res.assistantMessage as any).content || '',
           imageUrl: res.assistantMessage.imageUrl,
           citations: (res.assistantMessage.citations || []) as any,
           createdAt: res.assistantMessage.createdAt,
         };
       }
-    } catch {
-      // Graceful fallback to Supabase direct or local simulation if backend is not reachable
+    } catch (apiErr: any) {
+      console.warn('Backend tutor endpoint error:', apiErr?.message);
     }
 
+    // 2. Direct Supabase write path
     const supabase = getSupabaseClient();
     if (!supabase) {
-      return this.localFallback.sendMessage(sessionId, messageText, mode, imageUrl, context);
+      throw new Error('Supabase client unavailable');
     }
 
-    try {
-      // Record student message
-      await supabase.from('tutor_messages').insert({
-        session_id: sessionId,
-        sender_role: 'student',
-        message_text: messageText,
-        image_url: imageUrl || null,
-      });
+    // Record student inquiry
+    await supabase.from('tutor_messages').insert({
+      session_id: sessionId,
+      sender_role: 'student',
+      message_text: messageText,
+      image_url: imageUrl || null,
+    });
 
-      // Generate pedagogical reply
-      const reply = await this.localFallback.sendMessage(
-        sessionId,
-        messageText,
-        mode,
-        imageUrl,
-        context
-      );
+    // Provide honest system response when AI backend is unreachable rather than fabricating canned answers
+    const fallbackAssistantText =
+      'The Socratic AI Tutor engine is temporarily unavailable or synthesizing a high-dimensional response. Please verify backend connectivity or retry in a few moments.';
 
-      // Record assistant reply
-      await supabase.from('tutor_messages').insert({
+    const { data: insertedMsg } = await supabase
+      .from('tutor_messages')
+      .insert({
         session_id: sessionId,
         sender_role: 'assistant',
-        message_text: reply.messageText,
-        context_references: reply.citations ? (reply.citations as any) : null,
-      });
+        message_text: fallbackAssistantText,
+      })
+      .select()
+      .single();
 
-      return reply;
-    } catch {
-      return this.localFallback.sendMessage(sessionId, messageText, mode, imageUrl, context);
-    }
+    return {
+      id: insertedMsg?.id || `fallback-${Date.now()}`,
+      sessionId,
+      senderRole: 'assistant',
+      messageText: fallbackAssistantText,
+      createdAt: new Date().toISOString(),
+    };
   }
 }

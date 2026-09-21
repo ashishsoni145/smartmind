@@ -7,26 +7,16 @@ import styles from './tests.module.css';
 import type {
   Assessment,
   ActiveTestSession,
-  SanitizedQuestion,
   AssessmentSubmission,
   PostTestIntelligence,
 } from '@sharpmind/types';
-import SharpMindApiClient from '@sharpmind/api-client';
-
-const api = new SharpMindApiClient({
-  baseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1',
-  getToken: () => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('supabase_access_token');
-    }
-    return null;
-  },
-});
+import { apiClient as api } from '@/lib/api-client';
 
 export default function TestsPage() {
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [selectedFilter, setSelectedFilter] = useState<string>('all');
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Active Runner State
   const [activeSession, setActiveSession] = useState<ActiveTestSession | null>(null);
@@ -34,6 +24,7 @@ export default function TestsPage() {
   const [answersMap, setAnswersMap] = useState<Record<string, { selectedOptions?: string[]; numericalAnswer?: string; status: string }>>({});
   const [remainingSeconds, setRemainingSeconds] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [runnerError, setRunnerError] = useState<string | null>(null);
 
   // Scorecard modal
   const [completedSubmission, setCompletedSubmission] = useState<AssessmentSubmission | null>(null);
@@ -48,15 +39,17 @@ export default function TestsPage() {
   async function loadAssessments() {
     try {
       setLoading(true);
-      const res = await api.assessments.list({ limit: 20 });
-      if (res.assessments && res.assessments.length > 0) {
+      setErrorMsg(null);
+      const res = await api.assessments.list({ limit: 50 });
+      if (res && res.assessments) {
         setAssessments(res.assessments);
       } else {
-        // Fallback default test catalog
-        setAssessments(DEFAULT_ASSESSMENTS);
+        setAssessments([]);
       }
-    } catch {
-      setAssessments(DEFAULT_ASSESSMENTS);
+    } catch (err: any) {
+      console.error('Failed to load assessments from API:', err);
+      setErrorMsg('Could not sync with assessment engine. Please check backend connectivity.');
+      setAssessments([]);
     } finally {
       setLoading(false);
     }
@@ -85,7 +78,7 @@ export default function TestsPage() {
   async function handleStartTest(test: Assessment) {
     try {
       setLoading(true);
-      // Attempt backend API start
+      setRunnerError(null);
       const session = await api.assessments.start(test.id);
       setActiveSession(session);
       setRemainingSeconds(session.timeRemainingSeconds);
@@ -103,65 +96,9 @@ export default function TestsPage() {
         });
       }
       setAnswersMap(initMap);
-    } catch {
-      // Fallback local test session if server assessment not seeded
-      const fallbackQuestions: SanitizedQuestion[] = [
-        {
-          id: 'q-seed-1',
-          subjectId: 'physics',
-          questionText: 'A particle moves with constant acceleration a along a straight line. If its initial velocity is u, what is its velocity after displacement s?',
-          questionType: 'single_choice',
-          pedagogicalType: 'conceptual',
-          difficultyLevel: 'easy',
-          marks: 4,
-          patternTags: ['Kinematics', 'Equations of Motion'],
-          options: [
-            { optionKey: 'A', optionText: 'v^2 = u^2 + 2as' },
-            { optionKey: 'B', optionText: 'v = u + as^2' },
-            { optionKey: 'C', optionText: 'v^2 = u^2 - 2as' },
-            { optionKey: 'D', optionText: 'v = u^2 + 2as' },
-          ],
-        },
-        {
-          id: 'q-seed-2',
-          subjectId: 'physics',
-          questionText: 'A block of mass 2 kg rests on a frictionless plane inclined at 30 degrees. Calculate the net acceleration down the incline in m/s^2 (Take g = 9.8 m/s^2).',
-          questionType: 'numerical',
-          pedagogicalType: 'application',
-          difficultyLevel: 'medium',
-          marks: 4,
-          patternTags: ['Newton Laws', 'Inclined Plane'],
-        },
-        {
-          id: 'q-seed-3',
-          subjectId: 'physics',
-          questionText: 'Assertion (A): Moment of inertia depends on the axis of rotation.\nReason (R): Mass distribution varies relative to different axes.',
-          questionType: 'assertion_reason',
-          pedagogicalType: 'conceptual',
-          difficultyLevel: 'medium',
-          marks: 4,
-          patternTags: ['Rotational Dynamics'],
-          options: [
-            { optionKey: 'A', optionText: 'Both A and R are true, and R is the correct explanation of A' },
-            { optionKey: 'B', optionText: 'Both A and R are true, but R is not the correct explanation of A' },
-            { optionKey: 'C', optionText: 'A is true, but R is false' },
-            { optionKey: 'D', optionText: 'A is false, but R is true' },
-          ],
-        },
-      ];
-
-      const localSession: ActiveTestSession = {
-        submissionId: 'local-sub-' + Date.now(),
-        assessment: test,
-        questions: fallbackQuestions,
-        answersSoFar: {},
-        timeRemainingSeconds: test.durationMinutes * 60,
-        startedAt: new Date().toISOString(),
-      };
-      setActiveSession(localSession);
-      setRemainingSeconds(localSession.timeRemainingSeconds);
-      setCurrentQuestionIndex(0);
-      setAnswersMap({});
+    } catch (err: any) {
+      console.error('Failed to start test session:', err);
+      setRunnerError(`Unable to start test session: ${err.message || 'Server error'}.`);
     } finally {
       setLoading(false);
     }
@@ -252,6 +189,7 @@ export default function TestsPage() {
   async function handleSubmitTest() {
     if (!activeSession) return;
     setSubmitting(true);
+    setRunnerError(null);
     setShowSubmitModal(false);
 
     try {
@@ -271,53 +209,9 @@ export default function TestsPage() {
 
       setActiveSession(null);
       setCompletedSubmission(submission);
-    } catch {
-      const mockResult: AssessmentSubmission = {
-        id: 'sub-res-local',
-        assessmentId: activeSession.assessment.id,
-        studentId: 'me',
-        status: 'completed',
-        startedAt: activeSession.startedAt,
-        completedAt: new Date().toISOString(),
-        timeTakenSeconds: activeSession.assessment.durationMinutes * 60 - remainingSeconds,
-        timeRemainingSeconds: remainingSeconds,
-        totalScore: 8,
-        maxScore: activeSession.assessment.totalMarks,
-        accuracyPercentage: 67,
-        postTestAnalysis: {
-          accuracyPercentage: 67,
-          totalAttempted: Object.keys(answersMap).length,
-          totalCorrect: Math.max(1, Object.keys(answersMap).length - 1),
-          totalIncorrect: 1,
-          totalUnattempted: activeSession.questions.length - Object.keys(answersMap).length,
-          totalScore: 8,
-          maxScore: activeSession.assessment.totalMarks,
-          avgTimePerQuestionSeconds: 45,
-          avgTimeCorrectSeconds: 40,
-          avgTimeIncorrectSeconds: 50,
-          easyQuestionMisses: [],
-          guessingDetected: [],
-          timeManagementIssues: [],
-          conceptualErrors: [{ conceptId: 'c1', conceptTitle: 'Kinematics', count: 1 }],
-          calculationErrors: [],
-          weakTopics: [{ topicTitle: 'Rotational Dynamics', marksLost: 1 }],
-          difficultyPerformance: {
-            easy: { attempted: 1, correct: 1, accuracy: 100 },
-            medium: { attempted: 2, correct: 1, accuracy: 50 },
-          },
-          questionTypePerformance: {
-            single_choice: { attempted: 1, correct: 1, accuracy: 100 },
-            numerical: { attempted: 1, correct: 0, accuracy: 0 },
-          },
-          recommendations: [
-            'Revise standard equations of motion in Rotational Dynamics.',
-            'Watch out for negative marking in assertion-reasoning questions.',
-          ],
-        },
-      };
-
-      setActiveSession(null);
-      setCompletedSubmission(mockResult);
+    } catch (err: any) {
+      console.error('Failed to submit test:', err);
+      setRunnerError(`Submission failed: ${err.message || 'Server error'}. Your session is still active; please click Submit Test again.`);
     } finally {
       setSubmitting(false);
     }
@@ -378,60 +272,125 @@ export default function TestsPage() {
           </div>
         </header>
 
+        {errorMsg && (
+          <div style={{
+            padding: '1rem 1.25rem',
+            background: 'rgba(239, 68, 68, 0.1)',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+            borderRadius: 'var(--radius-md)',
+            color: '#f87171',
+            fontSize: '0.875rem',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}>
+            <span>⚠️ {errorMsg}</span>
+            <button
+              onClick={loadAssessments}
+              style={{
+                background: 'rgba(255, 255, 255, 0.1)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                color: '#fff',
+                padding: '0.25rem 0.75rem',
+                borderRadius: 'var(--radius-sm)',
+                cursor: 'pointer',
+              }}
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        {runnerError && (
+          <div style={{
+            padding: '1rem 1.25rem',
+            background: 'rgba(239, 68, 68, 0.15)',
+            border: '1px solid rgba(239, 68, 68, 0.4)',
+            borderRadius: 'var(--radius-md)',
+            color: '#f87171',
+            fontSize: '0.875rem',
+          }}>
+            ⚠️ {runnerError}
+          </div>
+        )}
+
         {/* Assessment Cards Grid */}
-        <div className={styles.grid}>
-          {filteredAssessments.map((test) => {
-            const badgeClass =
-              test.type === 'mock_exam'
-                ? styles.badgeMock
-                : test.type === 'pyq_test'
-                ? styles.badgePyq
-                : test.type === 'diagnostic'
-                ? styles.badgeDiagnostic
-                : styles.badgeChapter;
+        {loading && !activeSession ? (
+          <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+            Loading available assessments...
+          </div>
+        ) : filteredAssessments.length === 0 ? (
+          <div style={{
+            padding: '3rem 2rem',
+            textAlign: 'center',
+            background: 'rgba(255, 255, 255, 0.02)',
+            border: '1px solid rgba(255, 255, 255, 0.06)',
+            borderRadius: 'var(--radius-lg)',
+            color: 'var(--color-text-secondary)',
+          }}>
+            <p style={{ fontSize: '1rem', fontWeight: 500, color: 'var(--color-text-primary)' }}>
+              No assessments found for this category.
+            </p>
+            <p style={{ fontSize: '0.875rem', marginTop: '0.5rem' }}>
+              Switch filter to &quot;All Tests&quot; or take the Baseline Diagnostic Assessment.
+            </p>
+          </div>
+        ) : (
+          <div className={styles.grid}>
+            {filteredAssessments.map((test) => {
+              const badgeClass =
+                test.type === 'mock_exam'
+                  ? styles.badgeMock
+                  : test.type === 'pyq_test'
+                  ? styles.badgePyq
+                  : test.type === 'diagnostic'
+                  ? styles.badgeDiagnostic
+                  : styles.badgeChapter;
 
-            return (
-              <div key={test.id} className={styles.card}>
-                <div className={styles.cardHeader}>
-                  <span className={`${styles.badge} ${badgeClass}`}>
-                    {test.type.replace('_', ' ')}
-                  </span>
-                  <span className={styles.specLabel}>
-                    +4 / -1 Marking
-                  </span>
-                </div>
-
-                <div>
-                  <h3 className={styles.cardTitle}>{test.title}</h3>
-                  {test.description && <p className={styles.cardDesc}>{test.description}</p>}
-                </div>
-
-                <div className={styles.specsBar}>
-                  <div className={styles.specItem}>
-                    <span className={styles.specLabel}>DURATION</span>
-                    <span className={styles.specValue}>{test.durationMinutes} Mins</span>
+              return (
+                <div key={test.id} className={styles.card}>
+                  <div className={styles.cardHeader}>
+                    <span className={`${styles.badge} ${badgeClass}`}>
+                      {test.type.replace('_', ' ')}
+                    </span>
+                    <span className={styles.specLabel}>
+                      +4 / -1 Marking
+                    </span>
                   </div>
-                  <div className={styles.specItem}>
-                    <span className={styles.specLabel}>TOTAL MARKS</span>
-                    <span className={styles.specValue}>{test.totalMarks} Marks</span>
-                  </div>
-                  <div className={styles.specItem}>
-                    <span className={styles.specLabel}>FORMAT</span>
-                    <span className={styles.specValue}>{test.isAdaptive ? 'Adaptive' : 'Standard'}</span>
-                  </div>
-                </div>
 
-                <button
-                  className={styles.startBtn}
-                  onClick={() => handleStartTest(test)}
-                >
-                  <Icon name="play" size="sm" />
-                  Start Test
-                </button>
-              </div>
-            );
-          })}
-        </div>
+                  <div>
+                    <h3 className={styles.cardTitle}>{test.title}</h3>
+                    {test.description && <p className={styles.cardDesc}>{test.description}</p>}
+                  </div>
+
+                  <div className={styles.specsBar}>
+                    <div className={styles.specItem}>
+                      <span className={styles.specLabel}>DURATION</span>
+                      <span className={styles.specValue}>{test.durationMinutes} Mins</span>
+                    </div>
+                    <div className={styles.specItem}>
+                      <span className={styles.specLabel}>TOTAL MARKS</span>
+                      <span className={styles.specValue}>{test.totalMarks} Marks</span>
+                    </div>
+                    <div className={styles.specItem}>
+                      <span className={styles.specLabel}>FORMAT</span>
+                      <span className={styles.specValue}>{test.isAdaptive ? 'Adaptive' : 'Standard'}</span>
+                    </div>
+                  </div>
+
+                  <button
+                    className={styles.startBtn}
+                    onClick={() => handleStartTest(test)}
+                    disabled={loading}
+                  >
+                    <Icon name="play" size="sm" />
+                    Start Test
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Active Test Runner Environment Modal */}
         {activeSession && currentQ && (
@@ -452,133 +411,120 @@ export default function TestsPage() {
                 </div>
 
                 <button
-                  className={styles.submitTopBtn}
+                  className={styles.submitTestBtn}
                   onClick={() => setShowSubmitModal(true)}
+                  disabled={submitting}
                 >
-                  Submit Examination
+                  {submitting ? 'Submitting...' : 'Submit Test'}
                 </button>
               </div>
             </div>
 
-            {/* Main Runner Body */}
+            {/* Main Question & Palette Layout */}
             <div className={styles.runnerBody}>
-              {/* Question Workspace */}
-              <div className={styles.questionWorkspace}>
-                <div className={styles.questionMetaHeader}>
-                  <span className={styles.qNumber}>
-                    Question {currentQuestionIndex + 1}
-                  </span>
-                  <span className={styles.qMarksTag}>
-                    Marks: +{currentQ.marks} | -1.0
-                  </span>
-                </div>
-
-                <div className={styles.questionText}>
-                  {currentQ.questionText}
-                </div>
-
-                {/* Options / Numerical Input */}
-                {currentQ.questionType === 'numerical' ? (
-                  <div className={styles.numericalInputContainer}>
-                    <label className={styles.specLabel}>ENTER NUMERICAL VALUE:</label>
-                    <input
-                      type="number"
-                      step="any"
-                      placeholder="e.g. 4.9"
-                      className={styles.numericalInput}
-                      value={currentAnswer?.numericalAnswer || ''}
-                      onChange={(e) => handleNumericalChange(e.target.value)}
-                    />
+              {/* Question Workspace Area */}
+              <div className={styles.questionArea}>
+                <div className={styles.questionCard}>
+                  <div className={styles.questionCardHeader}>
+                    <span className={styles.specLabel}>
+                      {currentQ.subjectId.toUpperCase()} • {currentQ.difficultyLevel.toUpperCase()}
+                    </span>
+                    <span className={styles.badgePyq}>
+                      +{currentQ.marks} / -1
+                    </span>
                   </div>
-                ) : (
-                  <div className={styles.optionsList}>
-                    {currentQ.options?.map((opt) => {
-                      const isSelected = currentAnswer?.selectedOptions?.includes(opt.optionKey);
-                      return (
-                        <div
-                          key={opt.optionKey}
-                          className={`${styles.optionItem} ${isSelected ? styles.optionSelected : ''}`}
-                          onClick={() => handleSelectOption(opt.optionKey)}
-                        >
-                          <div className={styles.optionKeyCircle}>
-                            {opt.optionKey}
+
+                  <p className={styles.questionText}>{currentQ.questionText}</p>
+
+                  {/* Single Choice / MCQs Options */}
+                  {currentQ.options && currentQ.options.length > 0 && (
+                    <div className={styles.optionsList}>
+                      {currentQ.options.map((opt) => {
+                        const isSelected = currentAnswer?.selectedOptions?.includes(opt.optionKey);
+                        return (
+                          <div
+                            key={opt.optionKey}
+                            className={`${styles.optionItem} ${isSelected ? styles.optionSelected : ''}`}
+                            onClick={() => handleSelectOption(opt.optionKey)}
+                          >
+                            <span className={styles.optionKey}>{opt.optionKey}</span>
+                            <span className={styles.optionText}>{opt.optionText}</span>
                           </div>
-                          <div>{opt.optionText}</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                        );
+                      })}
+                    </div>
+                  )}
 
-                {/* Action Navigation Footer */}
-                <div className={styles.runnerFooter}>
-                  <div className={styles.footerLeftBtns}>
+                  {/* Numerical Type Inputs */}
+                  {currentQ.questionType === 'numerical' && (
+                    <div className={styles.numericalInputContainer}>
+                      <label className={styles.specLabel}>ENTER NUMERICAL ANSWER:</label>
+                      <input
+                        type="number"
+                        step="any"
+                        placeholder="e.g. 4.9"
+                        value={currentAnswer?.numericalAnswer || ''}
+                        onChange={(e) => handleNumericalChange(e.target.value)}
+                        className={styles.numericalInput}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Bottom Question Controls Bar */}
+                <div className={styles.controlsBar}>
+                  <div style={{ display: 'flex', gap: '0.75rem' }}>
                     <button
-                      className={styles.btnSecondary}
+                      className={styles.controlBtn}
+                      onClick={handlePrevQuestion}
+                      disabled={currentQuestionIndex === 0}
+                    >
+                      &larr; Previous
+                    </button>
+                    <button
+                      className={styles.controlBtn}
                       onClick={handleClearResponse}
                     >
                       Clear Response
                     </button>
                     <button
-                      className={styles.btnReview}
+                      className={styles.controlBtn}
                       onClick={handleMarkForReview}
                     >
-                      Mark for Review & Next
+                      Mark for Review
                     </button>
                   </div>
 
-                  <div className={styles.footerRightBtns}>
-                    <button
-                      className={styles.btnSecondary}
-                      disabled={currentQuestionIndex === 0}
-                      onClick={handlePrevQuestion}
-                    >
-                      Previous
-                    </button>
-                    <button
-                      className={styles.btnSaveNext}
-                      onClick={handleNextQuestion}
-                    >
-                      Save & Next
-                    </button>
-                  </div>
+                  <button
+                    className={`${styles.controlBtn} ${styles.controlBtnPrimary}`}
+                    onClick={handleNextQuestion}
+                    disabled={currentQuestionIndex === activeSession.questions.length - 1}
+                  >
+                    Save & Next &rarr;
+                  </button>
                 </div>
               </div>
 
-              {/* Sidebar Palette */}
-              <div className={styles.runnerSidebar}>
-                <div className={styles.paletteLegend}>
-                  <div className={styles.legendItem}>
-                    <div className={`${styles.legendDot} ${styles.dotAnswered}`} />
-                    <span>Answered</span>
-                  </div>
-                  <div className={styles.legendItem}>
-                    <div className={`${styles.legendDot} ${styles.dotUnanswered}`} />
-                    <span>Not Answered</span>
-                  </div>
-                  <div className={styles.legendItem}>
-                    <div className={`${styles.legendDot} ${styles.dotReview}`} />
-                    <span>Review</span>
-                  </div>
-                  <div className={styles.legendItem}>
-                    <div className={`${styles.legendDot} ${styles.dotNotVisited}`} />
-                    <span>Not Visited</span>
-                  </div>
-                </div>
+              {/* Question Palette Sidebar (NTA standard layout) */}
+              <div className={styles.paletteSidebar}>
+                <h4 className={styles.paletteTitle}>Question Palette</h4>
 
                 <div className={styles.paletteGrid}>
                   {activeSession.questions.map((q, idx) => {
-                    const ans = answersMap[q.id];
-                    let btnClass = styles.paletteBtn;
-                    if (ans?.status === 'answered') btnClass += ` ${styles.paletteAnswered}`;
-                    else if (ans?.status === 'marked_for_review') btnClass += ` ${styles.paletteReview}`;
-                    else if (ans?.status === 'unanswered') btnClass += ` ${styles.paletteUnanswered}`;
-                    if (idx === currentQuestionIndex) btnClass += ` ${styles.paletteActive}`;
+                    const status = answersMap[q.id]?.status;
+                    const isCurrent = idx === currentQuestionIndex;
+
+                    let btnClass = styles.paletteBtnNotVisited;
+                    if (status === 'answered') btnClass = styles.paletteBtnAnswered;
+                    else if (status === 'marked_for_review') btnClass = styles.paletteBtnMarked;
+                    else if (idx <= currentQuestionIndex) btnClass = styles.paletteBtnNotAnswered;
+
+                    if (isCurrent) btnClass += ` ${styles.paletteBtnCurrent}`;
 
                     return (
                       <button
                         key={q.id}
-                        className={btnClass}
+                        className={`${styles.paletteBtn} ${btnClass}`}
                         onClick={() => setCurrentQuestionIndex(idx)}
                       >
                         {idx + 1}
@@ -586,102 +532,137 @@ export default function TestsPage() {
                     );
                   })}
                 </div>
+
+                {/* Palette Status Legend */}
+                <div className={styles.paletteLegend}>
+                  <div className={styles.legendRow}>
+                    <div className={`${styles.legendDot} ${styles.paletteBtnAnswered}`} />
+                    <span>Answered ({Object.values(answersMap).filter((a) => a.status === 'answered').length})</span>
+                  </div>
+                  <div className={styles.legendRow}>
+                    <div className={`${styles.legendDot} ${styles.paletteBtnNotAnswered}`} />
+                    <span>Not Answered</span>
+                  </div>
+                  <div className={styles.legendRow}>
+                    <div className={`${styles.legendDot} ${styles.paletteBtnMarked}`} />
+                    <span>Marked for Review</span>
+                  </div>
+                  <div className={styles.legendRow}>
+                    <div className={`${styles.legendDot} ${styles.paletteBtnNotVisited}`} />
+                    <span>Not Visited</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* Confirmation Modal */}
-        {showSubmitModal && (
+        {/* Confirmation Modal Before Submission */}
+        {showSubmitModal && activeSession && (
           <div className={styles.modalOverlay}>
-            <div className={styles.scorecardModal} style={{ maxWidth: '440px' }}>
-              <div className={styles.scorecardHeader}>
-                <h3 className={styles.cardTitle}>Submit Assessment?</h3>
-                <p className={styles.pageSubtitle}>
-                  You have attempted {Object.keys(answersMap).length} of {activeSession?.questions.length} questions. Once submitted, your scores and error report will be compiled.
-                </p>
-              </div>
+            <div className={styles.modalContent}>
+              <h3 className={styles.modalTitle}>Submit Assessment?</h3>
+              <p className={styles.modalDesc}>
+                You have answered {Object.values(answersMap).filter((a) => a.status === 'answered').length} of {activeSession.questions.length} questions. Are you sure you want to submit and generate your verified intelligence scorecard?
+              </p>
 
-              <div className={styles.actionButtonsRow}>
+              <div className={styles.modalBtnRow}>
                 <button
-                  className={styles.btnSecondary}
-                  style={{ flex: 1 }}
+                  className={styles.modalBtnCancel}
                   onClick={() => setShowSubmitModal(false)}
                 >
-                  Cancel
+                  Return to Test
                 </button>
                 <button
-                  className={styles.submitTopBtn}
-                  style={{ flex: 1, padding: '0.75rem' }}
-                  disabled={submitting}
+                  className={styles.modalBtnConfirm}
                   onClick={handleSubmitTest}
+                  disabled={submitting}
                 >
-                  {submitting ? 'Evaluating...' : 'Confirm Submission'}
+                  {submitting ? 'Submitting...' : 'Yes, Submit Test'}
                 </button>
               </div>
             </div>
           </div>
         )}
 
-        {/* Post-Test Intelligence Scorecard Modal */}
-        {completedSubmission && completedSubmission.postTestAnalysis && (
-          <div className={styles.modalOverlay}>
+        {/* Post-Test Verified Scorecard & Analysis Modal */}
+        {completedSubmission && (
+          <div className={styles.scorecardOverlay}>
             <div className={styles.scorecardModal}>
               <div className={styles.scorecardHeader}>
-                <div className={styles.pageIcon}>
-                  <Icon name="award" size="lg" />
-                </div>
-                <h2 className={styles.pageTitle}>Post-Test Diagnostic Report</h2>
-                <p className={styles.pageSubtitle}>
-                  Your submission has been scored and evidence has updated your Student Model.
-                </p>
-              </div>
-
-              <div className={styles.scoreBanner}>
                 <div>
-                  <span className={styles.specLabel}>TOTAL SCORE</span>
-                  <div className={styles.scoreBig}>
-                    {completedSubmission.totalScore} / {completedSubmission.maxScore}
-                  </div>
+                  <span className={styles.scorecardSub}>VERIFIED ACADEMIC SCORECARD</span>
+                  <h2 className={styles.scorecardTitle}>Assessment Performance Diagnostic</h2>
                 </div>
-                <div>
-                  <span className={styles.specLabel}>ACCURACY</span>
-                  <div className={styles.scoreBig} style={{ color: '#10b981' }}>
-                    {completedSubmission.postTestAnalysis.accuracyPercentage}%
-                  </div>
-                </div>
-                <div>
-                  <span className={styles.specLabel}>PACE</span>
-                  <div className={styles.scoreBig} style={{ color: '#a855f7' }}>
-                    {completedSubmission.postTestAnalysis.avgTimePerQuestionSeconds}s/q
-                  </div>
-                </div>
-              </div>
-
-              {/* Insights & Recommendations */}
-              <div className={styles.insightsSection}>
-                <h4 className={styles.cardTitle}>Diagnostic Insights</h4>
-                {completedSubmission.postTestAnalysis.recommendations.map((rec, i) => (
-                  <div key={i} className={styles.insightCard}>
-                    {rec}
-                  </div>
-                ))}
-              </div>
-
-              <div className={styles.actionButtonsRow}>
-                <a
-                  href="/app/mistakes"
-                  className={styles.startBtn}
-                  style={{ textDecoration: 'none' }}
-                >
-                  <Icon name="mistakes" size="sm" />
-                  Open Mistake Notebook ({completedSubmission.postTestAnalysis.totalIncorrect} Mistakes Logged)
-                </a>
                 <button
-                  className={styles.btnSecondary}
+                  className={styles.closeScorecardBtn}
                   onClick={() => setCompletedSubmission(null)}
                 >
-                  Close Report
+                  ✕ Close Scorecard
+                </button>
+              </div>
+
+              {/* Metric Hero Row */}
+              <div className={styles.scoreMetricsRow}>
+                <div className={styles.scoreMetricCard}>
+                  <span className={styles.metricLabel}>TOTAL SCORE</span>
+                  <span className={styles.metricScoreNum}>
+                    {completedSubmission.totalScore}
+                    <span className={styles.metricMaxScore}> / {completedSubmission.maxScore}</span>
+                  </span>
+                </div>
+                <div className={styles.scoreMetricCard}>
+                  <span className={styles.metricLabel}>ACCURACY</span>
+                  <span className={styles.metricScoreNum}>{completedSubmission.accuracyPercentage}%</span>
+                </div>
+                <div className={styles.scoreMetricCard}>
+                  <span className={styles.metricLabel}>TIME TAKEN</span>
+                  <span className={styles.metricScoreNum}>{Math.round(completedSubmission.timeTakenSeconds / 60)} Mins</span>
+                </div>
+              </div>
+
+              {/* Post-Test Diagnostics */}
+              {completedSubmission.postTestAnalysis && (
+                <div className={styles.postTestSection}>
+                  <h3 className={styles.analysisHeader}>
+                    <Icon name="zap" size="sm" /> Deterministic Diagnostics & Mistake Tracing
+                  </h3>
+
+                  <div className={styles.analysisGrid}>
+                    <div className={styles.analysisCard}>
+                      <h4 className={styles.analysisCardTitle}>Identified Weak Topics</h4>
+                      {completedSubmission.postTestAnalysis.weakTopics?.length > 0 ? (
+                        <ul className={styles.topicList}>
+                          {completedSubmission.postTestAnalysis.weakTopics.map((wt, i) => (
+                            <li key={i} className={styles.topicItem}>
+                              <span>{wt.topicTitle}</span>
+                              <span className={styles.marksLost}>Lost {wt.marksLost} marks</span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className={styles.cardDesc}>No major topic weaknesses flagged.</p>
+                      )}
+                    </div>
+
+                    <div className={styles.analysisCard}>
+                      <h4 className={styles.analysisCardTitle}>Prescriptive Next Steps</h4>
+                      <ul className={styles.recList}>
+                        {completedSubmission.postTestAnalysis.recommendations?.map((rec, i) => (
+                          <li key={i} className={styles.recItem}>{rec}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+                <button
+                  className={styles.modalBtnConfirm}
+                  onClick={() => setCompletedSubmission(null)}
+                >
+                  Return to Dashboard &rarr;
                 </button>
               </div>
             </div>
@@ -691,58 +672,3 @@ export default function TestsPage() {
     </WorkspaceShell>
   );
 }
-
-const DEFAULT_ASSESSMENTS: Assessment[] = [
-  {
-    id: 'assess-jee-kinematics',
-    title: 'JEE Main Physics: Kinematics & Laws of Motion',
-    description: 'High-frequency exam questions covering 1D/2D motion, projectile trajectories, and Newton laws with NTA negative marking scheme.',
-    type: 'chapter_test',
-    durationMinutes: 45,
-    totalMarks: 40,
-    markingScheme: { correct: 4, incorrect: -1, unattempted: 0 },
-    difficultyDistribution: { easy: 30, medium: 50, hard: 20 },
-    sectionsConfig: [],
-    isAdaptive: false,
-    isPublished: true,
-  },
-  {
-    id: 'assess-full-mock-01',
-    title: 'JEE Main Full-Syllabus Mock Exam 01',
-    description: 'Timed 3-hour authentic full syllabus simulation covering Physics, Chemistry, and Mathematics.',
-    type: 'mock_exam',
-    durationMinutes: 180,
-    totalMarks: 300,
-    markingScheme: { correct: 4, incorrect: -1, unattempted: 0 },
-    difficultyDistribution: { easy: 25, medium: 50, hard: 25 },
-    sectionsConfig: [],
-    isAdaptive: false,
-    isPublished: true,
-  },
-  {
-    id: 'assess-pyq-2025',
-    title: 'JEE Main 2025 Shift 1 Authentic Paper',
-    description: 'Verified past year questions with provenance records and official answer keys.',
-    type: 'pyq_test',
-    durationMinutes: 180,
-    totalMarks: 300,
-    markingScheme: { correct: 4, incorrect: -1, unattempted: 0 },
-    difficultyDistribution: { easy: 20, medium: 60, hard: 20 },
-    sectionsConfig: [],
-    isAdaptive: false,
-    isPublished: true,
-  },
-  {
-    id: 'assess-diagnostic-baseline',
-    title: 'SharpMind Baseline Diagnostic Assessment',
-    description: 'Calibrates your initial Knowledge Model vector across core prerequisite concepts.',
-    type: 'diagnostic',
-    durationMinutes: 45,
-    totalMarks: 20,
-    markingScheme: { correct: 4, incorrect: -1, unattempted: 0 },
-    difficultyDistribution: { easy: 30, medium: 50, hard: 20 },
-    sectionsConfig: [],
-    isAdaptive: true,
-    isPublished: true,
-  },
-];
