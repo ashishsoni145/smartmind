@@ -1,42 +1,54 @@
 # Last Session Handoff
 
-Session: Phase 03 (Curriculum Engine, Academic Knowledge Graph, and Verified PYQ Subsystem) Completed on 2026-09-18.
+Session: Phase 07 (Study Material Intelligence, Interactive Visual Learning, Focus Mode, Academic Analytics & Health Score, Notification Infrastructure, and Action Required Toast System) Completed on 2026-09-21.
 
 ### What Was Accomplished:
 
-1. **Part 01 — Curriculum & Syllabus Engine (`backend/src/modules/curriculum/`)**:
-   - Extensible data model supporting boards (CBSE, ICSE, State Boards), competitive exams (JEE Main, JEE Advanced, NEET UG), academic years, grades, units, chapters, topics, subtopics, concepts, learning objectives, and weightages without hardcoding boards or curricula.
-   - Applied database migration `20260918000002_curriculum_knowledge_graph_and_pyq.sql` on live Supabase.
-   - Hierarchy endpoints (`GET /boards`, `GET /grades`, `GET /subjects`, `GET /target-exams`, `GET /chapters`, `GET /nodes/:id/children`, `POST /nodes`).
+1. **Database & Schema Layer (`infra/supabase/migrations/20260921000004_phase_07_study_material_focus_analytics_notifications.sql`)**:
+   - Successfully applied to remote Supabase via MCP tool.
+   - Extended `public.materials`: added `user_id`, `file_asset_id`, `processing_status`, `summary`, `extracted_concepts`, `formula_sheet`, `flashcards`, `quiz_questions`, `error_message`, and strict RLS policies.
+   - Created `public.study_sessions`: focus block tracking with duration, interruption telemetry, and post-session reflection notes with 100% RLS.
+   - Created `public.academic_reviews`: daily debriefs and weekly reviews grounded in empirical telemetry with 100% RLS.
+   - Created `public.notification_preferences`: student-controlled quiet hours (default: 22:00 to 07:00), timezone, and category toggles with 100% RLS.
+   - Created `public.notifications`: 10 distinct notification categories, `action_required` flags, and `action_label` with 100% RLS.
 
-2. **Part 02 — Academic Knowledge Graph Layer (`backend/src/modules/knowledge-graph/`)**:
-   - Created `concepts`, `concept_curriculum_mappings`, and `knowledge_graph_edges` tables with 100% RLS.
-   - Implemented Directed Acyclic Graph (DAG) cycle detection via `GraphService.hasPrerequisiteCycle(sourceId, targetId)` strictly rejecting circular prerequisite edges with 400 Bad Request.
-   - Implemented recursive PostgreSQL CTE function `public.get_concept_prerequisites(target_concept_id)` with cycle guards and depth tracking.
-   - Endpoints: `POST /concepts`, `GET /concepts/:id`, `POST /edges`, `GET /concepts/:id/prerequisites`, `GET /nodes/:id/concepts`.
+2. **Part 01 — Study Material Intelligence (`backend/src/modules/materials/`)**:
+   - Sliding-window chunker with 250-word segments and 30-word semantic overlap assigning immutable citation tags (`DOC-<id>-CHUNK-<n>`).
+   - AI synthesis of summaries, formula sheets (`StudyFormulaItem`), flashcards (`Flashcard`), and rapid check quizzes (`MaterialQuizQuestion`) strictly via `StudyMaterialAgent` through provider-agnostic `aiOrchestrator` preserving document provenance.
+   - Unit tests: `backend/src/__tests__/study-materials.test.ts` (4/4 tests passed).
 
-3. **Part 03 — Authentic PYQ Data Model & Deduplication Engine (`backend/src/modules/questions/`)**:
-   - Extended `questions` with `concept_id`, `target_exam_id`, `marks`, `is_important`, `appearance_frequency`, `pattern_tags`, and paper codes.
-   - Deduplication pipeline in `QuestionService.ingestQuestions()`: Exact matches on `(subject_id, question_text, source_exam, source_year)` increment `appearance_frequency` and set `is_important = true` without inserting duplicate rows.
-   - Exam pattern analysis endpoint (`GET /questions/patterns`).
-   - Seeded authentic, rationalised NCERT concepts, DAG prerequisite edges, and past JEE Main, JEE Advanced, and NEET questions into live Supabase database with zero fabricated data.
+3. **Part 02 — Interactive Visual-Learning Framework (`apps/web/src/components/visual/`)**:
+   - `visual-simulation.contract.ts`: Standardized contract registering 14 interactive simulations across Physics (Projectile Motion, Gauss's Law, Wave Optics), Chemistry (VSEPR Geometry, Atomic Orbitals, Chemical Equilibrium), and Mathematics (3D Vectors, Conic Sections).
+   - Mouse/touch rotation, zoom, drag inspection, parameter sliders, and accessible narrative fallbacks for screen readers and low-bandwidth environments.
+   - Unit tests: `backend/src/__tests__/visual-learning.test.ts` (4/4 tests passed).
 
-4. **Part 04 — Classroom UI Connection & Verification (`apps/web`)**:
-   - Updated `SupabaseCurriculumAdapter` to query live questions, mapped concepts, and authentic PYQs with graceful fallback.
-   - Enhanced `TopicDetailView`:
-     - Academic Prerequisites & Diagnostic Readiness card displaying prerequisites with met/pending status and calibration hooks (`masteryStatus`, `retentionPercent`).
-     - Interactive examination filter pills (All, JEE Main, NEET, JEE Advanced, CBSE Board).
-     - Visual badges for high-yield questions (`🔥 High Yield`), repeated question frequency (`Repeated 3x`), marks allocation (`4 Marks`), verified provenance, and pattern tags.
-   - Updated `@sharpmind/types` and `@sharpmind/api-client`.
-   - Recorded architecture decisions in ADR 0004 (`docs/architecture/adr/0004-academic-knowledge-graph-and-curriculum-engine.md`).
+4. **Part 03 — Focus Mode & Effort Telemetry (`backend/src/modules/focus/`, `apps/web/src/app/app/focus/`)**:
+   - Distraction-free study studio with interactive timer, circular SVG progress ring, distraction logger, and post-session reflection modal.
+   - Closed-loop Student Model integration: Records `self_assessment` evidence to `StudentModelService.recordEvidence` with calibrated uncertainty, acknowledging effort without fabricating concept mastery. Zero UI emojis.
+   - Unit tests: `backend/src/__tests__/focus-sessions.test.ts` (3/3 tests passed).
 
-5. **Verification & QA Pass**:
-   - Backend automated test suite: 22/22 tests passed across 4 test suites (`api.test.ts`, `curriculum.test.ts`, `graph.test.ts`, `pyq.test.ts`).
-   - Backend typecheck (`npm run typecheck:backend`): 0 errors.
-   - Web typecheck (`npm run typecheck`): 0 errors.
-   - Live dev servers: Backend (port 4000) status `ok`, database `connected`; Web frontend (port 3000) serving `/app/classroom/` with HTTP 200.
+5. **Part 04 — Academic Analytics & Review Surfaces (`backend/src/modules/analytics/`, `apps/web/src/app/app/analytics/`)**:
+   - Explainable 7-dimension Academic Health Score: Syllabus Coverage (15%), Conceptual Mastery (20%), Revision Cadence (15%), Exam Readiness (20%), Time Pacing (10%), Problem Accuracy (10%), Habit Consistency (10%).
+   - Daily AI Debrief & Weekly Strategic Reviews grounded strictly in empirical telemetry.
+   - Unit tests: `backend/src/__tests__/academic-analytics.test.ts` (4/4 tests passed).
+
+6. **Part 05 — Notification & Reminder Infrastructure + Action Required Toast System (`backend/src/modules/notifications/`, `apps/web/src/components/ui/Toast/`)**:
+   - Timezone-aware quiet hours evaluation (`isWithinQuietHours`, `adjustForQuietHours`), 24-hour reminder deduplication, and channel delivery routing.
+   - User Request: Built `ActionToast` and `ActionToastProvider` displaying floating, dismissible glassmorphic banners with primary call-to-action buttons for urgent student tasks.
+   - Modernized `NotificationsDrawer.tsx` to display real backend notifications and action buttons with pure SVG icons.
+   - Unit tests: `backend/src/__tests__/notifications.test.ts` (6/6 tests passed).
+
+7. **Architecture Documentation & Workspace Integration**:
+   - Created ADR 0008: `docs/architecture/adr/0008-study-materials-visuals-focus-analytics-and-notifications.md`.
+   - Extended `@sharpmind/api-client` with `materials`, `focus`, `analytics`, and `notifications` modules.
+   - Mounted routes at `/api/v1/materials`, `/api/v1/focus`, `/api/v1/analytics`, and `/api/v1/notifications` in `backend/src/app.ts`.
+   - Updated `.ai/CURRENT_STATE.md` and `.ai/PROJECT_MAP.md`.
+
+### Verification Status:
+- Vitest backend tests: 216/216 tests passed across all 24 test suites in `backend` (0 failures).
+- Backend TypeScript check (`npm --prefix backend run typecheck`): 0 errors.
+- Web TypeScript check (`npm --prefix apps/web run typecheck`): 0 errors.
+- Web Next.js production build (`npm --prefix apps/web run build`): 36/36 static pages exported cleanly (0 errors).
 
 ### Next Checkpoint:
-Phase 03 is 100% COMPLETE.
-Next Phase: Phase 04 — Student Model, continuous knowledge state calibration, Bayesian Knowledge Tracing (BKT), forgetting curves, and diagnostic evidence logging.
-
+- Phase 08: Classroom Collaboration, Mentorship & Real-Time Sync.

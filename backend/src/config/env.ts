@@ -19,6 +19,10 @@ const envSchema = z.object({
   CORS_ORIGIN: z.string().default('http://localhost:3000'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
   API_PREFIX: z.string().default('/api/v1'),
+  AI_PROVIDER_PRIMARY: z.enum(['groq', 'gemini', 'openrouter', 'mock']).default('mock'),
+  AI_GROQ_API_KEY: z.string().optional().default(process.env.GROQ_API_KEY || ''),
+  AI_GEMINI_API_KEY: z.string().optional().default(process.env.GEMINI_API_KEY || ''),
+  AI_OPENROUTER_API_KEY: z.string().optional().default(process.env.OPENROUTER_API_KEY || ''),
 });
 
 const parseEnv = () => {
@@ -31,6 +35,10 @@ const parseEnv = () => {
     CORS_ORIGIN: process.env.CORS_ORIGIN,
     LOG_LEVEL: process.env.LOG_LEVEL,
     API_PREFIX: process.env.API_PREFIX,
+    AI_PROVIDER_PRIMARY: process.env.AI_PROVIDER_PRIMARY,
+    AI_GROQ_API_KEY: process.env.AI_GROQ_API_KEY || process.env.GROQ_API_KEY,
+    AI_GEMINI_API_KEY: process.env.AI_GEMINI_API_KEY || process.env.GEMINI_API_KEY,
+    AI_OPENROUTER_API_KEY: process.env.AI_OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY,
   });
 
   if (!result.success) {

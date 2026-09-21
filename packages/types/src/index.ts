@@ -16,4 +16,6 @@ export * from './forms';
 export * from './files';
 export * from './graph';
 export * from './api';
-
+export * from './student-model';
+export * from './assessment';
+export * from './phase7';

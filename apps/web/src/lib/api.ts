@@ -25,4 +25,5 @@ export const getApiClient = (): SharpMindApiClient => {
 };
 
 export const api = getApiClient();
+export const apiClient = api;
 export default api;

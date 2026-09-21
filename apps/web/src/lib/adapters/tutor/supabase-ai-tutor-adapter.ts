@@ -6,6 +6,7 @@ import type {
   TutorContext,
 } from '@/lib/types/tutor';
 import { getSupabaseClient } from '@/lib/supabase/client';
+import { getApiClient } from '@/lib/api';
 import { LocalAITutorAdapter } from './local-ai-tutor-adapter';
 
 export class SupabaseAITutorAdapter implements TutorAdapter {
@@ -160,6 +161,30 @@ export class SupabaseAITutorAdapter implements TutorAdapter {
     imageUrl?: string,
     context?: TutorContext
   ): Promise<TutorMessage> {
+    // Try live backend AI Orchestrator first
+    try {
+      const api = getApiClient();
+      const res = await api.tutor.sendMessage(sessionId, {
+        message: messageText,
+        imageUrl,
+        mode,
+      });
+
+      if (res && res.assistantMessage) {
+        return {
+          id: res.assistantMessage.id,
+          sessionId: res.assistantMessage.sessionId,
+          senderRole: 'assistant',
+          messageText: res.assistantMessage.messageText || res.assistantMessage.content || '',
+          imageUrl: res.assistantMessage.imageUrl,
+          citations: (res.assistantMessage.citations || []) as any,
+          createdAt: res.assistantMessage.createdAt,
+        };
+      }
+    } catch {
+      // Graceful fallback to Supabase direct or local simulation if backend is not reachable
+    }
+
     const supabase = getSupabaseClient();
     if (!supabase) {
       return this.localFallback.sendMessage(sessionId, messageText, mode, imageUrl, context);

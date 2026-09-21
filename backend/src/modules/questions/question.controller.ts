@@ -73,4 +73,32 @@ export class QuestionController {
       next(err);
     }
   }
+
+  public static async selectAdaptive(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const studentId = req.user?.id || (req.query.studentId as string);
+      const { subjectId, curriculumNodeId, conceptId, targetExamId, count } = req.query as any;
+      const questions = await QuestionService.selectAdaptive(studentId, {
+        subjectId,
+        curriculumNodeId,
+        conceptId,
+        targetExamId,
+        count: count ? parseInt(count, 10) : 10,
+      });
+      sendSuccess(res, questions);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  public static async validateAnswer(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params;
+      const result = await QuestionService.validateQuestionAnswer(id, req.body);
+      sendSuccess(res, result);
+    } catch (err) {
+      next(err);
+    }
+  }
 }
+

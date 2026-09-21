@@ -13,6 +13,19 @@ import { searchRoutes } from './modules/search/search.routes';
 import { curriculumRoutes } from './modules/curriculum/curriculum.routes';
 import { graphRoutes } from './modules/knowledge-graph/graph.routes';
 import { questionRoutes } from './modules/questions/question.routes';
+import { studentModelRoutes } from './modules/student-model/student-model.routes';
+import { diagnosticRoutes } from './modules/diagnostic/diagnostic.routes';
+import { backlogRoutes } from './modules/backlog/backlog.routes';
+import { plannerRoutes } from './modules/planner/planner.routes';
+import { revisionRoutes } from './modules/revision/revision.routes';
+import { assessmentRoutes } from './modules/assessments/assessment.routes';
+import { mistakeRoutes } from './modules/mistakes/mistake.routes';
+import { readinessRoutes } from './modules/readiness/readiness.routes';
+import { tutorRoutes } from './modules/tutor/tutor.routes';
+import { materialRoutes } from './modules/materials/material.routes';
+import { focusRoutes } from './modules/focus/focus.routes';
+import { analyticsRoutes } from './modules/analytics/analytics.routes';
+import { notificationRoutes } from './modules/notifications/notification.routes';
 
 export const createApp = (): Express => {
   const app = express();
@@ -52,6 +65,27 @@ export const createApp = (): Express => {
   app.use(`${config.apiPrefix}/graph`, graphRoutes);
   app.use(`${config.apiPrefix}/questions`, questionRoutes);
 
+  // Phase 04: Intelligence Layer
+  app.use(`${config.apiPrefix}/student-model`, studentModelRoutes);
+  app.use(`${config.apiPrefix}/diagnostic`, diagnosticRoutes);
+  app.use(`${config.apiPrefix}/backlog`, backlogRoutes);
+  app.use(`${config.apiPrefix}/planner`, plannerRoutes);
+  app.use(`${config.apiPrefix}/revision`, revisionRoutes);
+
+  // Phase 05: Assessment, Mistakes & Exam Readiness
+  app.use(`${config.apiPrefix}/assessments`, assessmentRoutes);
+  app.use(`${config.apiPrefix}/mistakes`, mistakeRoutes);
+  app.use(`${config.apiPrefix}/readiness`, readinessRoutes);
+
+  // Phase 06: AI Orchestration & Socratic Tutor
+  app.use(`${config.apiPrefix}/tutor`, tutorRoutes);
+
+  // Phase 07: Study Material Intelligence, Focus Mode, Analytics & Notifications
+  app.use(`${config.apiPrefix}/materials`, materialRoutes);
+  app.use(`${config.apiPrefix}/focus`, focusRoutes);
+  app.use(`${config.apiPrefix}/analytics`, analyticsRoutes);
+  app.use(`${config.apiPrefix}/notifications`, notificationRoutes);
+
   // Catch-all 404 handler
   app.use(notFoundHandler);
 
@@ -62,3 +96,4 @@ export const createApp = (): Express => {
 };
 
 export default createApp;
+

@@ -201,6 +201,152 @@ All 9 parts of Phase 01 (Foundation, Database, Auth, Onboarding, Authenticated S
     - Backend automated test suite: 22/22 tests passed across 4 test suites (`api.test.ts`, `curriculum.test.ts`, `graph.test.ts`, `pyq.test.ts`).
     - Backend typecheck (`npm --prefix backend run typecheck`): 0 errors.
     - Web typecheck (`npm --prefix apps/web run typecheck`): 0 errors.
-    - Live dev servers: Backend responding on `http://127.0.0.1:4000/api/v1/health` (`status=ok`), Web responding on `http://127.0.0.1:3000/app/classroom/` (HTTP 200).
+- Phase 04 Completed: Student Model & Academic Intelligence Layer (Parts 01–06):
+  - Database Migration (`infra/supabase/migrations/20260921000001_student_model_and_intelligence_layer.sql`):
+    - Created `public.student_evidence_logs` table: immutable, append-only event stream tracking every student attempt, score, time taken, confidence report, question ID, session type, and provenance source.
+    - Created `public.student_concept_states` table: materialized, traceable knowledge state per student, concept, and curriculum node with Bayesian `p_know`, `mastery_score`, exponential decay `retention_score`, `stability_days`, `half_life_days`, `uncertainty`, `confidence_score`, streaks, and review dates.
+    - Created `public.student_model_snapshots` table: point-in-time state freezing for longitudinal drift detection and auditing.
+    - Created `public.diagnostic_sessions` table: stratified cold-start assessment tracking with answers, strengths, weaknesses, and confidence levels.
+    - Created `public.backlog_items` table: dynamic prioritized curriculum queue with multi-factor priority scores, human-readable explanations, and classification tags.
+    - Created `public.study_plans` & `public.planner_tasks` tables: time-budgeted study sessions with task fitting, break offsets, and status toggles.
+    - Created `public.revision_items` & `public.revision_events` tables: SM-2 spaced repetition items with ease factors, intervals, repetitions, urgency ratings, and feedback logs.
+    - 100% RLS enabled on all 8 tables with strict student and mentor authorization policies.
+  - Domain Rules & Core Engines (`backend/src/modules/`):
+    - `student-model/`: Bayesian Knowledge Tracing (BKT), Ebbinghaus retention decay ($R = e^{-t/S}$), stability updates, recency weighting, uncertainty calculation ($1/\sqrt{N}$), and full state recomputation from evidence. LLMs are strictly prevented from arbitrarily modifying academic state.
+    - `diagnostic/`: Stratified cold-start question selection across enrolled subjects, scoring with negative marking, low confidence capping ($\le 0.6$) to prevent false certainty, and automatic Student Model initialization.
+    - `backlog/`: Multi-factor prioritization algorithm (exam proximity 20%, weakness 25%, retention decay 15%, curriculum weightage 15%, prerequisite depth 10%, recency 10%, accuracy 5%) with human-readable rationale pills.
+    - `planner/`: Greedy priority-first knapsack session generator fitting daily hour constraints, spreading subjects across the week, rescheduling missed critical work, and calculating session start/end times with 15-minute breaks.
+    - `revision/`: SuperMemo-2 (SM-2) algorithm updating ease factors and review intervals, intelligent drill type selection (mistake review, practice, active recall, formula review, flashcards), and closed-loop evidence feedback into the Student Model.
+  - API Client & Express App Integration:
+    - Extended `@sharpmind/api-client` with 5 new modules: `studentModel`, `diagnostic`, `backlog`, `planner`, and `revision`.
+    - Registered all routes in `backend/src/app.ts` under `/api/v1/`.
+  - Intelligent Dashboard (`apps/web/src/app/app/page.tsx` & `page.module.css`):
+    - Real-time Student Model metrics ribbon: Mastery Level, Retention Health, Observed Evidence count, and Focus Queue items.
+    - Interactive Baseline Diagnostic Modal: 5 stratified STEM questions with confidence rating selectors, immediate scoring, and live Student Model calibration.
+    - Adaptive Study Plan card: Today's scheduled focus blocks with duration, subject tags, interactive completion checkboxes, and "Replan Missed Work" action.
+    - Spaced Repetition Queue (SM-2): Urgency badges and instant recall outcome buttons ("Recalled", "Hard", "Forgot") that update retention and log evidence.
+    - Prioritized Learning Backlog: Priority ranking with human-readable explanation pills and targeted practice launchers.
+    - Student Knowledge State Matrix: Honest uncalibrated vs calibrated indicators across enrolled subjects.
+  - Architecture Documentation:
+    - ADR 0005: `docs/architecture/adr/0005-student-model-and-intelligence-layer.md`.
+  - Comprehensive Verification:
+    - Vitest backend test suite: 113/113 tests passing across 9 test files (0 failures).
+    - Backend typecheck (`npm run typecheck` in backend): 0 errors.
+    - Web typecheck (`npm run typecheck` in apps/web): 0 errors.
+
+- Phase 05 Completed: Assessment Engine, Mistake System & Exam Readiness (Parts 01–05):
+  - Database Migration (`infra/supabase/migrations/20260921000002_phase_05_assessment_and_readiness.sql`):
+    - Applied via Supabase migration tools.
+    - Extended `questions`: Added `pedagogical_type`, `is_generated`, `generation_provenance`, `diagram_url`, `solution_steps`, `numerical_tolerance`, `source_type`, and `provenance_source`. Updated check constraint allowing all standard curriculum formats.
+    - Extended `assessments`: Added `marking_scheme`, `difficulty_distribution`, `sections_config`, and `is_adaptive`.
+    - Extended `assessment_submissions`: Added `post_test_analysis` and `time_remaining_seconds`.
+    - Extended `mistakes`: Added `assessment_id`, `root_cause`, `student_answer`, `correct_answer`, `repetition_count`, `spaced_interval_days`, `next_retry_at`, `is_resolved`, and `notes`.
+    - Created `student_readiness`: Dedicated table for 8-factor grounded readiness index, score projections, simulations, and recommended interventions with 100% RLS.
+  - Part 01: Question Domain & Selection Engine (`backend/src/modules/questions/`):
+    - Full support for single-choice, multiple-choice, numerical, assertion-reasoning, short answer, long answer, case-based, competency-based, HOTS, derivation/proof, diagram-based questions.
+    - Deterministic answer validation (`validateAnswer`) with partial marking and numerical tolerance calculation ($\pm 1\%$ or $\pm 0.05$).
+    - Adaptive question selection (`selectAdaptiveQuestions`) matching current student mastery.
+    - Question sanitization (`sanitizeQuestionForActiveTest`) stripping answers/hints to eliminate client-side leakage.
+  - Part 02 & Part 03: Assessment Engine & Post-Test Intelligence (`backend/src/modules/assessments/`):
+    - Multi-type assessment generator (chapter, subject, full mock, PYQ, diagnostic, revision).
+    - Synchronized server countdown, autosave (`autosaveAnswer`), resume (`resumeTestAttempt`), and deterministic scoring (`calculateAssessmentScore`) with negative marking (+4 / -1).
+    - Behavioral post-test diagnostics (`analyzePostTestIntelligence`): easy-question misses, impulse guessing detection (<20s), calculation errors, time management sinks (>240s), and weak topic drag.
+    - Closed-loop telemetry: Completed assessments immediately invoke `StudentModelService.recordEvidence()` for each question and log mistakes into `public.mistakes`.
+  - Part 04: Mistake Engine & Error Remediation (`backend/src/modules/mistakes/`):
+    - Systematic failure mode classification (conceptual, formula, calculation, misreading, memory, application, method, time pressure, silly, guessing).
+    - Spaced repetition retry intervals ($1\text{d} \to 3\text{d} \to 7\text{d} \to 21\text{d} \to 45\text{d}$).
+    - Retry evaluation (`retryMistake`), resolution updating, and evidence feeding back into the Student Model.
+  - Part 05: Grounded Exam Readiness & Target Simulation (`backend/src/modules/readiness/`):
+    - 8 Grounded Factors: Syllabus Coverage ($20\%$), Concept Mastery ($25\%$), Retention Stability ($15\%$), Test Experience ($10\%$), Speed & Pacing ($10\%$), High-Difficulty Performance ($10\%$), Consistency ($5\%$), Revision & Mistake Health ($5\%$).
+    - Transparent target simulator with explicit declared behavioral assumptions and bounded confidence intervals ($\pm 6-8\%$).
+  - API Client & App Integration:
+    - Extended `@sharpmind/api-client` with `assessments`, `mistakes`, and `readiness` modules.
+    - Registered all Phase 05 routes in `backend/src/app.ts` under `/api/v1/`.
+  - Web Workspace Interfaces (`apps/web/src/app/app/`):
+    - Test Center & Active Runner (`/app/tests`): Category filters, test cards, full NTA runner with countdown timer, question palette navigation, numerical input, autosave, and post-test scorecard modal.
+    - Mistake Notebook (`/app/mistakes`): Metrics banner, failure mode filters, mistake cards with side-by-side answer comparisons, overdue review indicators, and interactive spaced retry modal.
+    - Exam Readiness Dashboard (`/app/readiness`): Circular readiness gauge, 8-factor breakdown cards, and interactive trajectory simulator with real-time sliders.
+  - Architecture Documentation:
+    - Created ADR 0006: `docs/architecture/adr/0006-assessment-engine-mistakes-and-exam-readiness.md`.
+  - Comprehensive Verification:
+    - 158/158 tests passed across all 14 test suites in `backend` (0 failures).
+    - Backend typecheck (`npm run typecheck` in backend): 0 errors.
+    - Web typecheck (`npm run typecheck` in apps/web): 0 errors.
+
+- Phase 06 Completed: AI Orchestration, Socratic Tutor, Model Router, and Guardrails (Parts 01–05):
+  - Database Migration (`infra/supabase/migrations/20260921000003_phase_06_ai_orchestration_and_tutor.sql`):
+    - Applied to remote Supabase via MCP tool.
+    - Extended `tutor_sessions`: Added `title`, `topic_id`, `subject_id`, `context_meta`.
+    - Extended `tutor_messages`: Added `image_url`, `latency_ms`, `model_used`, `provider_used`, `mode`.
+    - Created `public.ai_audit_logs`: Telemetry table with 100% RLS for token budgeting and audit trails.
+  - Part 01: Provider-Agnostic AI Orchestration & Model Router (`backend/src/ai/`):
+    - Modular provider adapters: `MockAiAdapter` (deterministic offline-first), `GroqAiAdapter` (high-speed Llama 3), `GeminiAiAdapter` (multimodal reasoning and vision), `OpenRouterAiAdapter` (multi-cloud failover).
+    - `ModelRouter`: Routing matrix by task type, exponential backoff with random jitter, automatic HTTP 429 rate-limit failover, per-student rolling token budgeting (60,000 tokens/min), and audit logging.
+    - `AiOrchestrator`: Clean application facade for text completion and typed Zod structured outputs.
+  - Part 02: Selective Context Retrieval & Assembly (`backend/src/ai/retrieval/context-assembler.ts`):
+    - Selective retrieval across 5 academic dimensions: Curriculum, Knowledge Graph, Student Model, Mistakes, and PYQs.
+    - Strict tenant isolation (`.eq('student_id', studentId)`), token budgeting, and provenance citation markers (`[NCERT-...]`, `[KG-...]`, `[SM-...]`, `[MISTAKE-...]`, `[PYQ-...]`).
+  - Part 03: Socratic AI Tutor Engine (`backend/src/modules/tutor/`):
+    - 10 distinct academic modes: `teach`, `socratic`, `hint`, `practice`, `quiz`, `check_solution`, `explain_mistake`, `revision`, `viva`, `exam`.
+    - Active learning constraint: `TutorRules.checkActiveLearning` intercepts and sanitizes premature direct answer leaks into open-ended discovery questions in Socratic and Hint modes.
+    - 3-tier progressive hint scaffolding (nudge -> formula -> calculation step).
+    - Persistent sessions and message history in Supabase (`tutor_sessions`, `tutor_messages`).
+  - Part 04: Specialized Domain AI Agents (`backend/src/ai/agents/`):
+    - `QuestionGenAgent`: Syllabus-calibrated questions with verified distractors and LaTeX solutions.
+    - `TestAnalysisAgent`: Post-test diagnostic breakdown of accuracy, pacing, and remediation roadmaps.
+    - `MistakeAnalysisAgent`: Error root-cause classification and curriculum remediation mapping.
+    - `StudyMaterialAgent`: Extracts structured topics, formulas, definitions, and pitfalls from student notes with document provenance.
+    - Zero unauthorized direct database writes; state updates route through domain services.
+  - Part 05: Guardrails & Regression Evaluation Suite (`backend/src/ai/guardrails/`, `backend/src/ai/evaluation/`):
+    - `InputGuardrail`: Blocks instruction overrides, roleplay jailbreaks (DAN), system prompt extraction, and cross-student data access.
+    - `OutputGuardrail`: Suppresses uncalibrated 100% certainty, prevents prompt leakage, and blocks direct answer dumping.
+    - `EvaluationRunner`: 20-fixture regression suite evaluating security, grounding, active learning, and formatting.
+  - Client & App Integration:
+    - Extended `@sharpmind/api-client` with full typed `tutor` client module.
+    - Registered `/api/v1/tutor` routes in `backend/src/app.ts`.
+    - Updated `apps/web/src/lib/adapters/tutor/supabase-ai-tutor-adapter.ts` to communicate with backend AI Orchestration with resilient local simulation fallback.
+  - Architecture Documentation:
+    - Created ADR 0007: `docs/architecture/adr/0007-ai-orchestration-tutor-and-guardrails.md`.
+  - Comprehensive Verification:
+    - 193/193 tests passed across all 19 test suites in `backend` (0 failures).
+    - Backend typecheck (`npm run typecheck` in backend): 0 errors.
+    - Web typecheck (`npm run typecheck` in apps/web): 0 errors.
+
+- Phase 07 Completed: Study Material Intelligence, Interactive Visuals, Focus Mode, Academic Analytics & Notification Infrastructure (Parts 01–05):
+  - Database Migration (`infra/supabase/migrations/20260921000004_phase_07_study_material_focus_analytics_notifications.sql`):
+    - Applied to remote Supabase via MCP tool.
+    - Extended `materials`: Added `user_id`, `file_asset_id`, `processing_status`, `summary`, `extracted_concepts`, `formula_sheet`, `flashcards`, `quiz_questions`, `error_message`, and RLS policies.
+    - Created `public.study_sessions`: Focus session tracking with interruption notes and reflection logs with 100% RLS.
+    - Created `public.academic_reviews`: Daily AI debriefs and weekly strategic reviews grounded in empirical telemetry with 100% RLS.
+    - Created `public.notification_preferences`: Student-controlled quiet hours (22:00-07:00), timezone, and channel toggles with 100% RLS.
+    - Created `public.notifications`: Support for 10 notification types, `action_required` flags, and `action_label` with 100% RLS.
+  - Part 01: Study Material Intelligence (`backend/src/modules/materials/`):
+    - Sliding-window chunker with 250-word chunks, 30-word semantic overlap, and citation tags (`DOC-<id>-CHUNK-<n>`).
+    - AI synthesis of summaries, formula sheets, flashcards, and quizzes strictly via `StudyMaterialAgent` through provider-agnostic `aiOrchestrator` preserving provenance.
+    - Handled malformed files, empty texts, and student permission boundaries.
+  - Part 02: Interactive Visual-Learning Framework (`apps/web/src/components/visual/`):
+    - `visual-simulation.contract.ts`: Standardized contract registering 14 interactive simulations across Physics (Projectile Motion, Gauss's Law, Wave Optics), Chemistry (VSEPR Geometry, Atomic Orbitals, Chemical Equilibrium), and Mathematics (3D Vectors, Conic Sections).
+    - Mouse/touch rotation, zoom, drag inspection, parameter sliders, and accessible narrative fallbacks for screen readers and low-bandwidth environments.
+  - Part 03: Focus Mode & Study Session Tracking (`backend/src/modules/focus/`, `apps/web/src/app/app/focus/`):
+    - Real distraction-free study studio with interactive timer, circular SVG progress indicator, interruption logging, and post-session reflection modal.
+    - Closed-loop Student Model integration: Records `self_assessment` evidence to `StudentModelService.recordEvidence` with calibrated uncertainty, acknowledging effort without fabricating concept mastery. Zero UI emojis.
+  - Part 04: Academic Analytics & Review Surfaces (`backend/src/modules/analytics/`, `apps/web/src/app/app/analytics/`):
+    - Explainable 7-dimension Academic Health Score: Syllabus Coverage (15%), Conceptual Mastery (20%), Revision Cadence (15%), Exam Readiness (20%), Time Pacing (10%), Problem Accuracy (10%), Habit Consistency (10%).
+    - Daily AI Debrief & Weekly Strategic Reviews grounded strictly in empirical telemetry.
+  - Part 05: Notification & Reminder Infrastructure + Action Required Toast System (`backend/src/modules/notifications/`, `apps/web/src/components/ui/Toast/`):
+    - Timezone-aware quiet hours evaluation, 24-hour reminder deduplication, and channel delivery routing.
+    - User Request: Created `ActionToast` and `ActionToastProvider` displaying floating, dismissible glassmorphic banners with primary call-to-action buttons for urgent tasks.
+    - Modernized `NotificationsDrawer.tsx` to display real backend notifications and action buttons with pure SVG icons.
+  - Client & App Integration:
+    - Extended `@sharpmind/api-client` with `materials`, `focus`, `analytics`, and `notifications` modules.
+    - Registered routes in `backend/src/app.ts`.
+  - Architecture Documentation:
+    - Created ADR 0008: `docs/architecture/adr/0008-study-materials-visuals-focus-analytics-and-notifications.md`.
+  - Comprehensive Verification:
+    - 216/216 tests passed across all 24 test suites in `backend` (0 failures).
+    - Backend typecheck (`npm run typecheck` in backend): 0 errors.
+    - Web typecheck (`npm run typecheck` in apps/web): 0 errors.
+
+
 
 

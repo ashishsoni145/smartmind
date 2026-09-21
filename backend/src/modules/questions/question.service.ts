@@ -152,6 +152,7 @@ export class QuestionService {
             target_exam_id: q.targetExamId || null,
             question_text: cleanText,
             question_type: q.questionType,
+            pedagogical_type: q.pedagogicalType || 'conceptual',
             difficulty_level: q.difficultyLevel,
             marks: q.marks,
             explanation: q.explanation || '',
@@ -162,9 +163,13 @@ export class QuestionService {
             source_paper_code: q.sourcePaperCode,
             is_pyq: q.isPyq,
             is_important: q.isImportant,
+            is_generated: q.isGenerated || false,
+            generation_provenance: q.generationProvenance || null,
+            diagram_url: q.diagramUrl || null,
+            solution_steps: q.solutionSteps || [],
             appearance_frequency: q.appearanceFrequency,
             pattern_tags: q.patternTags,
-            is_verified: true,
+            is_verified: !q.isGenerated,
           })
           .select('*')
           .single();
@@ -196,6 +201,91 @@ export class QuestionService {
       deduplicatedCount,
       results,
     };
+  }
+
+  /**
+   * Select adaptive questions for a student based on concept mastery and recent evidence.
+   */
+  public static async selectAdaptive(studentId: string, filters: {
+    subjectId: string;
+    curriculumNodeId?: string;
+    conceptId?: string;
+    targetExamId?: string;
+    count?: number;
+  }) {
+    const targetCount = filters.count || 10;
+
+    // 1. Fetch candidate questions
+    let q = supabase
+      .from('questions')
+      .select('*, question_options(*)')
+      .eq('subject_id', filters.subjectId);
+
+    if (filters.curriculumNodeId) q = q.eq('curriculum_node_id', filters.curriculumNodeId);
+    if (filters.conceptId) q = q.eq('concept_id', filters.conceptId);
+    if (filters.targetExamId) q = q.eq('target_exam_id', filters.targetExamId);
+
+    const { data: candidates, error: candError } = await q.limit(100);
+    if (candError) throw new BadRequestError(candError.message);
+
+    const formattedCandidates: any[] = (candidates || []).map((row: any) => ({
+      ...row,
+      options: row.question_options || [],
+    }));
+
+    if (formattedCandidates.length === 0) {
+      return [];
+    }
+
+    // 2. Fetch student's concept mastery states
+    const { data: conceptStates } = await supabase
+      .from('student_concept_states')
+      .select('concept_id, mastery_score')
+      .eq('student_id', studentId);
+
+    const conceptMasteryMap: Record<string, number> = {};
+    (conceptStates || []).forEach((cs: any) => {
+      if (cs.concept_id) conceptMasteryMap[cs.concept_id] = cs.mastery_score;
+    });
+
+    // 3. Fetch recently attempted question IDs (last 14 days)
+    const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: recentLogs } = await supabase
+      .from('student_evidence_logs')
+      .select('question_id')
+      .eq('student_id', studentId)
+      .gte('created_at', fourteenDaysAgo);
+
+    const recentQuestionIds = new Set<string>(
+      (recentLogs || []).map((l: any) => l.question_id).filter(Boolean)
+    );
+
+    // 4. Run deterministic adaptive selection rules
+    const { selectAdaptiveQuestions } = await import('./question.rules');
+    return selectAdaptiveQuestions(formattedCandidates, {
+      conceptMasteryMap,
+      recentQuestionIds,
+      targetCount,
+    });
+  }
+
+  /**
+   * Validate a question answer deterministically.
+   */
+  public static async validateQuestionAnswer(questionId: string, input: {
+    selectedOptions?: string[];
+    numericalAnswer?: string | null;
+    textAnswer?: string | null;
+  }) {
+    const question = await this.getQuestionById(questionId);
+    const { validateAnswer } = await import('./question.rules');
+
+    return validateAnswer({
+      question: question as any,
+      selectedOptions: input.selectedOptions,
+      numericalAnswer: input.numericalAnswer,
+      textAnswer: input.textAnswer,
+    });
   }
 
   public static async analyzeExamPatterns(subjectId?: string, targetExamId?: string) {

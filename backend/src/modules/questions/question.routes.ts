@@ -11,7 +11,9 @@ router.get('/', validateQuery(listQuestionsQuerySchema), QuestionController.list
 router.get('/pyqs', QuestionController.getPyqs);
 router.get('/important', QuestionController.getImportantQuestions);
 router.get('/patterns', QuestionController.analyzePatterns);
+router.get('/adaptive', requireAuth, QuestionController.selectAdaptive);
 router.get('/:id', QuestionController.getQuestionById);
+router.post('/:id/validate', requireAuth, QuestionController.validateAnswer);
 
 router.post(
   '/ingest',
@@ -22,3 +24,4 @@ router.post(
 );
 
 export const questionRoutes = router;
+
