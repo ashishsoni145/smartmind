@@ -38,11 +38,22 @@ export const createApp = (): Express => {
         // Allow requests with no origin (like mobile apps, curl, server-to-server)
         if (!origin) return callback(null, true);
 
-        // Check configured allowlist (wildcard strictly prohibited in production)
+        // Check configured allowlist (wildcard strictly prohibited in production unless patterned)
         if (!config.isProduction && config.cors.origin.includes('*')) {
           return callback(null, true);
         }
-        if (config.cors.origin.includes(origin)) {
+
+        const isAllowed = config.cors.origin.some((allowedPattern) => {
+          if (allowedPattern === origin) return true;
+          if (allowedPattern.includes('*')) {
+            // e.g. https://*.vercel.app or *.vercel.app
+            const regexStr = '^' + allowedPattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$';
+            return new RegExp(regexStr).test(origin);
+          }
+          return false;
+        });
+
+        if (isAllowed) {
           return callback(null, true);
         }
 

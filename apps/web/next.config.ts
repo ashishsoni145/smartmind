@@ -10,9 +10,30 @@ if (process.platform === 'win32') {
   }
 }
 
+import fs from 'fs';
+
+const monorepoRoot = path.resolve(__dirname, '../../');
+const isMonorepo = fs.existsSync(path.resolve(monorepoRoot, 'package.json'));
+
+const typesIndexPath = fs.existsSync(path.resolve(__dirname, '../../packages/types/src/index.ts'))
+  ? path.resolve(__dirname, '../../packages/types/src/index.ts')
+  : path.resolve(__dirname, 'src/packages/types/index.ts');
+
+const typesDir = fs.existsSync(path.resolve(__dirname, '../../packages/types/src'))
+  ? path.resolve(__dirname, '../../packages/types/src')
+  : path.resolve(__dirname, 'src/packages/types');
+
+const apiClientIndexPath = fs.existsSync(path.resolve(__dirname, '../../packages/api-client/src/index.ts'))
+  ? path.resolve(__dirname, '../../packages/api-client/src/index.ts')
+  : path.resolve(__dirname, 'src/packages/api-client/index.ts');
+
+const apiClientDir = fs.existsSync(path.resolve(__dirname, '../../packages/api-client/src'))
+  ? path.resolve(__dirname, '../../packages/api-client/src')
+  : path.resolve(__dirname, 'src/packages/api-client');
+
 const nextConfig: NextConfig = {
   output: 'export',
-  outputFileTracingRoot: path.resolve(__dirname, '../../'),
+  outputFileTracingRoot: isMonorepo ? monorepoRoot : __dirname,
   images: {
     unoptimized: true,
   },
@@ -21,10 +42,10 @@ const nextConfig: NextConfig = {
     config.resolve.symlinks = false;
     config.resolve.alias = {
       ...(config.resolve.alias || {}),
-      '@sharpmind/types$': path.resolve(__dirname, '../../packages/types/src/index.ts'),
-      '@sharpmind/types': path.resolve(__dirname, '../../packages/types/src'),
-      '@sharpmind/api-client$': path.resolve(__dirname, '../../packages/api-client/src/index.ts'),
-      '@sharpmind/api-client': path.resolve(__dirname, '../../packages/api-client/src'),
+      '@sharpmind/types$': typesIndexPath,
+      '@sharpmind/types': typesDir,
+      '@sharpmind/api-client$': apiClientIndexPath,
+      '@sharpmind/api-client': apiClientDir,
     };
     return config;
   },

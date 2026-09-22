@@ -437,6 +437,32 @@ All 9 parts of Phase 01 (Foundation, Database, Auth, Onboarding, Authenticated S
     - Removed hardcoded default student identities from `local-settings-adapter.ts` and `settings/page.tsx`.
   - Comprehensive Verification:
     - Added automated security and tenant isolation test suite `backend/src/__tests__/security-authorization.test.ts`.
-    - 25/25 test files passed, 227/227 tests passed.
+    - 25/25 test files passed, 239/239 tests passed.
     - Full monorepo typecheck passed with 0 errors (`npm run typecheck:all`).
     - Next.js production build (`npm run build`) and backend build (`npm run build:backend`) passed with 0 errors.
+
+- Code Health Remediation & Standalone Deployment Hardening (Completed 2026-09-22):
+  - Web TypeScript Fixes:
+    - Resolved `NotificationSettings` property mismatch in `apps/web/src/lib/adapters/settings/supabase-settings-adapter.ts`.
+    - Mapped canonical fields (`weeklyReportEmail`, `revisionAlerts`, `testSeriesAnnouncements`, `dailyStudyReminder`).
+    - Replaced raw `.update()` with `.upsert(..., { onConflict: 'student_id' })` to prevent silent updates for new student profiles.
+    - Hydrated `notification_preferences` in `getSettings(userId)`.
+  - Standalone Deployment Architecture (Render Backend & Vercel Web):
+    - Enabled independent folder deployment for `backend/` on Render and `apps/web/` on Vercel without relying on monorepo parent workspace paths.
+    - Synchronized self-contained packages: `backend/src/packages/types` and `apps/web/src/packages/types` + `apps/web/src/packages/api-client`.
+    - Configured single-path resolution in `tsconfig.json` files to strictly satisfy SWC/Next.js and `tsc` loader requirements.
+    - Updated `apps/web/next.config.ts` with dynamic fallback resolving packages from monorepo if present, or self-contained `src/packages` when deployed standalone on Vercel.
+    - Enhanced CORS in `backend/src/app.ts` to support wildcard and multi-domain pattern matching (e.g. `https://*.vercel.app` and comma-separated origins) for seamless Vercel frontend to Render backend communication.
+  - PWA Icons Restoration:
+    - Generated SharpMind branded PNG icons: `apps/web/public/icon-192.png` (192x192) and `apps/web/public/icon-512.png` (512x512).
+    - Resolved HTTP 404 errors referenced by `apps/web/public/manifest.json`.
+  - Question Bank Completeness for Initial Classroom Chapter:
+    - Seeded authentic JEE Main 2023 (Dimensional Analysis) and NEET 2023 (Error Propagation) PYQs directly into Supabase `questions` and `question_options` for Chapter 1: Units and Measurements (`c0000011-0000-0000-0000-000000000001`).
+    - Added matching authentic PYQs to `CANONICAL_QUESTIONS` in `canonical-curriculum-fixtures.ts` to ensure immediate interactive questions in both live Supabase and offline modes.
+  - Verification:
+    - `npm --prefix apps/web run typecheck`: 0 errors.
+    - `npm --prefix backend run typecheck`: 0 errors.
+    - `npm --prefix backend run test`: 25 files, 239 tests passing (100%).
+    - `npm --prefix apps/web run build`: 36/36 static pages exported cleanly with exit code 0.
+    - `npm --prefix backend run build`: Compiled cleanly with exit code 0.
+

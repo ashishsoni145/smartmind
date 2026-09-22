@@ -29,6 +29,12 @@ export class SupabaseSettingsAdapter implements SettingsAdapter {
         .eq('user_id', userId)
         .single();
 
+      const { data: notifPrefs } = await supabase
+        .from('notification_preferences')
+        .select('*')
+        .eq('student_id', userId)
+        .maybeSingle();
+
       const base = await this.localFallback.getSettings(userId);
 
       if (profile) {
@@ -43,6 +49,21 @@ export class SupabaseSettingsAdapter implements SettingsAdapter {
           base.academicProfile.dailyAvailableHours = Number(studentProf.daily_available_hours);
         if (studentProf.preferred_study_time)
           base.academicProfile.preferredStudyTime = studentProf.preferred_study_time;
+      }
+
+      if (notifPrefs) {
+        if (typeof notifPrefs.email_enabled === 'boolean') {
+          base.notifications.weeklyReportEmail = notifPrefs.email_enabled;
+        }
+        if (typeof notifPrefs.revision_reminders === 'boolean') {
+          base.notifications.revisionAlerts = notifPrefs.revision_reminders;
+        }
+        if (typeof notifPrefs.test_reminders === 'boolean') {
+          base.notifications.testSeriesAnnouncements = notifPrefs.test_reminders;
+        }
+        if (typeof notifPrefs.study_session_reminders === 'boolean') {
+          base.notifications.dailyStudyReminder = notifPrefs.study_session_reminders;
+        }
       }
 
       return base;
@@ -106,15 +127,23 @@ export class SupabaseSettingsAdapter implements SettingsAdapter {
   ): Promise<UserSettings> {
     const supabase = getSupabaseClient();
     if (supabase) {
+      const updatePayload: Record<string, any> = {
+        updated_at: new Date().toISOString(),
+      };
+      if (data.weeklyReportEmail !== undefined) updatePayload.email_enabled = data.weeklyReportEmail;
+      if (data.revisionAlerts !== undefined) updatePayload.revision_reminders = data.revisionAlerts;
+      if (data.testSeriesAnnouncements !== undefined) updatePayload.test_reminders = data.testSeriesAnnouncements;
+      if (data.dailyStudyReminder !== undefined) updatePayload.study_session_reminders = data.dailyStudyReminder;
+
       const { error } = await supabase
         .from('notification_preferences')
-        .update({
-          email_enabled: data.emailNotifications,
-          in_app_enabled: data.inAppNotifications,
-          revision_reminders: data.studyReminders,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('student_id', userId);
+        .upsert(
+          {
+            student_id: userId,
+            ...updatePayload,
+          },
+          { onConflict: 'student_id' }
+        );
 
       if (error) {
         throw new Error(`Failed to save notification preferences: ${error.message}`);

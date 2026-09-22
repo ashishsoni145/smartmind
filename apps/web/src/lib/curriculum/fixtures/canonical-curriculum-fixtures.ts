@@ -12,6 +12,48 @@ export const CANONICAL_CHAPTERS: ChapterNode[] = ALL_NCERT_CHAPTERS;
 export const CANONICAL_TOPICS: Record<string, TopicNode[]> = ALL_NCERT_TOPICS;
 
 export const CANONICAL_QUESTIONS: CurriculumQuestion[] = [
+  // Authenticated PYQ from JEE Main 2023 (Units and Measurements: Dimensional Analysis)
+  {
+    id: 'd0000011-0000-0000-0000-000000000001',
+    curriculumNodeId: 'c0000011-0000-0000-0000-000000000001',
+    subjectId: 'physics',
+    questionText: 'If speed of light c, Planck constant h, and universal gravitational constant G are chosen as fundamental physical quantities, the dimensions of time in terms of c, h, and G are:',
+    questionType: 'single_choice',
+    difficultyLevel: 'moderate',
+    explanation: 'Let t ∝ c^x h^y G^z. Equating dimensions: [T] = [LT⁻¹]^x [ML²T⁻¹]^y [M⁻¹L³T⁻²]^z. Solving gives y - z = 0 => y = z, x + 2y + 3z = 0 => x = -5z, -x - y - 2z = 1 => 5z - 3z = 1 => z = 1/2. Thus y = 1/2, z = 1/2, x = -5/2. Therefore, t = [G^(1/2) h^(1/2) c^(-5/2)].',
+    hint: 'Express dimensions of c, h, and G in terms of M, L, and T, then balance powers to solve for time.',
+    sourceExam: 'JEE Main',
+    sourceYear: 2023,
+    isPyq: true,
+    isVerified: true,
+    options: [
+      { id: 'opt-1101-1', optionKey: 'A', optionText: 'G^(1/2) h^(1/2) c^(-5/2)', isCorrect: true },
+      { id: 'opt-1101-2', optionKey: 'B', optionText: 'G^(1/2) h^(1/2) c^(-3/2)', isCorrect: false },
+      { id: 'opt-1101-3', optionKey: 'C', optionText: 'G^(1/2) h^(-1/2) c^(-5/2)', isCorrect: false },
+      { id: 'opt-1101-4', optionKey: 'D', optionText: 'G^(-1/2) h^(1/2) c^(5/2)', isCorrect: false },
+    ],
+  },
+  // Authenticated PYQ from NEET 2023 (Units and Measurements: Error Analysis)
+  {
+    id: 'd0000011-0000-0000-0000-000000000002',
+    curriculumNodeId: 'c0000011-0000-0000-0000-000000000001',
+    subjectId: 'physics',
+    questionText: 'The percentage errors in the measurement of mass, length, and time are 1%, 2%, and 3% respectively. What is the maximum percentage error in the estimation of a physical quantity X = (m * l²) / t³?',
+    questionType: 'single_choice',
+    difficultyLevel: 'easy',
+    explanation: 'Maximum relative error ΔX/X = (Δm/m) + 2(Δl/l) + 3(Δt/t). Percentage error = 1% + 2(2%) + 3(3%) = 1% + 4% + 9% = 14%.',
+    hint: 'Sum the fractional errors multiplied by their respective absolute powers.',
+    sourceExam: 'NEET',
+    sourceYear: 2023,
+    isPyq: true,
+    isVerified: true,
+    options: [
+      { id: 'opt-1102-1', optionKey: 'A', optionText: '14%', isCorrect: true },
+      { id: 'opt-1102-2', optionKey: 'B', optionText: '8%', isCorrect: false },
+      { id: 'opt-1102-3', optionKey: 'C', optionText: '10%', isCorrect: false },
+      { id: 'opt-1102-4', optionKey: 'D', optionText: '16%', isCorrect: false },
+    ],
+  },
   // Authenticated PYQ from JEE Main 2023 (Kinematics)
   {
     id: 'd0000001-0000-0000-0000-000000000001',

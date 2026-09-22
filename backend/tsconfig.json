@@ -13,8 +13,8 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
-      "@sharpmind/types": ["../packages/types/src/index.ts"],
-      "@sharpmind/types/*": ["../packages/types/src/*"]
+      "@sharpmind/types": ["src/packages/types/index.ts"],
+      "@sharpmind/types/*": ["src/packages/types/*"]
     }
   },
   "include": ["src/**/*"],
