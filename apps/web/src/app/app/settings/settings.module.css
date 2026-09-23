@@ -1,126 +1,20 @@
+/* ==========================================================================
+   Settings Workspace
+   ========================================================================== */
+
 .container {
-  max-width: 960px;
-  margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 2rem;
-  padding-bottom: 3rem;
+  gap: var(--space-6);
+  max-width: 800px;
 }
 
-.header {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.title {
-  font-size: 1.85rem;
-  font-family: var(--font-display);
-  font-weight: 700;
-  color: var(--text-primary);
-  letter-spacing: -0.02em;
-  margin: 0;
-}
-
-.subtitle {
-  font-size: 0.9375rem;
-  color: var(--text-secondary);
-  line-height: 1.5;
-  margin: 0;
-}
-
-.contentArea {
-  display: flex;
-  flex-direction: column;
-  gap: 1.75rem;
-}
-
-.loadingState {
-  padding: 3rem;
-  text-align: center;
-  color: var(--text-muted);
-  font-size: 0.875rem;
+.section {
   background: var(--surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-xl);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
-}
-
-.spinner {
-  width: 28px;
-  height: 28px;
-  border: 3px solid var(--border-subtle);
-  border-top-color: var(--brand-primary);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.footerActions {
-  margin-top: 1rem;
-  padding: 1.25rem 1.5rem;
-  background: var(--surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.sessionMeta {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.sessionTitle {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.sessionDesc {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-}
-
-.signOutBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.625rem 1.25rem;
-  background: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
-  border: 1px solid rgba(239, 68, 68, 0.25);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  font-size: 0.875rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.signOutBtn:hover {
-  background: rgba(239, 68, 68, 0.18);
-  border-color: #ef4444;
-}
-
-@media (max-width: 640px) {
-  .footerActions {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  .signOutBtn {
-    width: 100%;
-    justify-content: center;
-  }
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
 }

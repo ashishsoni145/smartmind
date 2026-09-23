@@ -1,65 +1,35 @@
 /* ==========================================================================
-   SectionHeading — Display font headings with clay badge
+   SectionHeading — Crisp Header Bar
    ========================================================================== */
 
-.heading {
-  margin-bottom: var(--space-12);
+.wrapper {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
 }
 
-.center {
-  text-align: center;
-}
-
-.left {
-  text-align: left;
-}
-
-.badge {
-  display: inline-block;
-  padding: var(--space-1-5) var(--space-5);
-  margin-bottom: var(--space-4);
-  font-family: var(--font-accent);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-semibold);
-  color: var(--color-text-secondary);
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: var(--radius-full);
-  letter-spacing: var(--tracking-widest);
-  text-transform: uppercase;
-  box-shadow:
-    3px 3px 8px rgba(0, 0, 0, 0.3),
-    inset 1px 1px 2px rgba(255, 255, 255, 0.04);
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
 }
 
 .title {
   font-family: var(--font-display);
-  font-size: clamp(var(--text-3xl), 4vw, var(--text-5xl));
-  font-weight: var(--weight-bold);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
   color: var(--color-text-primary);
   letter-spacing: var(--tracking-tight);
-  line-height: var(--leading-tight);
-}
-
-.gradientTitle {
-  font-family: var(--font-display);
-  font-size: clamp(var(--text-3xl), 4vw, var(--text-5xl));
-  font-weight: var(--weight-bold);
-  letter-spacing: var(--tracking-tight);
-  line-height: var(--leading-tight);
-  color: var(--color-text-primary);
 }
 
 .subtitle {
-  margin-top: var(--space-4);
-  font-family: var(--font-sans);
-  font-size: clamp(var(--text-base), 2vw, var(--text-lg));
-  color: var(--color-text-secondary);
-  line-height: var(--leading-normal);
-  max-width: 640px;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
 }
 
-.center .subtitle {
-  margin-left: auto;
-  margin-right: auto;
+.action {
+  display: flex;
+  align-items: center;
 }
