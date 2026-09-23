@@ -11,7 +11,7 @@ function createAuthAdapter(): AuthAdapter {
     return new SupabaseAuthAdapter();
   }
 
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env.NODE_ENV === 'production' && typeof window !== 'undefined') {
     throw new Error('Critical Configuration Error: Supabase credentials are missing in production.');
   }
 

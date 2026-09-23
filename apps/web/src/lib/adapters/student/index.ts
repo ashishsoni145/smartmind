@@ -10,7 +10,8 @@ function createStudentProfileAdapter(): StudentProfileAdapter {
     return new SupabaseStudentProfileAdapter();
   }
 
-  if (process.env.NODE_ENV === 'production') {
+  // During SSR / static site generation (e.g. Next.js build prerendering) or local development without credentials, use Local adapter
+  if (process.env.NODE_ENV === 'production' && typeof window !== 'undefined') {
     throw new Error('Critical Configuration Error: Supabase credentials are missing in production.');
   }
 
