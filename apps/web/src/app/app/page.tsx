@@ -307,13 +307,30 @@ export default function WorkspaceDashboard() {
   // Next-action recommendation derived directly from top backlog item or due revision
   const topBacklog = backlogItems.length > 0 ? backlogItems[0] : null;
 
+  const firstName = user?.fullName?.split(' ')[0] || 'Learner';
+  const greetingRef = React.useRef<string | null>(null);
+  if (greetingRef.current === null) {
+    const hour = new Date().getHours();
+    greetingRef.current = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  }
+  const greeting = greetingRef.current;
+  const hasIdentity = Boolean(profile?.onboardingStatus.isCompleted);
+  const contextLine = hasIdentity
+    ? [boardName, gradeName && `Class ${gradeName}`, targetExamName]
+        .filter(Boolean)
+        .join(' · ')
+    : 'Complete your academic identity to unlock personalized sequencing.';
+
+  const completedTaskCount = dailyTasks.filter((t) => t.status === 'completed').length;
+
   return (
     <WorkspaceShell>
       <div className={styles.container}>
         {/* Error Banner */}
         {fetchError && (
           <div className={styles.errorBanner} role="alert">
-            <span>⚠️ {fetchError}</span>
+            <Icon name="info" size="sm" />
+            <span>{fetchError}</span>
             <Button onClick={() => user?.id && loadProfileAndState(user.id)} variant="outline" size="sm">
               Retry
             </Button>
@@ -321,161 +338,172 @@ export default function WorkspaceDashboard() {
         )}
 
         {isLoading ? (
-          <div className={styles.loadingSkeleton} role="status">
-            <div className={styles.spinner} />
-            <p>Evaluating Student Model and real-time academic state...</p>
+          <div className={styles.loadingSkeleton} role="status" aria-live="polite">
+            <div className={styles.skeletonHeader}>
+              <div className={styles.skeleton} style={{ width: '34%', height: '28px' }} />
+              <div className={styles.skeleton} style={{ width: '52%', height: '14px' }} />
+            </div>
+            <div className={styles.skeleton} style={{ width: '100%', height: '148px' }} />
+            <div className={styles.skeletonRow}>
+              <div className={styles.skeleton} style={{ flex: 1, height: '88px' }} />
+              <div className={styles.skeleton} style={{ flex: 1, height: '88px' }} />
+              <div className={styles.skeleton} style={{ flex: 1, height: '88px' }} />
+              <div className={styles.skeleton} style={{ flex: 1, height: '88px' }} />
+            </div>
+            <div className={styles.skeleton} style={{ width: '100%', height: '220px' }} />
+            <p className={styles.loadingText}>Evaluating student model and real-time academic state…</p>
           </div>
         ) : (
           <>
             {/* ----------------------------------------------------------- */}
-            {/* Metric Ribbon — Real Student Model Summary                  */}
+            {/* Command header — contextual greeting                        */}
             {/* ----------------------------------------------------------- */}
-            <section aria-label="Student Model Summary Metrics" className={styles.metricsRibbon}>
-              <div className={styles.metricCard}>
-                <span className={styles.metricLabel}>Mastery Level</span>
-                <div className={styles.metricValueRow}>
-                  <span className={styles.metricValue}>
-                    {modelSummary.status === 'calibrated' ? `${modelSummary.masteryScore}%` : '--'}
-                  </span>
-                  <span className={styles.metricSubtext}>
-                    {modelSummary.status === 'calibrated' ? 'Calibrated' : 'Uncalibrated'}
-                  </span>
-                </div>
-                <span className={styles.metricBadge}>
-                  {modelSummary.masteredCount} Mastered Units
+            <header className={styles.pageHeader}>
+              <div>
+                <h1 className={styles.greeting}>
+                  {greeting}, {firstName}
+                </h1>
+                <p className={styles.greetingSub}>
+                  {contextLine}
+                  {hasIdentity && ' — here’s your academic state and the highest-leverage next step.'}
+                </p>
+              </div>
+              <div className={styles.headerMeta}>
+                <span className={styles.statusChip}>
+                  <span
+                    className={`${styles.statusDot} ${
+                      modelSummary.status === 'calibrated' ? styles.statusDotOk : styles.statusDotIdle
+                    }`}
+                    aria-hidden="true"
+                  />
+                  {modelSummary.status === 'calibrated' ? 'Model calibrated' : 'Awaiting calibration'}
                 </span>
+                <span className={styles.statusChipMono}>{targetExamName}</span>
               </div>
-
-              <div className={styles.metricCard}>
-                <span className={styles.metricLabel}>Retention Health</span>
-                <div className={styles.metricValueRow}>
-                  <span className={styles.metricValue}>
-                    {modelSummary.status === 'calibrated' ? `${modelSummary.retentionScore}%` : '--'}
-                  </span>
-                  <span className={styles.metricSubtext}>Memory Stability</span>
-                </div>
-                <span className={styles.metricBadge}>SM-2 Decay</span>
-              </div>
-
-              <div className={styles.metricCard}>
-                <span className={styles.metricLabel}>Observed Evidence</span>
-                <div className={styles.metricValueRow}>
-                  <span className={styles.metricValue}>{modelSummary.evidenceCount}</span>
-                  <span className={styles.metricSubtext}>Attempts</span>
-                </div>
-                <span className={styles.metricBadge}>Immutable Log</span>
-              </div>
-
-              <div className={styles.metricCard}>
-                <span className={styles.metricLabel}>Focus Queue</span>
-                <div className={styles.metricValueRow}>
-                  <span className={styles.metricValue}>{backlogItems.length}</span>
-                  <span className={styles.metricSubtext}>Prioritized Topics</span>
-                </div>
-                <span className={styles.metricBadge}>Adaptive</span>
-              </div>
-            </section>
+            </header>
 
             {/* ----------------------------------------------------------- */}
-            {/* AI Next-Action Hero                                         */}
+            {/* Continue Learning — AI next-action surface                  */}
             {/* ----------------------------------------------------------- */}
             <section className={styles.nextActionHero} aria-labelledby="ai-next-action-heading">
               <div className={styles.heroTopRow}>
                 <div className={styles.engineBadge}>
                   <span className={styles.pulseGreen} aria-hidden="true" />
-                  <span>AI NEXT-ACTION ENGINE</span>
+                  <span>Next-Action Engine</span>
                 </div>
-                <span className={styles.priorityPill}>Priority 1 • High Leverage</span>
+                <span className={styles.priorityPill}>Priority 1 · High leverage</span>
               </div>
 
               {!isOnboardingComplete ? (
                 <>
                   <div className={styles.heroMain}>
-                    <h1 id="ai-next-action-heading" className={styles.heroTitle}>
-                      Complete Your Academic Identity Calibration
-                    </h1>
+                    <h2 id="ai-next-action-heading" className={styles.heroTitle}>
+                      Complete your academic identity calibration
+                    </h2>
                     <p className={styles.heroDescription}>
-                      SharpMind needs your target exam, syllabus board, and enrolled subjects before it can sequence personalized practice questions.
+                      SharpMind needs your target exam, syllabus board, and enrolled subjects before it can
+                      sequence personalized practice questions.
                     </p>
                   </div>
                   <div className={styles.heroActionRow}>
                     <Button href="/onboarding" variant="primary" size="lg">
-                      Complete Onboarding Wizard &rarr;
+                      Complete onboarding <Icon name="arrowRight" size="xs" />
                     </Button>
                   </div>
                 </>
               ) : isDiagnosticPending || modelSummary.status === 'uncalibrated' ? (
                 <>
                   <div className={styles.heroMain}>
-                    <h1 id="ai-next-action-heading" className={styles.heroTitle}>
-                      Take SharpMind Baseline Diagnostic Assessment
-                    </h1>
+                    <h2 id="ai-next-action-heading" className={styles.heroTitle}>
+                      Take the SharpMind baseline diagnostic
+                    </h2>
                     <p className={styles.heroDescription}>
-                      Calibrate your baseline Knowledge Model across {boardName} {gradeName} ({targetExamName}) without guessing or fabricating initial mastery scores.
+                      Calibrate your baseline knowledge model across {boardName} {gradeName} ({targetExamName})
+                      without guessing or fabricating initial mastery scores.
                     </p>
                   </div>
                   <div className={styles.reasonBox}>
-                    <span className={styles.reasonIcon}>🧠</span>
+                    <Icon name="lightbulb" size="sm" className={styles.reasonIcon} />
                     <div className={styles.reasonText}>
-                      <span className={styles.reasonHighlight}>Why this next? </span>
-                      SharpMind refuses to fabricate scores. An initial 5-question stratified diagnostic records authentic evidence to anchor your mastery vector across Physics, Chemistry, and Mathematics with explicit uncertainty tracking.
+                      <span className={styles.reasonHighlight}>Why this next?</span> SharpMind refuses to
+                      fabricate scores. A 5-question stratified diagnostic records authentic evidence to anchor
+                      your mastery vector with explicit uncertainty tracking.
                     </div>
                   </div>
                   <div className={styles.heroActionRow}>
                     <Button href="/app/tests?type=diagnostic" variant="primary" size="lg">
-                      Launch Baseline Diagnostic &rarr;
+                      Launch baseline diagnostic <Icon name="arrowRight" size="xs" />
                     </Button>
                     <Button href="/app/tests" variant="outline" size="lg">
-                      Open in Full Test Runner &rarr;
+                      Open test runner
                     </Button>
                     <div className={styles.metaSpecs}>
-                      <span>5 Questions</span>
-                      <span>•</span>
-                      <span>15 Minutes</span>
-                      <span>•</span>
-                      <span>Confidence-Weighted</span>
+                      <span>5 questions</span>
+                      <span aria-hidden="true">·</span>
+                      <span>≈ 15 min</span>
+                      <span aria-hidden="true">·</span>
+                      <span>Confidence-weighted</span>
                     </div>
                   </div>
                 </>
               ) : topBacklog ? (
                 <>
                   <div className={styles.heroMain}>
-                    <h1 id="ai-next-action-heading" className={styles.heroTitle}>
-                      Focus Session: {topBacklog.title}
-                    </h1>
+                    <div className={styles.heroSubjectRow}>
+                      <span className={styles.heroSubjectChip}>
+                        <Icon
+                          name={SUBJECT_CATALOG[topBacklog.subject]?.icon || 'bookOpen'}
+                          size="xs"
+                        />
+                        {SUBJECT_CATALOG[topBacklog.subject]?.name || topBacklog.subject}
+                      </span>
+                      <span className={styles.heroClassification}>
+                        {topBacklog.classification.replace(/_/g, ' ')}
+                      </span>
+                    </div>
+                    <h2 id="ai-next-action-heading" className={styles.heroTitle}>
+                      {topBacklog.title}
+                    </h2>
                     <p className={styles.heroDescription}>
-                      Ranked #1 on your adaptive backlog. Addressing this topic yields the highest expected score increase for {targetExamName} before your upcoming milestone.
+                      Ranked #1 on your adaptive backlog — addressing this topic yields the highest expected
+                      score increase for {targetExamName} before your next milestone.
                     </p>
                   </div>
                   <div className={styles.reasonBox}>
-                    <span className={styles.reasonIcon}>🎯</span>
+                    <Icon name="target" size="sm" className={styles.reasonIcon} />
                     <div className={styles.reasonText}>
-                      <span className={styles.reasonHighlight}>Why this next? </span>
-                      {topBacklog.reasons.join('. ') || `Identified as ${topBacklog.classification} with high weightage in ${targetExamName}.`}
+                      <span className={styles.reasonHighlight}>Why this next?</span>{' '}
+                      {topBacklog.reasons.join('. ') ||
+                        `Identified as ${topBacklog.classification} with high weightage in ${targetExamName}.`}
                     </div>
                   </div>
                   <div className={styles.heroActionRow}>
                     <Button href="/app/tests" variant="primary" size="lg">
-                      Begin Targeted Practice &rarr;
+                      Continue learning <Icon name="play" size="xs" />
                     </Button>
-                    <Button href={`/app/tutor?topic=${encodeURIComponent(topBacklog.title)}`} variant="outline" size="lg">
-                      Open Socratic Hint &rarr;
+                    <Button
+                      href={`/app/tutor?topic=${encodeURIComponent(topBacklog.title)}`}
+                      variant="outline"
+                      size="lg"
+                    >
+                      Ask the tutor
                     </Button>
                   </div>
                 </>
               ) : (
                 <>
                   <div className={styles.heroMain}>
-                    <h1 id="ai-next-action-heading" className={styles.heroTitle}>
-                      Study Agenda Clear & On Pace
-                    </h1>
+                    <h2 id="ai-next-action-heading" className={styles.heroTitle}>
+                      Study agenda clear &amp; on pace
+                    </h2>
                     <p className={styles.heroDescription}>
-                      All scheduled tasks and high-priority backlog items are mastered. You can run mock assessments or explore advanced PYQ patterns.
+                      All scheduled tasks and high-priority backlog items are mastered. Run a mock assessment or
+                      explore advanced PYQ patterns.
                     </p>
                   </div>
                   <div className={styles.heroActionRow}>
                     <Button href="/app/tests" variant="primary" size="lg">
-                      Take Full-Length Mock Exam &rarr;
+                      Take a full-length mock <Icon name="arrowRight" size="xs" />
                     </Button>
                   </div>
                 </>
@@ -483,297 +511,324 @@ export default function WorkspaceDashboard() {
             </section>
 
             {/* ----------------------------------------------------------- */}
-            {/* Today's Dynamic Study Plan (Adaptive Planner)               */}
+            {/* Progress overview — real student model metrics              */}
             {/* ----------------------------------------------------------- */}
-            <section aria-labelledby="planner-heading">
-              <div className={styles.sectionHeader}>
-                <h2 id="planner-heading" className={styles.sectionTitle}>
-                  <Icon name="calendar" size="sm" /> Today's Adaptive Study Session
-                </h2>
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <span className={styles.sectionSubtitle}>
-                    Balanced across subjects and session types
+            <section aria-label="Student Model Summary Metrics" className={styles.metricsRibbon}>
+              <div className={styles.metricCard}>
+                <span className={styles.metricLabel}>Mastery level</span>
+                <div className={styles.metricValueRow}>
+                  <span className={styles.metricValue}>
+                    {modelSummary.status === 'calibrated' ? `${modelSummary.masteryScore}%` : '—'}
                   </span>
-                  <Button onClick={handleReplan} variant="outline" size="sm">
-                    ⚡ Replan Missed Work
-                  </Button>
+                  <span className={styles.metricSubtext}>
+                    {modelSummary.status === 'calibrated' ? 'calibrated' : 'uncalibrated'}
+                  </span>
                 </div>
+                <span className={styles.metricBadge}>{modelSummary.masteredCount} mastered units</span>
               </div>
 
-              <div className={styles.plannerSessionCard}>
-                <div className={styles.sessionHeaderRow}>
-                  <div className={styles.sessionTimeSlot}>
-                    <span>⏰ {planSessionInfo ? `Study Window: ${planSessionInfo.timeSlot}` : 'Flexible Daily Study Window'}</span>
-                  </div>
-                  <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--color-text-tertiary)' }}>
-                    {dailyTasks.length > 0 ? `${dailyTasks.length} Tasks Scheduled` : 'No Scheduled Tasks'}
+              <div className={styles.metricCard}>
+                <span className={styles.metricLabel}>Retention health</span>
+                <div className={styles.metricValueRow}>
+                  <span className={styles.metricValue}>
+                    {modelSummary.status === 'calibrated' ? `${modelSummary.retentionScore}%` : '—'}
                   </span>
+                  <span className={styles.metricSubtext}>memory stability</span>
                 </div>
+                <span className={styles.metricBadge}>SM-2 decay</span>
+              </div>
 
-                {dailyTasks.length === 0 ? (
-                  <div style={{
-                    padding: '1.5rem',
-                    textAlign: 'center',
-                    color: 'var(--color-text-secondary)',
-                    fontSize: '0.875rem',
-                  }}>
-                    No tasks scheduled for today yet. Use <strong>Replan Missed Work</strong> to generate today&apos;s sequence from your backlog.
-                  </div>
-                ) : (
-                  <div className={styles.taskList}>
-                    {dailyTasks.map((task) => (
-                      <div
-                        key={task.id}
-                        className={`${styles.taskItem} ${task.status === 'completed' ? styles.taskItemCompleted : ''}`}
-                      >
-                        <div className={styles.taskMeta}>
-                          <input
-                            type="checkbox"
-                            className={styles.taskCheckbox}
-                            checked={task.status === 'completed'}
-                            onChange={() => handleToggleTaskStatus(task.id, task.sessionId)}
-                            aria-label={`Mark ${task.title} as completed`}
-                          />
-                          <div>
-                            <strong style={{ fontSize: '0.9375rem', color: 'var(--color-text-primary)' }}>
-                              {task.title}
-                            </strong>
-                            <div style={{ display: 'flex', gap: '8px', marginTop: '4px', alignItems: 'center' }}>
-                              <span style={{ fontSize: '0.6875rem', fontFamily: 'var(--font-mono)', color: '#34d399' }}>
-                                {task.subject}
-                              </span>
-                              <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-tertiary)' }}>•</span>
-                              <span style={{ fontSize: '0.6875rem', fontFamily: 'var(--font-mono)', color: 'var(--color-text-secondary)' }}>
-                                {task.durationMinutes} min
-                              </span>
-                            </div>
-                          </div>
-                        </div>
+              <div className={styles.metricCard}>
+                <span className={styles.metricLabel}>Observed evidence</span>
+                <div className={styles.metricValueRow}>
+                  <span className={styles.metricValue}>{modelSummary.evidenceCount}</span>
+                  <span className={styles.metricSubtext}>attempts</span>
+                </div>
+                <span className={styles.metricBadge}>immutable log</span>
+              </div>
 
-                        <span className={styles.taskTypeBadge}>
-                          {task.taskType.replace(/_/g, ' ').toUpperCase()}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
+              <div className={styles.metricCard}>
+                <span className={styles.metricLabel}>Focus queue</span>
+                <div className={styles.metricValueRow}>
+                  <span className={styles.metricValue}>{backlogItems.length}</span>
+                  <span className={styles.metricSubtext}>prioritized topics</span>
+                </div>
+                <span className={styles.metricBadge}>adaptive</span>
               </div>
             </section>
 
             {/* ----------------------------------------------------------- */}
-            {/* Spaced Repetition Due Widget (SM-2 Engine)                   */}
+            {/* Command grid — plan + backlog | revision + knowledge state  */}
             {/* ----------------------------------------------------------- */}
-            <section aria-labelledby="revision-heading">
-              <div className={styles.sectionHeader}>
-                <h2 id="revision-heading" className={styles.sectionTitle}>
-                  <Icon name="refresh" size="sm" /> Spaced Revision Queue (SM-2)
-                </h2>
-                <span className={styles.sectionSubtitle}>
-                  {dueRevisions.length} concepts due for recall calibration
-                </span>
-              </div>
+            <div className={styles.commandGrid}>
+              <div className={styles.commandMain}>
+                {/* Today's adaptive study plan */}
+                <section aria-labelledby="planner-heading" className={styles.panelSection}>
+                  <div className={styles.sectionHeader}>
+                    <h3 id="planner-heading" className={styles.sectionTitle}>
+                      Today&apos;s study plan
+                    </h3>
+                    <div className={styles.sectionHeaderRight}>
+                      <span className={styles.sectionSubtitle}>
+                        {dailyTasks.length > 0
+                          ? `${completedTaskCount}/${dailyTasks.length} complete · ${planSessionInfo?.totalMinutes ?? 0} min`
+                          : 'No tasks scheduled'}
+                      </span>
+                      <Button onClick={handleReplan} variant="outline" size="sm">
+                        <Icon name="zap" size="xs" /> Replan
+                      </Button>
+                    </div>
+                  </div>
 
-              {dueRevisions.length === 0 ? (
-                <div style={{
-                  padding: '1.5rem',
-                  borderRadius: 'var(--radius-md)',
-                  background: 'rgba(255, 255, 255, 0.02)',
-                  border: '1px solid rgba(255, 255, 255, 0.06)',
-                  textAlign: 'center',
-                  color: 'var(--color-text-secondary)',
-                  fontSize: '0.875rem',
-                }}>
-                  🎉 All spaced revisions for today are complete! Your memory decay curve is in optimal shape.
-                </div>
-              ) : (
-                <div className={styles.revisionGrid}>
-                  {dueRevisions.map((item) => (
-                    <div key={item.id} className={styles.revisionCard}>
-                      <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                          <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--color-text-tertiary)' }}>
-                            {item.subject}
-                          </span>
-                          <span
-                            className={`${styles.urgencyBadge} ${
-                              item.urgency === 'high'
-                                ? styles.urgencyHigh
-                                : item.urgency === 'medium'
-                                ? styles.urgencyMedium
-                                : styles.urgencyNormal
+                  <div className={styles.plannerSessionCard}>
+                    <div className={styles.sessionHeaderRow}>
+                      <div className={styles.sessionTimeSlot}>
+                        <Icon name="clock" size="xs" />
+                        <span>
+                          {planSessionInfo ? `Study window ${planSessionInfo.timeSlot}` : 'Flexible daily study window'}
+                        </span>
+                      </div>
+                      <span className={styles.sessionTaskCount}>
+                        {dailyTasks.length > 0 ? `${dailyTasks.length} tasks` : '0 tasks'}
+                      </span>
+                    </div>
+
+                    {dailyTasks.length === 0 ? (
+                      <div className={styles.inlineEmpty}>
+                        No tasks scheduled for today yet. Use <strong>Replan</strong> to generate today&apos;s
+                        sequence from your backlog.
+                      </div>
+                    ) : (
+                      <ul className={styles.taskList} role="list">
+                        {dailyTasks.map((task) => (
+                          <li
+                            key={task.id}
+                            className={`${styles.taskItem} ${
+                              task.status === 'completed' ? styles.taskItemCompleted : ''
                             }`}
                           >
-                            {item.urgency.toUpperCase()} URGENCY
-                          </span>
-                        </div>
-                        <h3 style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                          {item.title}
-                        </h3>
-                        <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
-                          Est. Retention: {Math.round(item.retention * 100)}% • Interval: {item.intervalDays}d
-                        </p>
-                      </div>
+                            <div className={styles.taskMeta}>
+                              <input
+                                type="checkbox"
+                                className={styles.taskCheckbox}
+                                checked={task.status === 'completed'}
+                                onChange={() => handleToggleTaskStatus(task.id, task.sessionId)}
+                                aria-label={`Mark ${task.title} as completed`}
+                              />
+                              <div className={styles.taskTextCol}>
+                                <strong className={styles.taskTitleInline}>{task.title}</strong>
+                                <div className={styles.taskSubRow}>
+                                  <span className={styles.taskSubjectTag}>{task.subject}</span>
+                                  <span className={styles.taskDot} aria-hidden="true">·</span>
+                                  <span className={styles.taskDuration}>{task.durationMinutes} min</span>
+                                </div>
+                              </div>
+                            </div>
 
-                      <div className={styles.sm2ActionRow}>
-                        <button
-                          type="button"
-                          className={`${styles.sm2Btn} ${styles.sm2BtnRecall}`}
-                          onClick={() => handleReviewOutcome(item.id, 'recalled')}
-                        >
-                          ✓ Recalled
-                        </button>
-                        <button
-                          type="button"
-                          className={styles.sm2Btn}
-                          onClick={() => handleReviewOutcome(item.id, 'partially_recalled')}
-                        >
-                          ~ Hard
-                        </button>
-                        <button
-                          type="button"
-                          className={`${styles.sm2Btn} ${styles.sm2BtnForgot}`}
-                          onClick={() => handleReviewOutcome(item.id, 'forgot')}
-                        >
-                          ✕ Forgot
-                        </button>
-                      </div>
+                            <span className={styles.taskTypeBadge}>
+                              {task.taskType.replace(/_/g, ' ')}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </section>
+
+                {/* Adaptive academic backlog */}
+                <section aria-labelledby="backlog-heading" className={styles.panelSection}>
+                  <div className={styles.sectionHeader}>
+                    <h3 id="backlog-heading" className={styles.sectionTitle}>
+                      Prioritized backlog
+                    </h3>
+                    <span className={styles.sectionSubtitle}>
+                      Ordered by exam proximity, weakness &amp; weightage
+                    </span>
+                  </div>
+
+                  {backlogItems.length === 0 ? (
+                    <div className={styles.inlineEmpty}>
+                      No backlog items found. Complete your initial diagnostic assessment to populate
+                      prioritized topics.
                     </div>
-                  ))}
-                </div>
-              )}
-            </section>
-
-            {/* ----------------------------------------------------------- */}
-            {/* Adaptive Academic Backlog                                   */}
-            {/* ----------------------------------------------------------- */}
-            <section aria-labelledby="backlog-heading">
-              <div className={styles.sectionHeader}>
-                <h2 id="backlog-heading" className={styles.sectionTitle}>
-                  <Icon name="fileText" size="sm" /> Prioritized Learning Backlog
-                </h2>
-                <span className={styles.sectionSubtitle}>
-                  Order calculated deterministically by exam proximity, weakness & weightage
-                </span>
-              </div>
-
-              {backlogItems.length === 0 ? (
-                <div style={{
-                  padding: '1.5rem',
-                  borderRadius: 'var(--radius-md)',
-                  background: 'rgba(255, 255, 255, 0.02)',
-                  border: '1px solid rgba(255, 255, 255, 0.06)',
-                  textAlign: 'center',
-                  color: 'var(--color-text-secondary)',
-                  fontSize: '0.875rem',
-                }}>
-                  No backlog items found. Complete your initial diagnostic assessment to populate prioritized topics.
-                </div>
-              ) : (
-                <div className={styles.backlogGrid}>
-                  {backlogItems.map((item) => (
-                    <div key={item.id} className={styles.backlogCard}>
-                      <div>
-                        <div className={styles.cardHeaderRow}>
-                          <span className={styles.taskTypeBadge}>{item.subject.toUpperCase()}</span>
-                          <span className={styles.priorityTag}>Score: {item.priorityScore}</span>
-                        </div>
-                        <div className={styles.cardBody} style={{ marginTop: '8px' }}>
-                          <h3 className={styles.taskTitle}>{item.title}</h3>
-                          <div className={styles.reasonPillList} style={{ marginTop: '6px' }}>
-                            {item.reasons.map((r, idx) => (
-                              <span key={idx} className={styles.reasonPill}>
-                                {r}
-                              </span>
-                            ))}
+                  ) : (
+                    <div className={styles.backlogGrid}>
+                      {backlogItems.map((item) => (
+                        <div key={item.id} className={styles.backlogCard}>
+                          <div className={styles.cardHeaderRow}>
+                            <span className={styles.taskTypeBadge}>{item.subject}</span>
+                            <span className={styles.priorityTag}>score {item.priorityScore}</span>
+                          </div>
+                          <div className={styles.cardBody}>
+                            <h4 className={styles.taskTitle}>{item.title}</h4>
+                            <div className={styles.reasonPillList}>
+                              {item.reasons.map((r, idx) => (
+                                <span key={idx} className={styles.reasonPill}>
+                                  {r}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                          <div className={styles.cardFooter}>
+                            <span
+                              className={`${styles.classificationTag} ${
+                                item.classification === 'weak' || item.classification === 'at_risk'
+                                  ? styles.classificationWarn
+                                  : ''
+                              }`}
+                            >
+                              {item.classification.replace(/_/g, ' ')}
+                            </span>
+                            <Button href="/app/tests" variant="outline" size="sm">
+                              Practice <Icon name="arrowRight" size="xs" />
+                            </Button>
                           </div>
                         </div>
-                      </div>
-                      <div className={styles.cardFooter}>
-                        <span style={{ fontSize: '0.6875rem', fontFamily: 'var(--font-mono)', color: '#34d399' }}>
-                          STATUS: {item.classification.replace(/_/g, ' ').toUpperCase()}
-                        </span>
-                        <Button href="/app/tests" variant="primary" size="sm">
-                          Practice Drill &rarr;
-                        </Button>
-                      </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              )}
-            </section>
-
-            {/* ----------------------------------------------------------- */}
-            {/* Knowledge Model Subject Calibration Matrix                  */}
-            {/* ----------------------------------------------------------- */}
-            <section aria-labelledby="matrix-heading">
-              <div className={styles.sectionHeader}>
-                <h2 id="matrix-heading" className={styles.sectionTitle}>
-                  <Icon name="readiness" size="sm" /> Student Knowledge State Matrix
-                </h2>
-                <span className={styles.sectionSubtitle}>
-                  Truth in Data: Uncalibrated until observed evidence is recorded
-                </span>
+                  )}
+                </section>
               </div>
 
-              <div className={styles.matrixCard}>
-                <div className={styles.matrixGrid}>
-                  {enrolledSubjectIds.map((subId) => {
-                    const info = SUBJECT_CATALOG[subId] || { id: subId, name: subId, icon: 'bookOpen' as IconName };
-                    return (
-                      <div key={subId} className={styles.subjectCard}>
-                        <div className={styles.subjectTop}>
-                          <span className={styles.subjectName}>
-                            <Icon name={info.icon} size="sm" />
-                            <span>{info.name}</span>
-                          </span>
-                          <span className={styles.statusUncalibrated}>
-                            {modelSummary.status === 'calibrated' ? 'Calibrated' : 'Pending Baseline'}
-                          </span>
-                        </div>
-                        <div className={styles.subjectProgress}>
-                          {modelSummary.status === 'calibrated' ? (
-                            <span>Mastery: {modelSummary.masteryScore}% • Verified Evidence ({modelSummary.evidenceCount})</span>
-                          ) : (
-                            <span>Awaiting diagnostic assessment submission</span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+              <div className={styles.commandSide}>
+                {/* Spaced repetition due queue */}
+                <section aria-labelledby="revision-heading" className={styles.panelSection}>
+                  <div className={styles.sectionHeader}>
+                    <h3 id="revision-heading" className={styles.sectionTitle}>
+                      Revision queue
+                    </h3>
+                    <span className={styles.sectionSubtitle}>
+                      {dueRevisions.length} due
+                    </span>
+                  </div>
 
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    paddingTop: '0.75rem',
-                    borderTop: '1px solid rgba(255, 255, 255, 0.06)',
-                    fontSize: '0.8125rem',
-                    color: 'var(--color-text-tertiary)',
-                    flexWrap: 'wrap',
-                    gap: '8px',
-                  }}
-                >
-                  <span>Curriculum alignment: {boardName} {gradeName ? `Class ${gradeName}` : ''}</span>
-                  <Link href="/onboarding" style={{ color: 'var(--color-text-primary)', textDecoration: 'underline' }}>
-                    Edit Enrolled Subjects &rarr;
-                  </Link>
-                </div>
+                  {dueRevisions.length === 0 ? (
+                    <div className={styles.inlineEmpty}>
+                      All spaced revisions for today are complete — your memory decay curve is in optimal
+                      shape.
+                    </div>
+                  ) : (
+                    <div className={styles.revisionGrid}>
+                      {dueRevisions.map((item) => (
+                        <div key={item.id} className={styles.revisionCard}>
+                          <div className={styles.revisionHead}>
+                            <span className={styles.revisionSubject}>{item.subject}</span>
+                            <span
+                              className={`${styles.urgencyBadge} ${
+                                item.urgency === 'high'
+                                  ? styles.urgencyHigh
+                                  : item.urgency === 'medium'
+                                  ? styles.urgencyMedium
+                                  : styles.urgencyNormal
+                              }`}
+                            >
+                              {item.urgency}
+                            </span>
+                          </div>
+                          <h4 className={styles.revisionTitle}>{item.title}</h4>
+                          <p className={styles.revisionMeta}>
+                            Retention {Math.round(item.retention * 100)}% · interval {item.intervalDays}d
+                          </p>
+
+                          <div className={styles.sm2ActionRow}>
+                            <button
+                              type="button"
+                              className={`${styles.sm2Btn} ${styles.sm2BtnRecall}`}
+                              onClick={() => handleReviewOutcome(item.id, 'recalled')}
+                            >
+                              Recalled
+                            </button>
+                            <button
+                              type="button"
+                              className={styles.sm2Btn}
+                              onClick={() => handleReviewOutcome(item.id, 'partially_recalled')}
+                            >
+                              Hard
+                            </button>
+                            <button
+                              type="button"
+                              className={`${styles.sm2Btn} ${styles.sm2BtnForgot}`}
+                              onClick={() => handleReviewOutcome(item.id, 'forgot')}
+                            >
+                              Forgot
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </section>
+
+                {/* Knowledge state matrix */}
+                <section aria-labelledby="matrix-heading" className={styles.panelSection}>
+                  <div className={styles.sectionHeader}>
+                    <h3 id="matrix-heading" className={styles.sectionTitle}>
+                      Knowledge state
+                    </h3>
+                    <span className={styles.sectionSubtitle}>Truth in data</span>
+                  </div>
+
+                  <div className={styles.matrixCard}>
+                    <div className={styles.matrixGrid}>
+                      {enrolledSubjectIds.map((subId) => {
+                        const info = SUBJECT_CATALOG[subId] || {
+                          id: subId,
+                          name: subId,
+                          icon: 'bookOpen' as IconName,
+                        };
+                        return (
+                          <div key={subId} className={styles.subjectCard}>
+                            <div className={styles.subjectTop}>
+                              <span className={styles.subjectName}>
+                                <Icon name={info.icon} size="sm" />
+                                <span>{info.name}</span>
+                              </span>
+                              <span
+                                className={`${styles.subjectStatus} ${
+                                  modelSummary.status === 'calibrated'
+                                    ? styles.statusCalibrated
+                                    : styles.statusUncalibrated
+                                }`}
+                              >
+                                {modelSummary.status === 'calibrated' ? 'Calibrated' : 'Pending baseline'}
+                              </span>
+                            </div>
+                            <div className={styles.subjectProgress}>
+                              {modelSummary.status === 'calibrated' ? (
+                                <span>
+                                  Mastery {modelSummary.masteryScore}% · {modelSummary.evidenceCount} evidence
+                                </span>
+                              ) : (
+                                <span>Awaiting diagnostic submission</span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className={styles.matrixFooter}>
+                      <span>
+                        Alignment: {boardName} {gradeName ? `Class ${gradeName}` : ''}
+                      </span>
+                      <Link href="/onboarding" className={styles.matrixFooterLink}>
+                        Edit subjects <Icon name="arrowRight" size="xs" />
+                      </Link>
+                    </div>
+                  </div>
+                </section>
               </div>
-            </section>
+            </div>
 
             {/* ----------------------------------------------------------- */}
-            {/* Study Mode Launchers                                        */}
+            {/* Study mode launchers                                        */}
             {/* ----------------------------------------------------------- */}
-            <section aria-labelledby="modes-heading">
+            <section aria-labelledby="modes-heading" className={styles.panelSection}>
               <div className={styles.sectionHeader}>
-                <h2 id="modes-heading" className={styles.sectionTitle}>
-                  <Icon name="zap" size="sm" /> Study Mode Launchers
-                </h2>
-                <span className={styles.sectionSubtitle}>
-                  Instant access to active learning environments
-                </span>
+                <h3 id="modes-heading" className={styles.sectionTitle}>
+                  Study modes
+                </h3>
+                <span className={styles.sectionSubtitle}>Instant access to active learning environments</span>
               </div>
 
               <div className={styles.modesGrid}>
@@ -781,58 +836,65 @@ export default function WorkspaceDashboard() {
                   <span className={styles.modeIcon} aria-hidden="true">
                     <Icon name="tutor" size="md" />
                   </span>
-                  <div>
-                    <h3 className={styles.modeTitle}>AI Socratic Tutor</h3>
+                  <div className={styles.modeText}>
+                    <h4 className={styles.modeTitle}>AI Socratic Tutor</h4>
                     <p className={styles.modeDesc}>
-                      Step-by-step guidance that helps you deduce concepts rather than giving raw answers.
+                      Step-by-step guidance that helps you deduce concepts rather than handing you raw answers.
                     </p>
                   </div>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>Launch Tutor &rarr;</span>
+                  <span className={styles.modeCta}>
+                    Launch <Icon name="arrowRight" size="xs" />
+                  </span>
                 </Link>
 
                 <Link href="/app/focus" className={styles.modeCard}>
                   <span className={styles.modeIcon} aria-hidden="true">
                     <Icon name="focus" size="md" />
                   </span>
-                  <div>
-                    <h3 className={styles.modeTitle}>Deep Focus Mode</h3>
+                  <div className={styles.modeText}>
+                    <h4 className={styles.modeTitle}>Deep Focus Mode</h4>
                     <p className={styles.modeDesc}>
                       Distraction-free 25m and 50m Pomodoro blocks with session telemetry.
                     </p>
                   </div>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>Open Timer &rarr;</span>
+                  <span className={styles.modeCta}>
+                    Open timer <Icon name="arrowRight" size="xs" />
+                  </span>
                 </Link>
 
                 <Link href="/app/tests" className={styles.modeCard}>
                   <span className={styles.modeIcon} aria-hidden="true">
                     <Icon name="tests" size="md" />
                   </span>
-                  <div>
-                    <h3 className={styles.modeTitle}>Diagnostic Engine</h3>
+                  <div className={styles.modeText}>
+                    <h4 className={styles.modeTitle}>Diagnostic Engine</h4>
                     <p className={styles.modeDesc}>
                       Timed practice tests and NTA-compliant past paper simulations.
                     </p>
                   </div>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>Explore Tests &rarr;</span>
+                  <span className={styles.modeCta}>
+                    Explore <Icon name="arrowRight" size="xs" />
+                  </span>
                 </Link>
 
                 <Link href="/app/mistakes" className={styles.modeCard}>
                   <span className={styles.modeIcon} aria-hidden="true">
                     <Icon name="mistakes" size="md" />
                   </span>
-                  <div>
-                    <h3 className={styles.modeTitle}>Mistake Notebook</h3>
+                  <div className={styles.modeText}>
+                    <h4 className={styles.modeTitle}>Mistake Notebook</h4>
                     <p className={styles.modeDesc}>
                       Categorized review of questions answered incorrectly with retry schedules.
                     </p>
                   </div>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>View Errors &rarr;</span>
+                  <span className={styles.modeCta}>
+                    Review <Icon name="arrowRight" size="xs" />
+                  </span>
                 </Link>
               </div>
             </section>
           </>
         )}
-
       </div>
     </WorkspaceShell>
   );

@@ -206,7 +206,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
       <div className={styles.dialog} onClick={(e) => e.stopPropagation()}>
         <div className={styles.searchBox}>
           <span className={styles.searchIcon} aria-hidden="true">
-            🔍
+            <Icon name="search" size="sm" />
           </span>
           <input
             ref={inputRef}

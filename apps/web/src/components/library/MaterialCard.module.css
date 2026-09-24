@@ -43,9 +43,9 @@
 }
 
 .badgeNotes {
-  background: rgba(59, 130, 246, 0.12);
-  color: #3b82f6;
-  border: 1px solid rgba(59, 130, 246, 0.25);
+  background: rgba(91, 141, 239, 0.12);
+  color: var(--color-accent);
+  border: 1px solid rgba(91, 141, 239, 0.25);
 }
 
 .badgeCheatsheet {
@@ -55,14 +55,14 @@
 }
 
 .badgeImage {
-  background: rgba(168, 85, 247, 0.12);
+  background: rgba(91, 141, 239, 0.12);
   color: #a855f7;
-  border: 1px solid rgba(168, 85, 247, 0.25);
+  border: 1px solid rgba(91, 141, 239, 0.25);
 }
 
 .badgeSummary {
   background: rgba(16, 185, 129, 0.12);
-  color: #10b981;
+  color: var(--color-success);
   border: 1px solid rgba(16, 185, 129, 0.25);
 }
 

@@ -159,7 +159,7 @@ export default function RevisionPage() {
             justifyContent: 'space-between',
             alignItems: 'center',
           }}>
-            <span>⚠️ {errorMsg}</span>
+            <span><span className="banner-inline"><Icon name="info" size="sm" /> {errorMsg}</span></span>
             <button
               onClick={loadRevisions}
               style={{
@@ -235,7 +235,7 @@ export default function RevisionPage() {
             borderRadius: 'var(--radius-lg)',
             color: 'var(--color-text-secondary)',
           }}>
-            <span style={{ fontSize: '2.5rem' }}>🎉</span>
+            <span className="empty-icon"><Icon name="check" size="lg" /></span>
             <h3 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-text-primary)', marginTop: '0.75rem' }}>
               All Caught Up on Spaced Revisions!
             </h3>
@@ -247,7 +247,7 @@ export default function RevisionPage() {
                 href="/app/tests"
                 style={{
                   padding: '0.5rem 1rem',
-                  background: '#6366f1',
+                  background: 'var(--color-accent)',
                   color: '#fff',
                   borderRadius: 'var(--radius-md)',
                   fontSize: '0.8125rem',

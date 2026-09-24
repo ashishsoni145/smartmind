@@ -73,7 +73,12 @@ export function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, onCloseMo
             <div className={styles.brandEmblem} aria-hidden="true">
               S
             </div>
-            {!isCollapsed && <span className={styles.brandName}>SharpMind</span>}
+            {!isCollapsed && (
+              <span className={styles.brandName}>
+                SharpMind
+                <span className={styles.brandSub}>Academic OS</span>
+              </span>
+            )}
           </Link>
 
           <button
@@ -107,7 +112,8 @@ export function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, onCloseMo
                     href={item.href}
                     className={`${styles.navItem} ${isActive ? styles.active : ''}`}
                     onClick={onCloseMobile}
-                    title={isCollapsed ? item.label : undefined}
+                    data-tooltip={item.label}
+                    aria-current={isActive ? 'page' : undefined}
                   >
                     <span className={styles.navIcon} aria-hidden="true">
                       <Icon name={item.icon} size="sm" />
@@ -126,7 +132,8 @@ export function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, onCloseMo
             href="/app/upgrade"
             className={`${styles.navItem} ${pathname === '/app/upgrade' ? styles.active : ''}`}
             onClick={onCloseMobile}
-            title={isCollapsed ? 'Upgrade Pro' : undefined}
+            data-tooltip="SharpMind Pro"
+            aria-current={pathname === '/app/upgrade' ? 'page' : undefined}
           >
             <span className={styles.navIcon} aria-hidden="true">
               <Icon name="upgrade" size="sm" />
@@ -139,7 +146,8 @@ export function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, onCloseMo
             href="/app/settings"
             className={`${styles.navItem} ${pathname === '/app/settings' ? styles.active : ''}`}
             onClick={onCloseMobile}
-            title={isCollapsed ? 'Settings' : undefined}
+            data-tooltip="Settings"
+            aria-current={pathname === '/app/settings' ? 'page' : undefined}
           >
             <span className={styles.navIcon} aria-hidden="true">
               <Icon name="settings" size="sm" />

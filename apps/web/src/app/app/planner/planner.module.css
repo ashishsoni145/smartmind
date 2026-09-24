@@ -39,8 +39,8 @@
 }
 
 .pageTitle {
-  font-size: 1.625rem;
-  font-weight: 700;
+  font-size: 1.5rem;
+  font-weight: 600;
   letter-spacing: -0.02em;
   color: #ffffff;
 }
@@ -100,8 +100,8 @@
 }
 
 .tabBtnActive {
-  background: #6366f1;
-  color: #ffffff;
+  background: #ffffff;
+  color: #0b0b0c;
 }
 
 /* Summary metrics */
@@ -228,8 +228,8 @@
 }
 
 .taskCheckbox:checked {
-  background: #10b981;
-  border-color: #10b981;
+  background: var(--color-success);
+  border-color: var(--color-success);
 }
 
 .taskCheckbox:checked::after {

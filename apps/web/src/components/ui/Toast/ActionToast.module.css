@@ -38,7 +38,7 @@
   left: 0;
   bottom: 0;
   width: 4px;
-  background: #3b82f6;
+  background: var(--color-info);
   border-top-left-radius: 14px;
   border-bottom-left-radius: 14px;
 }
@@ -166,7 +166,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: #2563eb;
+  background: var(--color-accent);
   color: #ffffff;
   font-size: 0.8rem;
   font-weight: 600;
@@ -226,5 +226,16 @@
   100% {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+/* Keep toasts clear of the mobile bottom navigation */
+@media (max-width: 900px) {
+  .container {
+    bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+    right: 12px;
+    left: 12px;
+    max-width: none;
+    width: auto;
   }
 }

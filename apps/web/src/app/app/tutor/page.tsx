@@ -27,7 +27,9 @@ function TutorPageContent() {
   const [messages, setMessages] = useState<TutorMessage[]>([]);
   const [currentMode, setCurrentMode] = useState<TutorMode>(modeParam);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(
+    () => typeof window === 'undefined' || window.innerWidth > 900
+  );
   const [showSimModal, setShowSimModal] = useState<boolean>(false);
 
   // Load sessions on mount or when user changes
@@ -253,7 +255,7 @@ function TutorPageContent() {
             textAlign: 'center',
             color: 'var(--color-text-secondary)',
           }}>
-            <span style={{ fontSize: '2.5rem' }}>💡</span>
+            <span className="empty-icon"><Icon name="lightbulb" size="lg" /></span>
             <h3 style={{ fontSize: '1.25rem', color: 'var(--color-text-primary)', marginTop: '0.75rem' }}>
               How can I guide your understanding today?
             </h3>

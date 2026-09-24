@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/Button';
+import { Icon } from '@/components/ui/Icon';
 import styles from './WorkspacePlaceholder.module.css';
 
 export interface ArchitectureFeature {
@@ -13,7 +14,7 @@ export interface ArchitectureFeature {
 interface WorkspacePlaceholderProps {
   title: string;
   subtitle: string;
-  icon: string;
+  icon?: string;
   statusBadge?: string;
   phaseBadge?: string;
   notice?: string;
@@ -44,9 +45,11 @@ export function WorkspacePlaceholder({
         </div>
 
         <div className={styles.headerMain}>
-          <div className={styles.iconBox} aria-hidden="true">
-            {icon}
-          </div>
+          {icon && (
+            <div className={styles.iconBox} aria-hidden="true">
+              {icon}
+            </div>
+          )}
           <div className={styles.titleArea}>
             <h1 className={styles.title}>{title}</h1>
             <p className={styles.description}>{subtitle}</p>
@@ -54,7 +57,7 @@ export function WorkspacePlaceholder({
         </div>
 
         <div className={styles.noticeBox}>
-          <span>ℹ️</span>
+          <Icon name="info" size="sm" />
           <span>{notice}</span>
         </div>
 
@@ -76,7 +79,6 @@ export function WorkspacePlaceholder({
             {features.map((f, idx) => (
               <div key={idx} className={styles.featureCard}>
                 <div className={styles.featureTitle}>
-                  {f.icon && <span>{f.icon}</span>}
                   <span>{f.title}</span>
                 </div>
                 <p className={styles.featureBody}>{f.description}</p>

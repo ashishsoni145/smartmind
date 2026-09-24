@@ -95,7 +95,7 @@
 }
 
 .activePillCheck {
-  background: rgba(37, 99, 235, 0.15);
+  background: rgba(91, 141, 239, 0.15);
   border-color: var(--brand-primary);
   color: var(--brand-primary);
   font-weight: 600;
@@ -156,7 +156,7 @@
 
 .successToast {
   font-size: 0.8125rem;
-  color: #10b981;
+  color: var(--color-success);
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;

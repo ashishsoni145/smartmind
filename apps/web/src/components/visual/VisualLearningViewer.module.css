@@ -33,9 +33,9 @@
   letter-spacing: 0.05em;
   padding: 0.25rem 0.625rem;
   border-radius: var(--radius-full);
-  background: rgba(56, 189, 248, 0.15);
-  color: #38bdf8;
-  border: 1px solid rgba(56, 189, 248, 0.3);
+  background: rgba(96, 165, 250, 0.15);
+  color: var(--color-accent-light);
+  border: 1px solid rgba(96, 165, 250, 0.3);
 }
 
 .title {
@@ -73,7 +73,7 @@
 }
 
 .activeModeBtn {
-  background: #2563eb;
+  background: var(--color-accent);
   color: #ffffff;
   font-weight: 600;
 }
@@ -111,14 +111,14 @@
   border-radius: var(--radius-full);
   background: rgba(15, 23, 42, 0.75);
   backdrop-filter: blur(6px);
-  border: 1px solid rgba(56, 189, 248, 0.25);
+  border: 1px solid rgba(96, 165, 250, 0.25);
   font-size: 0.75rem;
   color: #94a3b8;
   pointer-events: none;
 }
 
 .cameraHintBadge strong {
-  color: #38bdf8;
+  color: var(--color-accent-light);
 }
 
 .cameraControlsOverlay {
@@ -149,7 +149,7 @@
 .camPresetBtn:hover {
   background: #1e293b;
   color: #ffffff;
-  border-color: #38bdf8;
+  border-color: var(--color-accent-light);
 }
 
 /* Telemetry Overlay HUD */
@@ -162,7 +162,7 @@
   gap: 0.5rem;
   background: rgba(15, 23, 42, 0.85);
   backdrop-filter: blur(8px);
-  border: 1px solid rgba(56, 189, 248, 0.2);
+  border: 1px solid rgba(96, 165, 250, 0.2);
   border-radius: var(--radius-md);
   padding: 0.75rem 1rem;
   min-width: 320px;
@@ -185,7 +185,7 @@
   font-family: 'Courier New', monospace;
   font-size: 0.9375rem;
   font-weight: 700;
-  color: #38bdf8;
+  color: var(--color-accent-light);
 }
 
 /* Controls Panel */
@@ -225,12 +225,12 @@
 .controlVal {
   font-family: 'Courier New', monospace;
   font-weight: 700;
-  color: #38bdf8;
+  color: var(--color-accent-light);
 }
 
 .slider {
   width: 100%;
-  accent-color: #2563eb;
+  accent-color: var(--color-accent);
   cursor: pointer;
 }
 
@@ -246,7 +246,7 @@
 }
 
 .gravitySelect:focus {
-  border-color: #38bdf8;
+  border-color: var(--color-accent-light);
 }
 
 .playControlsRow {
@@ -270,7 +270,7 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.625rem 1.25rem;
-  background: #2563eb;
+  background: var(--color-accent);
   color: #ffffff;
   font-size: 0.875rem;
   font-weight: 600;
@@ -354,9 +354,9 @@
   font-size: 0.6875rem;
   font-weight: 700;
   letter-spacing: 0.06em;
-  color: #38bdf8;
-  background: rgba(56, 189, 248, 0.12);
-  border: 1px solid rgba(56, 189, 248, 0.25);
+  color: var(--color-accent-light);
+  background: rgba(96, 165, 250, 0.12);
+  border: 1px solid rgba(96, 165, 250, 0.25);
   padding: 0.125rem 0.5rem;
   border-radius: 9999px;
   width: fit-content;
@@ -483,12 +483,12 @@
   font-size: 0.8125rem;
   font-family: var(--font-mono);
   font-weight: 600;
-  color: #38bdf8;
+  color: var(--color-accent-light);
 }
 
 .slider {
   width: 100%;
-  accent-color: #38bdf8;
+  accent-color: var(--color-accent-light);
   cursor: pointer;
 }
 

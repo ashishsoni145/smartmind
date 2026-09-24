@@ -15,21 +15,21 @@ const loopSteps = [
     title: 'Goals & Curriculum',
     description: 'You define your targets: exams, subjects, topics, or skills. SharpMind maps your goals to the official curriculum, creating a structured academic graph of everything you need to master.',
     detail: 'Example: "Prepare for JEE Main 2027" → SharpMind maps all Physics, Chemistry, and Maths topics from the JEE syllabus and cross-references with NCERT.',
-    color: '#7c3aed',
+    color: 'var(--color-accent-light)',
   },
   {
     number: '02',
     title: 'Diagnostic & Student Model',
     description: 'Before jumping in, SharpMind assesses what you already know. Quick diagnostic assessments establish your baseline, and the Student Model initialises with real evidence — not assumptions.',
     detail: 'Your Student Model starts forming from day one: concept mastery levels, confidence scores, and knowledge gaps, all based on real interactions.',
-    color: '#6366f1',
+    color: 'var(--color-accent)',
   },
   {
     number: '03',
     title: 'Adaptive Learning',
     description: 'Based on your Student Model, SharpMind generates a personalised learning path. It selects the right concepts, in the right order, at the right difficulty — adapting in real-time as you progress.',
     detail: 'If you\'re strong in Kinematics but weak in Rotational Dynamics, SharpMind won\'t waste time on basics you\'ve mastered. It goes straight to your gaps.',
-    color: '#3b82f6',
+    color: 'var(--color-accent)',
   },
   {
     number: '04',
@@ -64,7 +64,7 @@ const loopSteps = [
     title: 'Readiness & Next Action',
     description: 'Continuous readiness scoring tells you exactly how prepared you are for each exam. The loop starts again — SharpMind always knows the best next action.',
     detail: 'Readiness is broken down by subject, topic, and question type. "You\'re 78% ready for JEE Physics — strongest in Mechanics (92%), weakest in Optics (54%)."',
-    color: '#7c3aed',
+    color: 'var(--color-accent-light)',
   },
 ];
 
