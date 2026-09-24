@@ -466,3 +466,11 @@ All 9 parts of Phase 01 (Foundation, Database, Auth, Onboarding, Authenticated S
     - `npm --prefix apps/web run build`: 36/36 static pages exported cleanly with exit code 0.
     - `npm --prefix backend run build`: Compiled cleanly with exit code 0.
 
+- Android App (Completed 2026-09-24, ADR 0009):
+  - `apps/mobile`: Capacitor 8 project (`com.sharpmind.app`, min SDK 24, target SDK 36) that bundles the `apps/web` static export (`apps/web/out`).
+  - `scripts/build-web.mjs` builds the web export and requires `NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_ANON_KEY`. It warns if `NEXT_PUBLIC_API_URL` is missing, because the app origin is `https://localhost`.
+  - `StaticExportWebViewClient.java` serves `<route>/index.html` (or `404.html`) for extensionless paths instead of Capacitor's root-`index.html` SPA fallback. JUnit tests live in `StaticExportWebViewClientTest`.
+  - Brand adaptive/themed launcher icons and splash screen; `SystemBars` edge-to-edge handling; `allowBackup=false`; env-driven release signing and versioning.
+  - CI: `.github/workflows/android.yml` runs the native unit tests, runs `assembleDebug`, and uploads the `sharpmind-android-debug-apk` artifact. Without repo secrets it produces a flagged placeholder-config smoke build.
+  - Ops follow-ups: add Supabase/API repo secrets and add `https://localhost` to the backend `CORS_ORIGIN`.
+  - Verification in the sandbox: the web export and `cap sync android` succeed. Gradle could not run here because there is no network access to Maven, Google, or Gradle, so CI performs the APK build.

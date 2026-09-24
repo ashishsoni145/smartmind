@@ -1,0 +1,30 @@
+{
+  "appId": "com.sharpmind.app",
+  "appName": "SharpMind",
+  "webDir": "../web/out",
+  "loggingBehavior": "debug",
+  "android": {
+    "backgroundColor": "#080810",
+    "allowMixedContent": false,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  },
+  "server": {
+    "androidScheme": "https",
+    "hostname": "localhost"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1200,
+      "launchAutoHide": true,
+      "launchFadeOutDuration": 250,
+      "backgroundColor": "#080810",
+      "androidScaleType": "CENTER_INSIDE",
+      "showSpinner": false
+    },
+    "SystemBars": {
+      "insetsHandling": "css",
+      "style": "DARK"
+    }
+  }
+}

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SharpMind diamond mark, kept inside the 66dp adaptive-icon safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:pathData="M54,28L75,54L54,80L33,54Z"
+        android:strokeColor="#FFC084FC"
+        android:strokeWidth="2.5"
+        android:strokeLineJoin="miter">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="54"
+                android:startY="28"
+                android:endX="54"
+                android:endY="80">
+                <item android:offset="0" android:color="#FF8B5CF6" />
+                <item android:offset="1" android:color="#FF3B82F6" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path
+        android:pathData="M54,44.5L62,54L54,63.5L46,54Z"
+        android:fillColor="#FFC9C4FF" />
+</vector>

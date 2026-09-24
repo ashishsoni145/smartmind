@@ -1,0 +1,24 @@
+{
+  "name": "@sharpmind/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SharpMind Android app: a Capacitor shell around the static-exported apps/web client",
+  "scripts": {
+    "build:web": "node ./scripts/build-web.mjs",
+    "sync": "cap sync android",
+    "build": "npm run build:web && cap sync android",
+    "open": "cap open android",
+    "apk:debug": "npm run build && cd android && ./gradlew assembleDebug",
+    "apk:release": "npm run build && cd android && ./gradlew assembleRelease",
+    "bundle:release": "npm run build && cd android && ./gradlew bundleRelease"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/splash-screen": "^8.0.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.2"
+  }
+}
