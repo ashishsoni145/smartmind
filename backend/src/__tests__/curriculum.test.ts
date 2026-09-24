@@ -1,12 +1,29 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../app';
 import { CurriculumService } from '../modules/curriculum/curriculum.service';
+import { supabase } from '../db/client';
 
 describe('Curriculum & Syllabus Engine Suite', () => {
   const app = createApp();
 
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('GET /api/v1/curriculum/boards should return all supported boards', async () => {
+    vi.spyOn(supabase, 'from').mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        order: vi.fn().mockResolvedValue({
+          data: [
+            { id: 'cbse', code: 'CBSE', name: 'Central Board of Secondary Education' },
+            { id: 'isc', code: 'ISC', name: 'Indian School Certificate' },
+          ],
+          error: null,
+        }),
+      }),
+    } as any);
+
     const res = await request(app).get('/api/v1/curriculum/boards');
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
@@ -17,6 +34,19 @@ describe('Curriculum & Syllabus Engine Suite', () => {
   });
 
   it('GET /api/v1/curriculum/grades should return sorted academic grades', async () => {
+    vi.spyOn(supabase, 'from').mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        order: vi.fn().mockResolvedValue({
+          data: [
+            { id: 'class_9', code: 'class_9', name: 'Class 9', ordering: 1 },
+            { id: 'class_10', code: 'class_10', name: 'Class 10', ordering: 2 },
+            { id: 'class_11', code: 'class_11', name: 'Class 11', ordering: 3 },
+          ],
+          error: null,
+        }),
+      }),
+    } as any);
+
     const res = await request(app).get('/api/v1/curriculum/grades');
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
@@ -25,6 +55,19 @@ describe('Curriculum & Syllabus Engine Suite', () => {
   });
 
   it('GET /api/v1/curriculum/subjects should return foundational STEM subjects', async () => {
+    vi.spyOn(supabase, 'from').mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        order: vi.fn().mockResolvedValue({
+          data: [
+            { id: 'physics', code: 'PHY', name: 'Physics' },
+            { id: 'chemistry', code: 'CHEM', name: 'Chemistry' },
+            { id: 'mathematics', code: 'MATH', name: 'Mathematics' },
+          ],
+          error: null,
+        }),
+      }),
+    } as any);
+
     const res = await request(app).get('/api/v1/curriculum/subjects');
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
@@ -35,6 +78,34 @@ describe('Curriculum & Syllabus Engine Suite', () => {
   });
 
   it('GET /api/v1/curriculum/chapters should filter by subject and grade', async () => {
+    vi.spyOn(supabase, 'from').mockImplementation((table: string) => {
+      if (table === 'curriculum_nodes') {
+        const chain: any = {
+          select: vi.fn(() => chain),
+          eq: vi.fn(() => chain),
+          in: vi.fn(() => chain),
+          order: vi.fn(() => chain),
+          then: (resolve: any) =>
+            Promise.resolve({
+              data: [
+                {
+                  id: 'ch-kinematics',
+                  subject_id: 'physics',
+                  grade_id: 'class_11',
+                  board_id: 'cbse',
+                  node_type: 'chapter',
+                  code: 'PHY-11-KIN',
+                  title: 'Kinematics',
+                },
+              ],
+              error: null,
+            }).then(resolve),
+        };
+        return chain;
+      }
+      return {} as any;
+    });
+
     const res = await request(app).get('/api/v1/curriculum/chapters?subjectId=physics&gradeId=class_11');
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);

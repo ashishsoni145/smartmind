@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../app';
+import { supabase } from '../db/client';
 
 describe('SharpMind Academic OS Backend API Suite', () => {
   const app = createApp();
@@ -22,6 +23,10 @@ describe('SharpMind Academic OS Backend API Suite', () => {
   });
 
   it('GET /api/v1/health/db should verify live Supabase database connectivity', async () => {
+    vi.spyOn(supabase, 'from').mockReturnValue({
+      select: vi.fn().mockResolvedValue({ data: [], error: null, count: 0 }),
+    } as any);
+
     const res = await request(app).get('/api/v1/health/db');
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
@@ -45,6 +50,14 @@ describe('SharpMind Academic OS Backend API Suite', () => {
   });
 
   it('GET /api/v1/search should allow searching public taxonomy without crash', async () => {
+    vi.spyOn(supabase, 'from').mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        or: vi.fn().mockReturnValue({
+          limit: vi.fn().mockResolvedValue({ data: [], error: null }),
+        }),
+      }),
+    } as any);
+
     const res = await request(app).get('/api/v1/search?q=physics&scope=curriculum');
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);

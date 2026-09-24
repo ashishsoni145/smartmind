@@ -1,15 +1,35 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../app';
 import { GraphService } from '../modules/knowledge-graph/graph.service';
+import { supabase } from '../db/client';
 
 describe('Academic Knowledge Graph & DAG Traversal Suite', () => {
   const app = createApp();
-  let conceptAId: string;
-  let conceptBId: string;
-  let conceptCId: string;
+  let conceptAId = 'concept-a-123';
+  let conceptBId = 'concept-b-456';
+  let conceptCId = 'concept-c-789';
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
 
   it('Should create foundational concepts in the knowledge graph', async () => {
+    vi.spyOn(supabase, 'from').mockImplementation((table: string) => {
+      if (table === 'concepts') {
+        const chain: any = {
+          upsert: vi.fn(() => chain),
+          select: vi.fn(() => chain),
+          single: vi.fn().mockImplementation(async () => ({
+            data: { id: `mock-concept-${Date.now()}-${Math.random()}` },
+            error: null,
+          })),
+        };
+        return chain;
+      }
+      return {} as any;
+    });
+
     const conceptA = await GraphService.createConcept({
       code: `TEST-CONC-VEC-${Date.now()}`,
       title: 'Vector Resolution & Trigonometry',
@@ -63,6 +83,23 @@ describe('Academic Knowledge Graph & DAG Traversal Suite', () => {
   });
 
   it('Should establish a directed prerequisite edge in the DAG (A -> B and B -> C)', async () => {
+    vi.spyOn(supabase, 'from').mockImplementation((table: string) => {
+      if (table === 'knowledge_graph_edges') {
+        const chain: any = {
+          select: vi.fn(() => chain),
+          eq: vi.fn(() => chain),
+          upsert: vi.fn(() => chain),
+          single: vi.fn().mockImplementation(async () => ({
+            data: { id: `mock-edge-${Date.now()}-${Math.random()}` },
+            error: null,
+          })),
+          then: (resolve: any) => Promise.resolve({ data: [], error: null }).then(resolve),
+        };
+        return chain;
+      }
+      return {} as any;
+    });
+
     // A (Vectors) is prerequisite of B (Projectile)
     const edge1 = await GraphService.createEdge({
       sourceConceptId: conceptAId,
@@ -88,6 +125,26 @@ describe('Academic Knowledge Graph & DAG Traversal Suite', () => {
   });
 
   it('Should retrieve recursive prerequisite chain via API', async () => {
+    vi.spyOn(supabase, 'rpc').mockResolvedValue({
+      data: [
+        {
+          concept_id: conceptBId,
+          concept_code: 'TEST-CONC-PROJ',
+          concept_title: '2D Projectile Trajectory Dynamics',
+          depth: 1,
+          path: [conceptCId, conceptBId],
+        },
+        {
+          concept_id: conceptAId,
+          concept_code: 'TEST-CONC-VEC',
+          concept_title: 'Vector Resolution & Trigonometry',
+          depth: 2,
+          path: [conceptCId, conceptBId, conceptAId],
+        },
+      ],
+      error: null,
+    } as any);
+
     const res = await request(app).get(`/api/v1/graph/concepts/${conceptCId}/prerequisites`);
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
@@ -99,6 +156,31 @@ describe('Academic Knowledge Graph & DAG Traversal Suite', () => {
   });
 
   it('Cycle detection: should reject edge that creates a directed cycle (C -> A)', async () => {
+    // hasPrerequisiteCycle(target: conceptAId, source: conceptCId):
+    // starts at queue=[conceptAId], queue.shift() -> conceptAId.
+    // matches current === conceptCId if dependents of conceptAId returns conceptCId.
+    vi.spyOn(supabase, 'from').mockImplementation((table: string) => {
+      if (table === 'knowledge_graph_edges') {
+        const chain: any = {
+          select: vi.fn(() => chain),
+          eq: vi.fn().mockImplementation((_col: string, val: string) => {
+            if (val === conceptAId) {
+              return {
+                eq: vi.fn().mockResolvedValue({
+                  data: [{ target_concept_id: conceptCId }],
+                }),
+              };
+            }
+            return {
+              eq: vi.fn().mockResolvedValue({ data: [] }),
+            };
+          }),
+        };
+        return chain;
+      }
+      return {} as any;
+    });
+
     // Attempting to make C prerequisite of A creates a cycle A -> B -> C -> A
     await expect(
       GraphService.createEdge({

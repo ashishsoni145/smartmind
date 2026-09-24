@@ -1,13 +1,40 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../app';
 import { QuestionService } from '../modules/questions/question.service';
+import { supabase } from '../db/client';
 
 describe('PYQ Data Model, Deduplication & Pattern Analysis Suite', () => {
   const app = createApp();
   const testQuestionText = `Unique Test PYQ: An electron is accelerated through a potential difference V=${Date.now()} Volts. What is its de Broglie wavelength?`;
 
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('Should ingest authentic PYQ with options and examination metadata', async () => {
+    vi.spyOn(supabase, 'from').mockImplementation((table: string) => {
+      if (table === 'questions') {
+        const chain: any = {
+          select: vi.fn(() => chain),
+          eq: vi.fn(() => chain),
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+          insert: vi.fn(() => chain),
+          single: vi.fn().mockResolvedValue({
+            data: { id: 'mock-q-1', question_text: testQuestionText },
+            error: null,
+          }),
+        };
+        return chain;
+      }
+      if (table === 'question_options') {
+        return {
+          insert: vi.fn().mockResolvedValue({ data: [], error: null }),
+        } as any;
+      }
+      return {} as any;
+    });
+
     const result = await QuestionService.ingestQuestions([
       {
         subjectId: 'physics',
@@ -40,6 +67,22 @@ describe('PYQ Data Model, Deduplication & Pattern Analysis Suite', () => {
   });
 
   it('Deduplication: re-ingesting duplicate PYQ should increment appearance frequency without duplicating rows', async () => {
+    vi.spyOn(supabase, 'from').mockImplementation((table: string) => {
+      if (table === 'questions') {
+        const chain: any = {
+          select: vi.fn(() => chain),
+          eq: vi.fn(() => chain),
+          maybeSingle: vi.fn().mockResolvedValue({
+            data: { id: 'mock-q-1', appearance_frequency: 1 },
+            error: null,
+          }),
+          update: vi.fn(() => chain),
+        };
+        return chain;
+      }
+      return {} as any;
+    });
+
     const result = await QuestionService.ingestQuestions([
       {
         subjectId: 'physics',
@@ -60,6 +103,31 @@ describe('PYQ Data Model, Deduplication & Pattern Analysis Suite', () => {
   });
 
   it('GET /api/v1/questions/pyqs should filter PYQs by target exam', async () => {
+    vi.spyOn(supabase, 'from').mockImplementation((table: string) => {
+      if (table === 'questions') {
+        const chain: any = {
+          select: vi.fn(() => chain),
+          eq: vi.fn(() => chain),
+          order: vi.fn(() => chain),
+          then: (resolve: any) =>
+            Promise.resolve({
+              data: [
+                {
+                  id: 'mock-pyq-1',
+                  is_pyq: true,
+                  target_exam_id: 'jee_main',
+                  question_text: 'Sample PYQ text',
+                  question_options: [],
+                },
+              ],
+              error: null,
+            }).then(resolve),
+        };
+        return chain;
+      }
+      return {} as any;
+    });
+
     const res = await request(app).get('/api/v1/questions/pyqs?targetExamId=jee_main');
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
@@ -70,6 +138,30 @@ describe('PYQ Data Model, Deduplication & Pattern Analysis Suite', () => {
   });
 
   it('GET /api/v1/questions/patterns should return exam frequency and difficulty distribution', async () => {
+    vi.spyOn(supabase, 'from').mockImplementation((table: string) => {
+      if (table === 'questions') {
+        const chain: any = {
+          select: vi.fn(() => chain),
+          eq: vi.fn(() => chain),
+          then: (resolve: any) =>
+            Promise.resolve({
+              data: [
+                {
+                  source_exam: 'JEE Main',
+                  source_year: 2023,
+                  difficulty_level: 'medium',
+                  pattern_tags: ['formula_direct'],
+                  is_pyq: true,
+                },
+              ],
+              error: null,
+            }).then(resolve),
+        };
+        return chain;
+      }
+      return {} as any;
+    });
+
     const res = await request(app).get('/api/v1/questions/patterns?targetExamId=jee_main');
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
