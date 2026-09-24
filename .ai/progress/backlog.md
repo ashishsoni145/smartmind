@@ -34,6 +34,7 @@ This document tracks technical debt, future system integrations, and planned pha
 ---
 
 ## Phase 06: Cross-Platform Native Apps (Desktop & Mobile)
-- [ ] **React Native / Expo Mobile App**: Reuse `SettingsAdapter`, `CurriculumAdapter`, `AuthAdapter`, and core domain contracts.
+- [x] **Android App**: Delivered as a Capacitor 8 shell around the `apps/web` static export (ADR 0009) instead of React Native/Expo, which reuses every adapter and screen without duplication.
+- [ ] **iOS App**: `npx cap add ios` in `apps/mobile` using the same approach.
 - [ ] **Offline Cache & Sync**: SQLite/WatermelonDB local cache for offline NCERT reading and test-taking on mobile devices.
 - [ ] **Push Notifications**: Connect FCM / APNs to `NotificationSettings` for study alerts and spaced repetition decay reminders.

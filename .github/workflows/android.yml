@@ -1,0 +1,79 @@
+name: Android app
+
+on:
+  pull_request:
+    paths:
+      - 'apps/mobile/**'
+      - 'apps/web/**'
+      - 'packages/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/android.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/mobile/**'
+      - 'apps/web/**'
+      - 'packages/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/android.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # Configure these as repository secrets for a fully functional (online) build.
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+      SHARPMIND_VERSION_CODE: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Check build configuration
+        run: |
+          if [ -z "$NEXT_PUBLIC_SUPABASE_URL" ] || [ -z "$NEXT_PUBLIC_SUPABASE_ANON_KEY" ]; then
+            echo "::warning title=Smoke-test APK::Supabase secrets are not configured, so this APK uses placeholder config and cannot sign in. Add NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY and NEXT_PUBLIC_API_URL repository secrets for a functional build."
+            echo "SHARPMIND_ALLOW_PLACEHOLDER_CONFIG=1" >> "$GITHUB_ENV"
+          fi
+
+      - name: Build web bundle and sync Capacitor
+        run: npm --prefix apps/mobile run build
+
+      - name: Unit tests
+        working-directory: apps/mobile/android
+        run: ./gradlew --no-daemon testDebugUnitTest
+
+      - name: Assemble debug APK
+        working-directory: apps/mobile/android
+        run: ./gradlew --no-daemon assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: sharpmind-android-debug-apk
+          path: apps/mobile/android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14

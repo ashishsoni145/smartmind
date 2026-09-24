@@ -41,5 +41,6 @@ Product areas and implementation status across platforms and workspaces:
 | AI Guardrails & Evaluation Suite | `backend/src/ai/guardrails/`, `backend/src/ai/evaluation/` | Implemented (Phase 06) |
 | Classroom Collaboration & Mentorship | `backend/src/modules/classroom` | Planned (Phase 08) |
 | Roles/Admin/Billing Workflows | `backend/src/modules/admin`, `billing` | Planned (Phase 09) |
-| Mobile/desktop clients | `apps/mobile`, `apps/desktop` | Planned (Future) |
+| Android app (Capacitor shell over web export) | `apps/mobile` | Implemented (2026-09-24, ADR 0009) |
+| iOS/desktop clients | `apps/mobile` (iOS), `apps/desktop` | Planned (Future) |
 
