@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Button — Claymorphic with springy press & inflate
+   Button — precise, premium controls. Fast transitions, no inflate.
    ========================================================================== */
 
 .button {
@@ -7,108 +7,102 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  font-family: var(--font-accent);
+  font-family: var(--font-sans);
   font-weight: var(--weight-semibold);
   line-height: 1;
   white-space: nowrap;
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-md);
   border: 1px solid transparent;
   cursor: pointer;
   position: relative;
   text-decoration: none;
+  letter-spacing: var(--tracking-normal);
   transition:
-    transform 0.35s var(--ease-clay),
-    box-shadow 0.35s var(--ease-clay),
-    background 0.3s var(--ease-smooth),
-    border-color 0.3s var(--ease-smooth),
-    color 0.2s var(--ease-default);
+    background var(--duration-fast) var(--ease-default),
+    border-color var(--duration-fast) var(--ease-default),
+    color var(--duration-fast) var(--ease-default),
+    box-shadow var(--duration-fast) var(--ease-default),
+    transform var(--duration-fast) var(--ease-default);
 }
 
 .button:hover {
-  transform: translateY(-2px) scale(1.03);
+  transform: translateY(-1px);
 }
 
 .button:active:not(:disabled) {
-  transform: scale(0.96);
-  box-shadow: var(--clay-shadow-pressed);
-  transition-duration: 0.12s;
+  transform: translateY(0) scale(0.99);
+  transition-duration: 80ms;
 }
 
 .button:disabled,
 .button.loading {
-  opacity: 0.5;
+  opacity: 0.55;
   cursor: not-allowed;
   pointer-events: none;
 }
 
-/* ---- Sizes ---- */
+/* ---- Sizes (compact controls) ---- */
 .sm {
-  padding: var(--space-2) var(--space-5);
-  font-size: var(--text-sm);
-  border-radius: var(--radius-lg);
+  padding: 0.375rem 0.75rem;
+  font-size: 0.8125rem;
+  border-radius: var(--radius-md);
 }
 
 .md {
-  padding: var(--space-3) var(--space-6);
-  font-size: var(--text-base);
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  border-radius: var(--radius-md);
 }
 
 .lg {
-  padding: var(--space-4) var(--space-10);
-  font-size: var(--text-lg);
-  border-radius: var(--radius-2xl);
+  padding: 0.625rem 1.375rem;
+  font-size: 0.9375rem;
+  border-radius: var(--radius-lg);
 }
 
-/* ---- Primary — White clay pill ---- */
+/* ---- Primary — SharpMind white solid ---- */
 .primary {
   background: #ffffff;
-  color: #0a0a0a;
-  border-color: rgba(255, 255, 255, 0.3);
-  box-shadow: var(--clay-shadow-md);
+  color: #0b0b0c;
+  border-color: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
 .primary:hover {
-  background: #f0f0f0;
-  box-shadow:
-    10px 10px 22px rgba(0, 0, 0, 0.5),
-    -8px -8px 18px rgba(255, 255, 255, 0.08),
-    inset 2px 2px 5px rgba(255, 255, 255, 0.15),
-    0 0 30px rgba(255, 255, 255, 0.08);
+  background: var(--color-primary-hover);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
 .primary:active:not(:disabled) {
-  background: #e5e5e5;
-  transform: scale(0.96);
+  background: var(--color-primary-dark);
 }
 
-/* ---- Secondary — Dark clay pill with white border ---- */
+/* ---- Secondary — tonal surface + subtle border ---- */
 .secondary {
   background: var(--color-bg-elevated);
   color: var(--color-text-primary);
-  border-color: rgba(255, 255, 255, 0.12);
+  border-color: var(--color-border-hover);
   box-shadow: var(--clay-shadow-sm);
 }
 
 .secondary:hover {
-  background: var(--color-bg-glass-hover);
+  background: var(--surface-hover);
   border-color: rgba(255, 255, 255, 0.2);
-  box-shadow: var(--clay-shadow-hover);
 }
 
-/* ---- Outline — Ghost clay with border ---- */
+/* ---- Outline — ghost with border ---- */
 .outline {
   background: transparent;
   color: var(--color-text-primary);
-  border-color: rgba(255, 255, 255, 0.2);
+  border-color: var(--color-border-hover);
 }
 
 .outline:hover {
   background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.35);
-  box-shadow: var(--clay-shadow-sm);
+  border-color: rgba(255, 255, 255, 0.28);
 }
 
-/* ---- Ghost — Minimal ---- */
+/* ---- Ghost — minimal ---- */
 .ghost {
   background: transparent;
   color: var(--color-text-secondary);
@@ -129,11 +123,12 @@
 .spinner {
   width: 1em;
   height: 1em;
-  border: 2px solid rgba(0, 0, 0, 0.2);
-  border-top-color: currentColor;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
   position: absolute;
+  opacity: 0.9;
 }
 
 .hiddenText {
@@ -144,4 +139,16 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+/* Light theme: primary becomes dark solid */
+[data-theme="light"] .primary {
+  background: #17171a;
+  color: #ffffff;
+  border-color: #17171a;
+  box-shadow: 0 1px 2px rgba(15, 15, 20, 0.15);
+}
+
+[data-theme="light"] .primary:hover {
+  background: #2a2a2f;
 }

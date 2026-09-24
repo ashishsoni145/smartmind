@@ -28,21 +28,22 @@
 .newSessionBtn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
   margin: 1rem 1.25rem 0.5rem;
-  padding: 0.625rem 1rem;
-  background: var(--brand-primary);
-  color: #ffffff;
+  padding: 0.5rem 1rem;
+  background: #ffffff;
+  color: #0b0b0c;
   border-radius: var(--radius-md);
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 600;
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.9);
   cursor: pointer;
-  transition: opacity 0.2s ease, transform 0.1s ease;
+  transition: background 0.15s ease, transform 0.15s ease;
 }
 
 .newSessionBtn:hover {
-  opacity: 0.92;
+  background: var(--color-primary-hover);
   transform: translateY(-1px);
 }
 
@@ -76,8 +77,8 @@
 }
 
 .activeSessionItem {
-  background: rgba(37, 99, 235, 0.1);
-  border-color: rgba(37, 99, 235, 0.25);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--border-strong);
 }
 
 .sessionContent {
@@ -98,7 +99,7 @@
 }
 
 .activeSessionItem .sessionTitle {
-  color: var(--brand-primary);
+  color: var(--text-primary);
 }
 
 .sessionMeta {

@@ -23,15 +23,15 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  background: rgba(59, 130, 246, 0.15);
+  background: rgba(91, 141, 239, 0.15);
   color: #60a5fa;
-  border: 1px solid rgba(59, 130, 246, 0.3);
+  border: 1px solid rgba(91, 141, 239, 0.3);
   width: fit-content;
 }
 
 .title {
-  font-size: 2rem;
-  font-weight: 700;
+  font-size: 1.5rem;
+  font-weight: 600;
   color: #ffffff;
   margin: 0;
   letter-spacing: -0.02em;
@@ -118,10 +118,10 @@
 }
 
 .presetBtn.activePreset {
-  background: rgba(59, 130, 246, 0.2);
-  border-color: #3b82f6;
+  background: rgba(91, 141, 239, 0.2);
+  border-color: var(--color-accent);
   color: #60a5fa;
-  box-shadow: 0 0 16px rgba(59, 130, 246, 0.25);
+  box-shadow: 0 0 16px rgba(91, 141, 239, 0.25);
 }
 
 .objectiveInputSection {
@@ -143,8 +143,8 @@
 }
 
 .objectiveInput:focus {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(91, 141, 239, 0.25);
 }
 
 .objectiveInput:disabled {
@@ -179,7 +179,7 @@
 
 .progressBar {
   fill: none;
-  stroke: #3b82f6;
+  stroke: var(--color-accent);
   stroke-width: 8;
   stroke-linecap: round;
   transition: stroke-dashoffset 0.8s ease;
@@ -226,22 +226,23 @@
   display: inline-flex;
   align-items: center;
   gap: 0.6rem;
-  background: #2563eb;
-  color: #ffffff;
+  background: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  color: #0b0b0c;
   font-size: 1rem;
   font-weight: 600;
   padding: 0.85rem 2rem;
   border-radius: 12px;
   border: none;
   cursor: pointer;
-  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.4);
+  box-shadow: 0 4px 16px rgba(91, 141, 239, 0.4);
   transition: all 0.2s ease;
 }
 
 .primaryControlBtn:hover {
   background: #1d4ed8;
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5);
+  box-shadow: 0 6px 20px rgba(91, 141, 239, 0.5);
 }
 
 .secondaryControlBtn {
@@ -347,8 +348,8 @@
 }
 
 .ratingBtn.selectedRating {
-  background: rgba(59, 130, 246, 0.25);
-  border-color: #3b82f6;
+  background: rgba(91, 141, 239, 0.25);
+  border-color: var(--color-accent);
   color: #60a5fa;
 }
 

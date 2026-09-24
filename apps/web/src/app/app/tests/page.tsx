@@ -284,7 +284,7 @@ export default function TestsPage() {
             justifyContent: 'space-between',
             alignItems: 'center',
           }}>
-            <span>⚠️ {errorMsg}</span>
+            <span><span className="banner-inline"><Icon name="info" size="sm" /> {errorMsg}</span></span>
             <button
               onClick={loadAssessments}
               style={{
@@ -310,7 +310,7 @@ export default function TestsPage() {
             color: '#f87171',
             fontSize: '0.875rem',
           }}>
-            ⚠️ {runnerError}
+            <span className="banner-inline"><Icon name="info" size="sm" /> {runnerError}</span>
           </div>
         )}
 

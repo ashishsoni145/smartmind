@@ -51,7 +51,7 @@ function SignupForm() {
       case 2:
         return { label: 'Fair', color: '#f59e0b', width: '50%' };
       case 3:
-        return { label: 'Good', color: '#6366f1', width: '75%' };
+        return { label: 'Good', color: 'var(--color-accent)', width: '75%' };
       case 4:
         return { label: 'Strong', color: '#10b981', width: '100%' };
       default:

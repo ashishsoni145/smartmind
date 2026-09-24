@@ -120,7 +120,7 @@ export default function ReadinessPage() {
             justifyContent: 'space-between',
             alignItems: 'center',
           }}>
-            <span>⚠️ {errorMsg}</span>
+            <span><span className="banner-inline"><Icon name="info" size="sm" /> {errorMsg}</span></span>
             <button
               onClick={() => loadReadiness(false)}
               style={{
@@ -150,7 +150,7 @@ export default function ReadinessPage() {
             borderRadius: 'var(--radius-lg)',
             color: 'var(--color-text-secondary)',
           }}>
-            <span style={{ fontSize: '2.5rem' }}>🎯</span>
+            <span className="empty-icon"><Icon name="readiness" size="lg" /></span>
             <h3 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-text-primary)', marginTop: '0.75rem' }}>
               Readiness Model Uncalibrated
             </h3>
@@ -162,7 +162,7 @@ export default function ReadinessPage() {
               style={{
                 display: 'inline-block',
                 padding: '0.625rem 1.25rem',
-                background: '#6366f1',
+                background: 'var(--color-accent)',
                 color: '#ffffff',
                 borderRadius: 'var(--radius-md)',
                 fontWeight: 500,
@@ -375,7 +375,7 @@ export default function ReadinessPage() {
               color: '#f87171',
               fontSize: '0.875rem',
             }}>
-              ⚠️ {simError}
+              <span className="banner-inline"><Icon name="info" size="sm" /> {simError}</span>
             </div>
           )}
 
@@ -419,7 +419,7 @@ export default function ReadinessPage() {
                   <div className={styles.assumptionsList}>
                     {simResult.assumptions.map((assump, idx) => (
                       <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <span style={{ color: '#6366f1' }}>•</span>
+                        <span style={{ color: 'var(--color-accent)' }}>•</span>
                         <span>{assump}</span>
                       </div>
                     ))}

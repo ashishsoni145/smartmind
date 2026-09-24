@@ -570,7 +570,7 @@ export const TopicDetailView: React.FC<TopicDetailViewProps> = ({
                       </span>
                       {q.isImportant && (
                         <span className={styles.importantBadge}>
-                          🔥 High Yield
+                          <Icon name="flame" size="xs" /> High Yield
                         </span>
                       )}
                       {q.appearanceFrequency && q.appearanceFrequency > 1 && (

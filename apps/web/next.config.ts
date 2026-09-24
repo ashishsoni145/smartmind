@@ -34,6 +34,7 @@ const apiClientDir = fs.existsSync(path.resolve(__dirname, '../../packages/api-c
 const nextConfig: NextConfig = {
   output: 'export',
   outputFileTracingRoot: isMonorepo ? monorepoRoot : __dirname,
+  devIndicators: false,
   images: {
     unoptimized: true,
   },

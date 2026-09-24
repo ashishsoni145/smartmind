@@ -1,9 +1,18 @@
 .tutorLayout {
   display: flex;
-  height: calc(100vh - var(--topbar-height, 64px));
+  height: calc(100vh - var(--topbar-height) - 4rem);
+  min-height: 480px;
   background: var(--background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
   overflow: hidden;
   position: relative;
+}
+
+@media (max-width: 900px) {
+  .tutorLayout {
+    height: calc(100vh - var(--topbar-height) - 7rem);
+  }
 }
 
 .mainDialoguePane {
@@ -62,12 +71,15 @@
 
 .topicTag {
   font-size: 0.75rem;
-  color: var(--brand-primary);
-  background: rgba(37, 99, 235, 0.08);
-  border: 1px solid rgba(37, 99, 235, 0.2);
+  color: var(--color-accent-light);
+  background: var(--color-accent-soft);
+  border: 1px solid var(--color-accent-border);
   padding: 0.2rem 0.5rem;
   border-radius: var(--radius-sm);
   font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3125rem;
 }
 
 .topBarActions {
@@ -84,16 +96,16 @@
   border-radius: var(--radius-md);
   font-size: 0.8125rem;
   font-weight: 600;
-  background: rgba(56, 189, 248, 0.12);
-  color: #0284c7;
-  border: 1px solid rgba(56, 189, 248, 0.3);
+  background: var(--color-info-bg);
+  color: var(--color-info);
+  border: 1px solid var(--color-info-border);
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .visualSimBtn:hover {
-  background: rgba(56, 189, 248, 0.2);
-  border-color: #38bdf8;
+  background: rgba(96, 165, 250, 0.16);
+  border-color: var(--color-info);
 }
 
 /* 3D Void Simulation Modal */
@@ -115,4 +127,27 @@
   max-height: 94vh;
   overflow-y: auto;
   border-radius: var(--radius-xl);
+}
+
+/* ---- Mobile: session drawer overlays the dialogue pane ---- */
+@media (max-width: 900px) {
+  .tutorLayout > aside {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 30;
+    width: min(80%, 300px);
+    background: var(--color-bg-surface);
+    box-shadow: 12px 0 32px rgba(0, 0, 0, 0.5);
+    border-right: 1px solid var(--color-border);
+  }
+
+  .dialogueTopBar {
+    padding: 0.625rem 0.75rem;
+  }
+
+  .dialogueTitle {
+    max-width: 160px;
+  }
 }

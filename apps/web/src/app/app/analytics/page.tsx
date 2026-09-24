@@ -73,7 +73,7 @@ export default function AnalyticsPage() {
             justifyContent: 'space-between',
             alignItems: 'center',
           }}>
-            <span>⚠️ {errorMsg}</span>
+            <span><span className="banner-inline"><Icon name="info" size="sm" /> {errorMsg}</span></span>
             <button
               onClick={loadAnalytics}
               style={{
@@ -103,8 +103,10 @@ export default function AnalyticsPage() {
             borderRadius: 'var(--radius-lg)',
             color: 'var(--color-text-secondary)',
           }}>
-            <span style={{ fontSize: '2.5rem' }}>📊</span>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-text-primary)', marginTop: '0.75rem' }}>
+            <div className={styles.emptyStateIcon} aria-hidden="true">
+              <Icon name="analytics" size="lg" />
+            </div>
+            <h3 style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--color-text-primary)', marginTop: '0.75rem' }}>
               Academic Health Score Uncalibrated
             </h3>
             <p style={{ fontSize: '0.875rem', maxWidth: '520px', margin: '0.5rem auto 1.5rem auto', lineHeight: 1.6 }}>
@@ -112,16 +114,7 @@ export default function AnalyticsPage() {
             </p>
             <Link
               href="/app/tests"
-              style={{
-                display: 'inline-block',
-                padding: '0.625rem 1.25rem',
-                background: '#6366f1',
-                color: '#ffffff',
-                borderRadius: 'var(--radius-md)',
-                fontWeight: 500,
-                fontSize: '0.875rem',
-                textDecoration: 'none',
-              }}
+              className={styles.primaryCta}
             >
               Begin Observed Evidence Session &rarr;
             </Link>

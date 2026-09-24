@@ -1,89 +1,58 @@
 /* ==========================================================================
-   Badge — Puffy Clay Pill with accent typography
+   Badge — compact status chips. Color communicates meaning.
    ========================================================================== */
 
 .badge {
   display: inline-flex;
   align-items: center;
-  font-family: var(--font-accent);
+  gap: 4px;
+  font-family: var(--font-mono);
   font-weight: var(--weight-medium);
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-pill);
   white-space: nowrap;
   line-height: 1;
-  letter-spacing: var(--tracking-wide);
+  letter-spacing: 0.03em;
   transition:
-    transform 0.3s var(--ease-clay),
-    box-shadow 0.3s var(--ease-clay);
+    background var(--duration-fast) var(--ease-default),
+    border-color var(--duration-fast) var(--ease-default);
 }
 
 .sm {
-  padding: var(--space-1) var(--space-3);
-  font-size: var(--text-xs);
+  padding: 0.1875rem 0.5rem;
+  font-size: 0.625rem;
 }
 
 .md {
-  padding: var(--space-1-5) var(--space-4);
-  font-size: var(--text-sm);
+  padding: 0.25rem 0.625rem;
+  font-size: 0.6875rem;
 }
 
 .default {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.04);
   color: var(--color-text-secondary);
   border: 1px solid var(--color-border);
-  box-shadow:
-    2px 2px 6px rgba(0, 0, 0, 0.3),
-    inset 1px 1px 2px rgba(255, 255, 255, 0.04);
 }
 
 .primary {
-  background: rgba(255, 255, 255, 0.12);
-  color: var(--color-text-primary);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow:
-    3px 3px 8px rgba(0, 0, 0, 0.35),
-    inset 1px 1px 3px rgba(255, 255, 255, 0.06);
+  background: var(--color-accent-soft);
+  color: var(--color-accent-light);
+  border: 1px solid var(--color-accent-border);
 }
 
 .success {
-  background: rgba(68, 255, 136, 0.1);
+  background: var(--color-success-bg);
   color: var(--color-success);
-  border: 1px solid rgba(68, 255, 136, 0.2);
-  box-shadow:
-    2px 2px 6px rgba(0, 0, 0, 0.3),
-    inset 1px 1px 2px rgba(68, 255, 136, 0.05);
+  border: 1px solid var(--color-success-border);
 }
 
 .warning {
-  background: rgba(255, 170, 0, 0.1);
+  background: var(--color-warning-bg);
   color: var(--color-warning);
-  border: 1px solid rgba(255, 170, 0, 0.2);
-  box-shadow:
-    2px 2px 6px rgba(0, 0, 0, 0.3),
-    inset 1px 1px 2px rgba(255, 170, 0, 0.05);
+  border: 1px solid var(--color-warning-border);
 }
 
 .coming {
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--color-text-secondary);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow:
-    2px 2px 6px rgba(0, 0, 0, 0.3),
-    inset 1px 1px 2px rgba(255, 255, 255, 0.04);
-  animation: clayPulse 3s ease-in-out infinite;
-}
-
-@keyframes clayPulse {
-  0%, 100% {
-    box-shadow:
-      2px 2px 6px rgba(0, 0, 0, 0.3),
-      inset 1px 1px 2px rgba(255, 255, 255, 0.04);
-    transform: scale(1);
-  }
-  50% {
-    box-shadow:
-      3px 3px 10px rgba(0, 0, 0, 0.35),
-      inset 1px 1px 3px rgba(255, 255, 255, 0.06),
-      0 0 12px rgba(255, 255, 255, 0.06);
-    transform: scale(1.03);
-  }
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--color-text-muted);
+  border: 1px dashed var(--color-border-hover);
 }

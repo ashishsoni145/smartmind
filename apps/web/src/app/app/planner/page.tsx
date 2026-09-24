@@ -235,7 +235,7 @@ export default function PlannerPage() {
               disabled={replanning || loading}
             >
               <Icon name="zap" size="xs" />
-              {replanning ? 'Replanning...' : '⚡ Replan Missed Work'}
+              {replanning ? 'Replanning...' : 'Replan Missed Work'}
             </button>
           </div>
         </header>
@@ -252,7 +252,7 @@ export default function PlannerPage() {
             justifyContent: 'space-between',
             alignItems: 'center',
           }}>
-            <span>⚠️ {errorMsg}</span>
+            <span><span className="banner-inline"><Icon name="info" size="sm" /> {errorMsg}</span></span>
             <button
               onClick={loadPlannerData}
               style={{
@@ -321,7 +321,7 @@ export default function PlannerPage() {
               borderRadius: 'var(--radius-lg)',
               color: 'var(--color-text-secondary)',
             }}>
-              <span style={{ fontSize: '2.5rem' }}>📅</span>
+              <span className="empty-icon"><Icon name="calendar" size="lg" /></span>
               <h3 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-text-primary)', marginTop: '0.75rem' }}>
                 No Study Sessions Scheduled for Today
               </h3>
@@ -343,7 +343,7 @@ export default function PlannerPage() {
                 <div key={session.id} className={styles.sessionCard}>
                   <div className={styles.sessionHeaderRow}>
                     <div className={styles.sessionTimeSlot}>
-                      <span>⏰ Block {sIdx + 1}: {session.startTime} – {session.endTime}</span>
+                      <span className="banner-inline"><Icon name="clock" size="xs" /> Block {sIdx + 1}: {session.startTime} – {session.endTime}</span>
                     </div>
                     <span className={styles.sessionMeta}>
                       {session.durationMinutes} Mins Allocated • {session.tasks.length} Tasks
@@ -402,7 +402,7 @@ export default function PlannerPage() {
                             href={task.taskType.includes('revision') ? '/app/revision' : '/app/tests'}
                             style={{
                               fontSize: '0.75rem',
-                              color: '#6366f1',
+                              color: 'var(--color-accent)',
                               textDecoration: 'underline',
                               fontWeight: 500,
                             }}

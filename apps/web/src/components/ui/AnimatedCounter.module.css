@@ -18,8 +18,8 @@
 }
 
 .counter:hover {
-  transform: translateY(-4px) scale(1.03);
-  box-shadow: var(--clay-shadow-hover);
+  transform: translateY(-1px);
+  border-color: var(--color-border-hover);
 }
 
 .value {

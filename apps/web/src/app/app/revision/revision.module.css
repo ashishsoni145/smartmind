@@ -31,14 +31,14 @@
   width: 2.5rem;
   height: 2.5rem;
   border-radius: 0.75rem;
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(168, 85, 247, 0.15));
-  border: 1px solid rgba(99, 102, 241, 0.3);
-  color: #818cf8;
+  background: linear-gradient(135deg, rgba(91, 141, 239, 0.15), rgba(91, 141, 239, 0.15));
+  border: 1px solid rgba(91, 141, 239, 0.3);
+  color: var(--color-accent-light);
 }
 
 .pageTitle {
-  font-size: 1.625rem;
-  font-weight: 700;
+  font-size: 1.5rem;
+  font-weight: 600;
   letter-spacing: -0.02em;
   color: #ffffff;
 }
@@ -120,9 +120,9 @@
 }
 
 .filterPillActive {
-  background: #6366f1;
-  border-color: #6366f1;
-  color: #ffffff;
+  background: #ffffff;
+  border-color: rgba(255, 255, 255, 0.9);
+  color: #0b0b0c;
 }
 
 /* Revision Cards Grid */
@@ -161,8 +161,8 @@
   font-family: var(--font-mono, monospace);
   font-weight: 600;
   text-transform: uppercase;
-  color: #38bdf8;
-  background: rgba(56, 189, 248, 0.1);
+  color: var(--color-accent-light);
+  background: rgba(96, 165, 250, 0.1);
   padding: 0.2rem 0.5rem;
   border-radius: 0.25rem;
 }

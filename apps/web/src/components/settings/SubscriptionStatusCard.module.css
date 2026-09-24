@@ -50,9 +50,9 @@
   letter-spacing: 0.05em;
   padding: 0.25rem 0.625rem;
   border-radius: var(--radius-full);
-  background: rgba(37, 99, 235, 0.12);
+  background: rgba(91, 141, 239, 0.12);
   color: var(--brand-primary);
-  border: 1px solid rgba(37, 99, 235, 0.25);
+  border: 1px solid rgba(91, 141, 239, 0.25);
 }
 
 .featuresGrid {
@@ -70,7 +70,7 @@
 }
 
 .featureIcon {
-  color: #10b981;
+  color: var(--color-success);
   flex-shrink: 0;
 }
 
@@ -78,8 +78,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.1) 0%, rgba(168, 85, 247, 0.1) 100%);
-  border: 1px solid rgba(37, 99, 235, 0.25);
+  background: linear-gradient(135deg, rgba(91, 141, 239, 0.1) 0%, rgba(91, 141, 239, 0.1) 100%);
+  border: 1px solid rgba(91, 141, 239, 0.25);
   border-radius: var(--radius-lg);
   padding: 1.25rem;
   flex-wrap: wrap;

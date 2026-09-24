@@ -46,7 +46,7 @@
   outline: none;
   background: var(--surface);
   border-color: var(--brand-primary);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  box-shadow: 0 0 0 3px rgba(91, 141, 239, 0.15);
 }
 
 .clearBtn {

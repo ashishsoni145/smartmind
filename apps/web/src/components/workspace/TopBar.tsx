@@ -47,7 +47,10 @@ export function TopBar({
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const currentTitle = ROUTE_TITLES[pathname] || 'Workspace';
+  // trailingSlash config yields '/app/' — normalize for lookup
+  const normalizedPath =
+    pathname && pathname !== '/' && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+  const currentTitle = ROUTE_TITLES[normalizedPath || ''] || 'Workspace';
 
   // Close dropdown on outside click
   useEffect(() => {

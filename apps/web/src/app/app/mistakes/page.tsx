@@ -163,7 +163,7 @@ export default function MistakesPage() {
             justifyContent: 'space-between',
             alignItems: 'center',
           }}>
-            <span>⚠️ {errorMsg}</span>
+            <span><span className="banner-inline"><Icon name="info" size="sm" /> {errorMsg}</span></span>
             <button
               onClick={loadMistakes}
               style={{
@@ -357,7 +357,7 @@ export default function MistakesPage() {
                   color: '#f87171',
                   fontSize: '0.8125rem',
                 }}>
-                  ⚠️ {retryError}
+                  <span className="banner-inline"><Icon name="info" size="sm" /> {retryError}</span>
                 </div>
               )}
 
@@ -390,7 +390,7 @@ export default function MistakesPage() {
                         padding: '0.75rem 1rem',
                         borderRadius: '0.5rem',
                         background: retryAnswer === opt.optionKey ? 'rgba(99,102,241,0.2)' : 'rgba(255,255,255,0.03)',
-                        border: `1px solid ${retryAnswer === opt.optionKey ? '#6366f1' : 'rgba(255,255,255,0.08)'}`,
+                        border: `1px solid ${retryAnswer === opt.optionKey ? 'var(--color-accent)' : 'rgba(255,255,255,0.08)'}`,
                         cursor: 'pointer',
                         color: '#ffffff',
                         display: 'flex',
