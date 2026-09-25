@@ -1,0 +1,14 @@
+{
+  "extends": "@react-native/typescript-config",
+  "compilerOptions": {
+    "types": ["jest"],
+    "baseUrl": ".",
+    "paths": {
+      "@sharpmind/types": ["../../packages/types/src/index.ts"],
+      "@sharpmind/types/*": ["../../packages/types/src/*"],
+      "@sharpmind/api-client": ["../../packages/api-client/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*", "index.js", "app.json", "__tests__/**/*", "../../packages/types/src/**/*", "../../packages/api-client/src/**/*"],
+  "exclude": ["android", "node_modules", "**/node_modules"]
+}

@@ -16,3 +16,5 @@ __pycache__/
 .cache/
 *.jks
 *.keystore
+!apps/mobile/android/app/debug.keystore
+apps/mobile/src/config/public-env.generated.ts

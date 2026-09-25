@@ -466,6 +466,8 @@ All 9 parts of Phase 01 (Foundation, Database, Auth, Onboarding, Authenticated S
     - `npm --prefix apps/web run build`: 36/36 static pages exported cleanly with exit code 0.
     - `npm --prefix backend run build`: Compiled cleanly with exit code 0.
 
+- Android App (superseded note, 2026-09-24): ADR 0009's Capacitor shell was removed the same day. See ADR 0010. The paragraphs below describe the removed shell and are historical only.
+
 - Android App (Completed 2026-09-24, ADR 0009):
   - `apps/mobile`: Capacitor 8 project (`com.sharpmind.app`, min SDK 24, target SDK 36) that bundles the `apps/web` static export (`apps/web/out`).
   - `scripts/build-web.mjs` builds the web export and requires `NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_ANON_KEY`. It warns if `NEXT_PUBLIC_API_URL` is missing, because the app origin is `https://localhost`.

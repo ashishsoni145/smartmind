@@ -1,4 +1,8 @@
 # Current
+
+Android client rebuild (ADR 0010) is in progress. Capacitor is gone. React Native screens and Kotlin focus sources are in `apps/mobile`. Usage-path `TIME_LIMIT` and `FOCUS_ONLY` are wired. Local proof still required: `npm install`, `npm run mobile:typecheck`, `npm run mobile:test`. APK proof is GitHub Actions, not this sandbox.
+
+# Previous
  
 Phase 03 — COMPLETED (Parts 01–04).
  

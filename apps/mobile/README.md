@@ -1,77 +1,51 @@
-# SharpMind Android app (`apps/mobile`)
+# SharpMind Android
 
-The Android app is a [Capacitor 8](https://capacitorjs.com/) shell around the static export of
-`apps/web`. Every screen, adapter and domain contract is the web client's own code, so there is
-no second UI or duplicated business logic to keep in sync. See
-[ADR 0009](../../docs/architecture/adr/0009-android-app-capacitor-shell.md) for the reasoning.
+React Native + TypeScript UI with a Kotlin focus engine. This is not a WebView, not a Capacitor shell, and not a second backend. `apps/web` and the existing `/api/v1` backend remain the source of truth.
 
-```
-apps/web  --(next build, output: 'export')-->  apps/web/out  --(cap sync)-->  android/app/src/main/assets/public
-```
-
-## Prerequisites
-
-- Node 22 and the monorepo dependencies (`npm ci` at the repo root)
-- JDK 21
-- Android SDK with platform 36 (Android Studio Ladybug or newer works)
-
-## Environment
-
-Values are inlined into the bundle at build time:
-
-| Variable | Required | Purpose |
-| --- | --- | --- |
-| `NEXT_PUBLIC_SUPABASE_URL` | yes | Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | yes | Supabase anon (public) key |
-| `NEXT_PUBLIC_API_URL` | recommended | Deployed backend, e.g. `https://<backend-host>/api/v1`. The app is served from `https://localhost`, so the web client's same-origin `/api/v1` fallback doesn't work on a device |
-
-The backend must also allow the app's WebView origin: add `https://localhost` to the backend's
-`CORS_ORIGIN` in production.
+Package id: `com.sharpmind.app`.
 
 ## Commands
 
-Run these from `apps/mobile`:
+From the repository root:
 
-```bash
-npm run build          # build apps/web static export + copy it into the Android project
-npm run open           # open android/ in Android Studio
-npm run apk:debug      # build + ./gradlew assembleDebug  -> android/app/build/outputs/apk/debug/
-npm run apk:release    # build + ./gradlew assembleRelease (signed if keystore env is set)
-npm run bundle:release # build + ./gradlew bundleRelease  (AAB for Google Play)
-```
+| Command | What it does |
+| --- | --- |
+| `npm run mobile:start` | Metro, after writing the public client config |
+| `npm run mobile:android` | Debug install via `react-native run-android` (needs a device or emulator) |
+| `npm run mobile:typecheck` | Generate public config, then `tsc --noEmit` |
+| `npm run mobile:test` | Jest tests for pure client modules |
+| `npm run mobile:build:debug` | `assembleDebug` |
+| `npm run mobile:build:release` | `assembleRelease` |
+| `npm run mobile:bundle` | `bundleRelease` (AAB) |
 
-Native unit tests: `cd android && ./gradlew testDebugUnitTest`.
+Kotlin unit tests: `npm --prefix apps/mobile run test:android`. Instrumentation tests need a device: `npm --prefix apps/mobile run test:android:instrument`.
 
-### Release signing
+These commands need Node 22.13+, a JDK 21, and the Android SDK. This sandbox does not have the SDK, so Gradle is not a local proof. GitHub Actions is the APK path.
 
-Release builds are signed only when these env vars are set. Never commit keystores.
+## Configuration
 
-`SHARPMIND_KEYSTORE_PATH`, `SHARPMIND_KEYSTORE_PASSWORD`, `SHARPMIND_KEY_ALIAS`, `SHARPMIND_KEY_PASSWORD`
+`scripts/write-public-config.mjs` writes `src/config/public-env.generated.ts` from:
 
-Optional versioning overrides: `SHARPMIND_VERSION_CODE` (integer) and `SHARPMIND_VERSION_NAME`.
-By default the version name comes from `package.json`.
+- `SHARPMIND_SUPABASE_URL` or `NEXT_PUBLIC_SUPABASE_URL`
+- `SHARPMIND_SUPABASE_ANON_KEY` or `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SHARPMIND_API_URL` or `NEXT_PUBLIC_API_URL`
 
-## CI
+Release builds with a missing API URL leave data calls disabled. Debug builds may use the emulator loopback `http://10.0.2.2:4000/api/v1` and label it as such. The script refuses to embed service-role, OpenRouter, Gemini, or Groq keys.
 
-`.github/workflows/android.yml` builds a debug APK on pull requests and pushes to `main` that touch
-the mobile or web apps, runs the native unit tests, and uploads the APK as the
-`sharpmind-android-debug-apk` artifact. For a working build, add the three variables above as
-repository secrets. Without them, CI produces a clearly flagged smoke-test APK that packages
-correctly but can't sign in.
+Signing, only in CI or a release machine, never committed:
 
-## How routing works
+- `SHARPMIND_KEYSTORE_BASE64` (CI decodes this; do not commit the file)
+- `SHARPMIND_KEYSTORE_PASSWORD`
+- `SHARPMIND_KEY_ALIAS`
+- `SHARPMIND_KEY_PASSWORD`
+- optional `SHARPMIND_VERSION_CODE` and `SHARPMIND_VERSION_NAME`
 
-`apps/web` is exported with `trailingSlash: true`, so each route has its own
-`<route>/index.html`. Capacitor's default "HTML5 mode" answers every extensionless path with the
-root `index.html`, which would render the landing page for full-page loads such as
-`window.location.href = '/app'`. `StaticExportWebViewClient` rewrites those requests to the
-route's own `index.html`, or to `404.html` for unknown routes, and then hands them to Capacitor's
-normal asset server.
+If the keystore path is unset, release signing falls back to the debug keystore. That APK/AAB is not a Play upload.
 
-## Native configuration
+## What the client does
 
-- App id `com.sharpmind.app`, display name "SharpMind"; min SDK 24, target/compile SDK 36
-- Adaptive + themed (monochrome) launcher icon and splash screen drawn as vectors from the brand mark
-- Edge-to-edge insets handled by Capacitor's `SystemBars` (`insetsHandling: css`)
-- `allowBackup="false"` so student session data is not copied to device backups
-- Hardware back button navigates web history (`@capacitor/app`)
+Auth is a Supabase password session stored in EncryptedSharedPreferences. API calls send `Authorization: Bearer`. A 401 clears the session.
+
+Study, tutor, planner, revision, tests, mistakes, analytics, and readiness call the existing API. Scores are not invented. Uncalibrated mastery stays unlabeled as a score. Tutor replies are the JSON response from `POST /tutor/sessions/:id/messages`. There is no fake stream. Images go through the existing upload-url flow.
+
+Focus enforcement lives in Kotlin. JavaScript starts, stops, pauses, resumes, and reads status. Usage access cannot close other apps. Content rules that cannot see a Shorts or Reels player report unsupported instead of blocking the whole app. See `PLAY_AUDIT.md`.

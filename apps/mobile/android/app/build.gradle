@@ -1,19 +1,51 @@
-import groovy.json.JsonSlurper
+apply plugin: "com.android.application"
+apply plugin: "org.jetbrains.kotlin.android"
+apply plugin: "com.facebook.react"
 
-apply plugin: 'com.android.application'
+def mobileNodeModules = file("../../node_modules")
+def repoNodeModules = file("../../../node_modules")
 
-// Version name follows apps/mobile/package.json; CI can override the code/name via env.
-def mobilePackage = new JsonSlurper().parse(file('../../package.json'))
+def resolveNodePackage = { String name ->
+    [new File(mobileNodeModules, name), new File(repoNodeModules, name)].find { it.exists() }
+}
+
+def resolvedRnDir = resolveNodePackage("react-native")
+def resolvedCodegenDir = resolveNodePackage("@react-native/codegen")
+
+/**
+ * React Native Android configuration.
+ * JS lives in apps/mobile. Native modules may be hoisted to the monorepo root.
+ * nodeExecutableAndArgs is the node binary list, not a shell. Public config is written by writePublicConfig.
+ */
+react {
+    root = file("../../")
+    if (resolvedRnDir != null) {
+        reactNativeDir = resolvedRnDir
+    }
+    if (resolvedCodegenDir != null) {
+        codegenDir = resolvedCodegenDir
+    }
+    if (resolvedRnDir != null) {
+        cliFile = new File(resolvedRnDir, "cli.js")
+    }
+    autolinkLibrariesWithApp()
+}
+
+def enableProguardInReleaseBuilds = true
+def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
+
+def mobilePackage = new groovy.json.JsonSlurper().parse(file('../../package.json'))
 def appVersionName = System.getenv('SHARPMIND_VERSION_NAME') ?: mobilePackage.version
 def appVersionCode = (System.getenv('SHARPMIND_VERSION_CODE') ?: '1') as Integer
-
-// Release signing is opt-in: provide a keystore via env vars (never commit keystores).
 def releaseKeystore = System.getenv('SHARPMIND_KEYSTORE_PATH')
 def hasReleaseSigning = releaseKeystore && file(releaseKeystore).exists()
 
 android {
-    namespace = "com.sharpmind.app"
-    compileSdk = rootProject.ext.compileSdkVersion
+    ndkVersion rootProject.ext.ndkVersion
+    buildToolsVersion rootProject.ext.buildToolsVersion
+    compileSdk rootProject.ext.compileSdkVersion
+
+    namespace "com.sharpmind.app"
     defaultConfig {
         applicationId "com.sharpmind.app"
         minSdkVersion rootProject.ext.minSdkVersion
@@ -21,58 +53,74 @@ android {
         versionCode appVersionCode
         versionName appVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        aaptOptions {
-             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
-             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
-            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
-        }
+        buildConfigField "String", "SHARPMIND_APP_ENV", "\"debug\""
     }
     signingConfigs {
-        if (hasReleaseSigning) {
-            release {
+        debug {
+            storeFile file('debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+        release {
+            if (hasReleaseSigning) {
                 storeFile file(releaseKeystore)
                 storePassword System.getenv('SHARPMIND_KEYSTORE_PASSWORD')
                 keyAlias System.getenv('SHARPMIND_KEY_ALIAS')
                 keyPassword System.getenv('SHARPMIND_KEY_PASSWORD')
+            } else {
+                // CI and local verification can produce an installable AAB without a
+                // production keystore. Play upload requires SHARPMIND_KEYSTORE_*.
+                storeFile file('debug.keystore')
+                storePassword 'android'
+                keyAlias 'androiddebugkey'
+                keyPassword 'android'
             }
         }
     }
     buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+            buildConfigField "String", "SHARPMIND_APP_ENV", "\"debug\""
+        }
         release {
-            if (hasReleaseSigning) {
-                signingConfig signingConfigs.release
-            }
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
+            minifyEnabled enableProguardInReleaseBuilds
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+            buildConfigField "String", "SHARPMIND_APP_ENV", "\"release\""
+        }
+    }
+    buildFeatures {
+        buildConfig true
+    }
+    packaging {
+        resources {
+            excludes += ["META-INF/DEPENDENCIES", "META-INF/LICENSE", "META-INF/LICENSE.txt", "META-INF/NOTICE", "META-INF/NOTICE.txt"]
         }
     }
 }
 
-repositories {
-    flatDir{
-        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
-    }
-}
-
 dependencies {
-    implementation fileTree(include: ['*.jar'], dir: 'libs')
-    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
-    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
-    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
-    implementation project(':capacitor-android')
-    testImplementation "junit:junit:$junitVersion"
-    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
-    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
-    implementation project(':capacitor-cordova-android-plugins')
-}
+    implementation("com.facebook.react:react-android")
+    implementation("androidx.core:core-ktx:1.16.0")
+    implementation("androidx.appcompat:appcompat:1.7.0")
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
 
-apply from: 'capacitor.build.gradle'
-
-try {
-    def servicesJSON = file('google-services.json')
-    if (servicesJSON.text) {
-        apply plugin: 'com.google.gms.google-services'
+    if (hermesEnabled.toBoolean()) {
+        implementation("com.facebook.react:hermes-android")
+    } else {
+        implementation jscFlavor
     }
-} catch(Exception e) {
-    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+
+    testImplementation "junit:junit:4.13.2"
+    androidTestImplementation "androidx.test.ext:junit:1.2.1"
+    androidTestImplementation "androidx.test:runner:1.6.2"
+    androidTestImplementation "androidx.test:core:1.6.1"
 }
+
+tasks.register("writePublicConfig", Exec) {
+    workingDir file("../../")
+    commandLine "node", "scripts/write-public-config.mjs"
+}
+
+preBuild.dependsOn("writePublicConfig")
