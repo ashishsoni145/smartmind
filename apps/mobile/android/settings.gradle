@@ -84,11 +84,17 @@ pluginManagement {
     }
 
     // Path relative to this settings file, always with forward slashes, so the String
-    // overload of includeBuild() is used on every platform.
-    def pluginPath = rootDir.canonicalFile.toPath()
-        .relativize(resolved.canonicalFile.toPath())
-        .toString()
-        .replace(File.separator, '/')
+    // overload of includeBuild() is used on every platform. Falls back to the absolute
+    // path if the two locations cannot be relativised (different Windows drives).
+    def pluginPath
+    try {
+        pluginPath = rootDir.canonicalFile.toPath()
+            .relativize(resolved.canonicalFile.toPath())
+            .toString()
+            .replace(File.separator, '/')
+    } catch (Exception ignored) {
+        pluginPath = resolved.canonicalFile.absolutePath.replace(File.separator, '/')
+    }
 
     gradle.ext.reactNativeGradlePluginPath = pluginPath
 
