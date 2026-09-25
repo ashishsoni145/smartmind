@@ -11,11 +11,12 @@
     "typecheck": "node ./scripts/write-public-config.mjs && tsc --noEmit",
     "test": "jest --ci",
     "lint": "eslint .",
-    "build:debug": "node ./scripts/write-public-config.mjs && cd android && ./gradlew assembleDebug",
-    "build:release": "node ./scripts/write-public-config.mjs && cd android && ./gradlew assembleRelease",
-    "bundle": "node ./scripts/write-public-config.mjs && cd android && ./gradlew bundleRelease",
-    "test:android": "cd android && ./gradlew testDebugUnitTest",
-    "test:android:instrument": "cd android && ./gradlew connectedDebugAndroidTest"
+    "gradle": "node ./scripts/gradle.mjs",
+    "build:debug": "node ./scripts/gradle.mjs assembleDebug",
+    "build:release": "node ./scripts/gradle.mjs assembleRelease",
+    "bundle": "node ./scripts/gradle.mjs bundleRelease",
+    "test:android": "node ./scripts/gradle.mjs testDebugUnitTest",
+    "test:android:instrument": "node ./scripts/gradle.mjs connectedDebugAndroidTest"
   },
   "dependencies": {
     "@react-navigation/bottom-tabs": "7.19.2",

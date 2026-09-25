@@ -28,13 +28,15 @@ class ReminderReceiver : BroadcastReceiver() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         val notification = NotificationCompat.Builder(context, NotificationChannels.REMINDERS)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(body)
             .setContentIntent(open)
             .setAutoCancel(true)
             .build()
         NotificationManagerCompat.from(context).notify(id.hashCode(), notification)
+        // One-shot reminder has fired: forget it so a later boot does not re-post it.
+        ReminderScheduler(context).forget(id)
     }
 }
 

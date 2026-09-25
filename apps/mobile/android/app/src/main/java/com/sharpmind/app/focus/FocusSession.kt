@@ -92,6 +92,12 @@ sealed class FocusCommand {
     data class Cancel(val confirmStrict: Boolean) : FocusCommand()
     data class Fail(val reason: String) : FocusCommand()
     data object PermissionRevoked : FocusCommand()
+
+    /** Target duration reached while ACTIVE. Completes with reason `target_reached`. */
+    data object Expire : FocusCommand()
+
+    /** Attach the server session id created by the JS client. Allowed in any non-idle phase, once. */
+    data class LinkBackend(val backendSessionId: String) : FocusCommand()
 }
 
 class FocusStateMachine {
@@ -167,6 +173,29 @@ class FocusStateMachine {
                     failureReason = command.reason.ifBlank { "failed" },
                 )
             }
+            FocusCommand.Expire -> {
+                requirePhase(session, FocusPhase.ACTIVE)
+                if (session.activeElapsedMs(now) < session.targetDurationMinutes * 60_000L) {
+                    throw FocusTransitionException("target_not_reached")
+                }
+                session.withFrozenElapsed(now).copy(
+                    phase = FocusPhase.COMPLETED,
+                    endedAtEpochMs = now,
+                    failureReason = "target_reached",
+                )
+            }
+            is FocusCommand.LinkBackend -> {
+                if (session.phase == FocusPhase.IDLE || session.id.isBlank()) {
+                    throw FocusTransitionException("no_session_to_link")
+                }
+                if (command.backendSessionId.isBlank()) {
+                    throw FocusTransitionException("backend_id_blank")
+                }
+                if (session.backendSessionId != null && session.backendSessionId != command.backendSessionId) {
+                    throw FocusTransitionException("backend_already_linked")
+                }
+                session.copy(backendSessionId = command.backendSessionId)
+            }
             FocusCommand.PermissionRevoked -> {
                 if (session.phase != FocusPhase.ACTIVE && session.phase != FocusPhase.PAUSED && session.phase != FocusPhase.PREPARING) {
                     throw FocusTransitionException("not_enforceable")
@@ -202,6 +231,42 @@ class FocusStateMachine {
     private fun requirePhase(session: FocusSession, vararg allowed: FocusPhase) {
         if (session.phase !in allowed) {
             throw FocusTransitionException("invalid_phase_${session.phase}")
+        }
+    }
+}
+
+/**
+ * Reconciles a persisted session with reality after the process was killed or the device rebooted.
+ * The foreground service is never running when the runtime is constructed, so a persisted ACTIVE
+ * session would be an impossible state. It becomes PAUSED with the clock frozen at the last
+ * heartbeat the service wrote, never ahead of it. Nothing is ever auto-resumed.
+ */
+object SessionRecovery {
+    const val REASON_PROCESS_RESTART = "interrupted_process_restart"
+
+    fun reconcile(session: FocusSession, lastHeartbeatEpochMs: Long?, now: Long): FocusSession {
+        return when (session.phase) {
+            FocusPhase.ACTIVE -> {
+                val resumedAt = session.lastResumedAtEpochMs
+                val frozenAt = when {
+                    resumedAt == null -> null
+                    lastHeartbeatEpochMs == null -> resumedAt
+                    else -> lastHeartbeatEpochMs.coerceIn(resumedAt, now)
+                }
+                val credited = if (resumedAt != null && frozenAt != null) (frozenAt - resumedAt).coerceAtLeast(0L) else 0L
+                session.copy(
+                    phase = FocusPhase.PAUSED,
+                    accumulatedActiveMs = session.accumulatedActiveMs + credited,
+                    lastResumedAtEpochMs = null,
+                    failureReason = REASON_PROCESS_RESTART,
+                )
+            }
+            FocusPhase.PREPARING -> session.copy(
+                phase = FocusPhase.FAILED,
+                endedAtEpochMs = now,
+                failureReason = REASON_PROCESS_RESTART,
+            )
+            else -> session
         }
     }
 }

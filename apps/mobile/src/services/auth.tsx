@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { createClient, type Session, type SupabaseClient } from '@supabase/supabase-js';
 import { isSupabaseConfigured, publicEnv } from '../config/public-env';
 import { setApiTokenGetter, setUnauthorizedHandler } from '../api/client';
@@ -11,19 +11,32 @@ export type MobileUser = {
   emailVerified: boolean;
 };
 
+export type AuthNotice = {
+  kind: 'session_expired' | 'storage_unavailable' | 'restore_failed';
+  message: string;
+};
+
 type AuthContextValue = {
   ready: boolean;
   configured: boolean;
   user: MobileUser | null;
-  error: string | null;
+  /** Non-fatal notice for the login screen (e.g. the session expired). */
+  notice: AuthNotice | null;
+  clearNotice: () => void;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, fullName: string) => Promise<{ needsVerification: boolean }>;
   resetPassword: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
+  /** Called after sign-out or expiry so caches keyed by the previous user are dropped. */
+  onSignedOut?: () => void;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+/**
+ * Supabase session storage backed by EncryptedSharedPreferences through the Kotlin bridge.
+ * Tokens never touch AsyncStorage, plain files, or logs.
+ */
 const secureStorage = {
   getItem: async (key: string) => {
     const value = await focusNative.secureGet(key);
@@ -47,7 +60,7 @@ function mapUser(session: Session): MobileUser {
   };
 }
 
-function client(): SupabaseClient {
+function buildClient(): SupabaseClient {
   if (!isSupabaseConfigured()) {
     throw new Error('This build has no public Supabase URL or anon key.');
   }
@@ -62,70 +75,112 @@ function client(): SupabaseClient {
 }
 
 let supabase: SupabaseClient | null = null;
-function getSupabase(): SupabaseClient {
-  if (!supabase) supabase = client();
+export function getSupabase(): SupabaseClient {
+  if (!supabase) supabase = buildClient();
   return supabase;
 }
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({ children, onSignedOut }: { children: React.ReactNode; onSignedOut?: () => void }) {
   const [ready, setReady] = useState(false);
   const [user, setUser] = useState<MobileUser | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<AuthNotice | null>(null);
   const configured = isSupabaseConfigured();
+  const storageOk = focusNative.available();
+  const usable = configured && storageOk;
+  const recovering = useRef(false);
+  const signedOutCallback = useRef(onSignedOut);
+  signedOutCallback.current = onSignedOut;
+
+  const dropSession = useCallback(async (reason: AuthNotice | null) => {
+    if (usable) {
+      try {
+        // Local scope: revoke on this device without depending on the network.
+        await getSupabase().auth.signOut({ scope: 'local' });
+      } catch {
+        // The secure entry is removed by the storage adapter even if the network call fails.
+      }
+    }
+    setUser(null);
+    if (reason) setNotice(reason);
+    signedOutCallback.current?.();
+  }, [usable]);
 
   useEffect(() => {
     setApiTokenGetter(async () => {
-      if (!configured || !focusNative.available()) return null;
+      if (!usable) return null;
       const { data } = await getSupabase().auth.getSession();
       return data.session?.access_token ?? null;
     });
     setUnauthorizedHandler(() => {
-      setUser(null);
-      setError('Your session expired. Sign in again.');
+      if (!usable || recovering.current) return;
+      recovering.current = true;
+      (async () => {
+        try {
+          // One refresh attempt. If Supabase cannot mint a new access token the session is gone.
+          const { data, error } = await getSupabase().auth.refreshSession();
+          if (error || !data.session) {
+            await dropSession({ kind: 'session_expired', message: 'Your session expired. Sign in again.' });
+          }
+        } catch {
+          await dropSession({ kind: 'session_expired', message: 'Your session expired. Sign in again.' });
+        } finally {
+          recovering.current = false;
+        }
+      })();
     });
-  }, [configured]);
+    return () => setUnauthorizedHandler(null);
+  }, [dropSession, usable]);
 
   useEffect(() => {
     let mounted = true;
+    if (!configured) {
+      setReady(true);
+      return () => { mounted = false; };
+    }
+    if (!storageOk) {
+      setNotice({ kind: 'storage_unavailable', message: 'Secure storage is unavailable, so SharpMind will not keep a session in plain text.' });
+      setReady(true);
+      return () => { mounted = false; };
+    }
     (async () => {
-      if (!configured) {
-        if (mounted) setReady(true);
-        return;
-      }
-      if (!focusNative.available()) {
-        if (mounted) {
-          setError('Secure storage is unavailable, so SharpMind will not keep a session in plain text.');
-          setReady(true);
-        }
-        return;
-      }
       try {
         const { data, error: sessionError } = await getSupabase().auth.getSession();
         if (sessionError) throw sessionError;
         if (mounted) setUser(data.session ? mapUser(data.session) : null);
       } catch (err) {
-        if (mounted) setError(err instanceof NativeUnavailableError ? err.message : err instanceof Error ? err.message : 'Could not restore the session.');
+        if (mounted) {
+          setNotice({
+            kind: 'restore_failed',
+            message: err instanceof NativeUnavailableError ? err.message : err instanceof Error ? err.message : 'Could not restore the session.',
+          });
+        }
       } finally {
         if (mounted) setReady(true);
       }
     })();
-    if (!configured || !focusNative.available()) return () => { mounted = false; };
-    const { data } = getSupabase().auth.onAuthStateChange((_event, session) => {
+    const { data } = getSupabase().auth.onAuthStateChange((event, session) => {
+      if (!mounted) return;
+      if (event === 'SIGNED_OUT') {
+        setUser(null);
+        signedOutCallback.current?.();
+        return;
+      }
       setUser(session ? mapUser(session) : null);
     });
     return () => {
       mounted = false;
       data.subscription.unsubscribe();
     };
-  }, [configured]);
+  }, [configured, storageOk]);
 
   const value = useMemo<AuthContextValue>(() => ({
     ready,
-    configured,
+    configured: usable,
     user,
-    error,
+    notice,
+    clearNotice: () => setNotice(null),
     async signIn(email, password) {
-      setError(null);
+      setNotice(null);
       const { data, error: signInError } = await getSupabase().auth.signInWithPassword({
         email: email.trim().toLowerCase(),
         password,
@@ -135,7 +190,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(mapUser(data.session));
     },
     async signUp(email, password, fullName) {
-      setError(null);
+      setNotice(null);
       const { data, error: signUpError } = await getSupabase().auth.signUp({
         email: email.trim().toLowerCase(),
         password,
@@ -150,12 +205,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (resetError) throw resetError;
     },
     async signOut() {
-      if (configured && focusNative.available()) {
-        await getSupabase().auth.signOut();
-      }
-      setUser(null);
+      await dropSession(null);
     },
-  }), [configured, error, ready, user]);
+  }), [dropSession, notice, ready, usable, user]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

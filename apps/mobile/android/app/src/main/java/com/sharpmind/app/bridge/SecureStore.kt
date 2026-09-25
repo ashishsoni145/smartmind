@@ -6,20 +6,35 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import java.io.File
 
+/**
+ * Keystore-backed encrypted preferences for the Supabase session. The instance is cached:
+ * building the master key and opening the encrypted file is expensive, and doing it on every
+ * token read used to stall the bridge thread.
+ */
 object SecureStore {
     private const val FILE = "sharpmind_secure"
 
+    @Volatile
+    private var cached: SharedPreferences? = null
+
     fun preferences(context: Context): SharedPreferences {
-        val masterKey = MasterKey.Builder(context)
-            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-            .build()
-        return EncryptedSharedPreferences.create(
-            context,
-            FILE,
-            masterKey,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
-        )
+        cached?.let { return it }
+        synchronized(this) {
+            cached?.let { return it }
+            val appContext = context.applicationContext
+            val masterKey = MasterKey.Builder(appContext)
+                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                .build()
+            val created = EncryptedSharedPreferences.create(
+                appContext,
+                FILE,
+                masterKey,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
+            )
+            cached = created
+            return created
+        }
     }
 }
 

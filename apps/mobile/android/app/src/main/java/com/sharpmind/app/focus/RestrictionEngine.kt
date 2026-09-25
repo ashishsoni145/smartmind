@@ -9,6 +9,13 @@ object ProtectedPackages {
         "com.google.android.permissioncontroller",
         "com.google.android.packageinstaller",
         "com.android.packageinstaller",
+        // Phone and emergency surfaces are never a "distraction"; a focus rule must not sit on top of a call.
+        "com.android.dialer",
+        "com.google.android.dialer",
+        "com.samsung.android.dialer",
+        "com.android.phone",
+        "com.android.emergency",
+        "com.android.server.telecom",
     )
 
     fun isProtected(packageName: String): Boolean = packageName in packages

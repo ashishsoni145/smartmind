@@ -63,6 +63,19 @@ class ReminderScheduler(private val context: Context) {
             .apply()
     }
 
+    /** Drops bookkeeping for a reminder that already fired, without touching AlarmManager. */
+    fun forget(id: String) {
+        val ids = (prefs.getStringSet(KEY_IDS, emptySet()) ?: emptySet()).toMutableSet()
+        ids.remove(id)
+        prefs.edit()
+            .putStringSet(KEY_IDS, ids)
+            .remove("when:$id")
+            .remove("title:$id")
+            .remove("body:$id")
+            .putBoolean(KEY_ENABLED, ids.isNotEmpty())
+            .apply()
+    }
+
     fun rescheduleAfterBoot(now: Long) {
         if (!prefs.getBoolean(KEY_ENABLED, false)) {
             return

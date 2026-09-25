@@ -466,6 +466,14 @@ All 9 parts of Phase 01 (Foundation, Database, Auth, Onboarding, Authenticated S
     - `npm --prefix apps/web run build`: 36/36 static pages exported cleanly with exit code 0.
     - `npm --prefix backend run build`: Compiled cleanly with exit code 0.
 
+- Android App hardening pass (2026-09-25, branch `arena/01a0d77a-smartmind`):
+  - `apps/mobile` is the React Native 0.87.1 + Kotlin client (ADR 0010). This pass audited and productionised it without changing web, backend, packages or API contracts.
+  - Build: all Gradle npm scripts route through `apps/mobile/scripts/gradle.mjs` (`gradlew.bat` on Windows, `./gradlew` elsewhere, real exit codes). Release signing in `android/app/build.gradle` fails on missing/partial keystore env unless `SHARPMIND_ALLOW_DEBUG_SIGNED_RELEASE=1` (engineering only). `.github/workflows/android.yml` = `verify` (npm ci, mobile typecheck+jest, web+backend typecheck) → `android-debug` (Kotlin unit tests, assembleDebug, artifact check) → `android-release` (fails without signing/public secrets; verifies AAB not debug-signed; keystore removed).
+  - JS: timeouts + status-mapped errors (`utils/errors.ts`, `api/client.ts`), 401 → local sign-out with notice, connectivity banner, ErrorBoundary, themed `ui.tsx` (`Screen headerless`, `InlineNotice`, `ListRow`, `Button loading`), real onboarding form (board/grade/subjects/exams), honest revision flow (create event → complete with measured time), hardened test runner (per-question time, autosave state, submit/back confirmation, expiry), tutor attachments sniffed/capped, Play Billing boundary with no fake purchase path, reminders scheduled only on opt-in.
+  - Focus: `useFocusSession` hook + `focusModel` + persisted idempotent `FocusSyncOutbox` (backoff, 4xx abandon, 401 stop), `linkBackendSession`/`retryFocusPermissions` bridge methods. Kotlin: `Expire`/`LinkBackend` commands, `SessionRecovery` (ACTIVE→PAUSED at last heartbeat, PREPARING→FAILED, never auto-resume), `FocusRuntime.tick/linkBackendSession/retryPermissions`, service `START_NOT_STICKY` with monochrome icon and truthful actions, accessibility pre-filter (only ACTIVE + content-rule package), intervention activity explains rule/action/options, dialer/emergency protected, bounded file reads, cached EncryptedSharedPreferences, fired reminders forgotten.
+  - Tests: Jest 35 passing (`mobile-domain`, `focus-sync`, `study-flows`); Kotlin `SessionRecoveryTest` added (8 cases) — Kotlin not executed in sandbox (no JDK/SDK), CI is the proof path.
+  - Docs: `apps/mobile/README.md`, `apps/mobile/PLAY_AUDIT.md` rewritten to match the code.
+
 - Android App (superseded note, 2026-09-24): ADR 0009's Capacitor shell was removed the same day. See ADR 0010. The paragraphs below describe the removed shell and are historical only.
 
 - Android App (Completed 2026-09-24, ADR 0009):
