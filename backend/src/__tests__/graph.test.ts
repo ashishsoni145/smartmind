@@ -1,13 +1,114 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../app';
 import { GraphService } from '../modules/knowledge-graph/graph.service';
+import { supabase } from '../db/client';
+
+vi.mock('../db/client', () => ({
+  supabase: {
+    from: vi.fn(),
+    rpc: vi.fn(),
+  },
+}));
 
 describe('Academic Knowledge Graph & DAG Traversal Suite', () => {
   const app = createApp();
   let conceptAId: string;
   let conceptBId: string;
   let conceptCId: string;
+
+  const conceptsStore = new Map<string, any>();
+  const edgesStore: any[] = [];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    (supabase.rpc as any).mockImplementation((method: string, args: any) => {
+      if (method === 'get_concept_prerequisites') {
+        const { start_concept_id } = args;
+        const prereqs = edgesStore
+          .filter((e) => e.target_concept_id === start_concept_id && e.relationship_type === 'prerequisite_of')
+          .map((e) => {
+            const source = conceptsStore.get(e.source_concept_id);
+            return {
+              concept_id: source?.id || e.source_concept_id,
+              concept_code: source?.code || 'CODE',
+              concept_title: source?.title || 'TITLE',
+              depth: 1,
+              path: [start_concept_id, e.source_concept_id],
+            };
+          });
+        return Promise.resolve({ data: prereqs, error: null });
+      }
+      return Promise.resolve({ data: [], error: null });
+    });
+
+    (supabase.from as any).mockImplementation((table: string) => {
+      if (table === 'concepts') {
+        return {
+          upsert: vi.fn().mockImplementation((payload: any) => {
+            const id = payload.id || `conc-${Math.random().toString(36).substring(2, 8)}`;
+            const concept = { ...payload, id };
+            conceptsStore.set(id, concept);
+            return {
+              select: vi.fn().mockReturnValue({
+                single: vi.fn().mockResolvedValue({ data: concept, error: null }),
+              }),
+            };
+          }),
+          select: vi.fn().mockImplementation(() => {
+            const chain: any = {
+              eq: vi.fn((_f: string, val: string) => {
+                const concept = conceptsStore.get(val);
+                return {
+                  maybeSingle: vi.fn().mockResolvedValue({ data: concept, error: null }),
+                };
+              }),
+            };
+            return chain;
+          }),
+        };
+      }
+
+      if (table === 'knowledge_graph_edges') {
+        return {
+          upsert: vi.fn().mockImplementation((payload: any) => {
+            const id = `edge-${Math.random().toString(36).substring(2, 8)}`;
+            const edge = { ...payload, id };
+            edgesStore.push(edge);
+            return {
+              select: vi.fn().mockReturnValue({
+                single: vi.fn().mockResolvedValue({ data: edge, error: null }),
+              }),
+            };
+          }),
+          select: vi.fn().mockImplementation(() => {
+            const createChain = (currentFiltered: any[]) => {
+              const chain: any = {
+                eq: vi.fn((field: string, val: string) => {
+                  const filtered = currentFiltered.filter((e) => e[field] === val);
+                  return createChain(filtered);
+                }),
+                then: (resolve: any) => resolve({ data: currentFiltered, error: null }),
+              };
+              return chain;
+            };
+            return createChain(edgesStore);
+          }),
+        };
+      }
+
+      if (table === 'concept_curriculum_mappings') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+          }),
+        };
+      }
+
+      return {};
+    });
+  });
 
   it('Should create foundational concepts in the knowledge graph', async () => {
     const conceptA = await GraphService.createConcept({
@@ -63,7 +164,6 @@ describe('Academic Knowledge Graph & DAG Traversal Suite', () => {
   });
 
   it('Should establish a directed prerequisite edge in the DAG (A -> B and B -> C)', async () => {
-    // A (Vectors) is prerequisite of B (Projectile)
     const edge1 = await GraphService.createEdge({
       sourceConceptId: conceptAId,
       targetConceptId: conceptBId,
@@ -73,7 +173,6 @@ describe('Academic Knowledge Graph & DAG Traversal Suite', () => {
       metadata: {},
     });
 
-    // B (Projectile) is prerequisite of C (Inclined Projectile)
     const edge2 = await GraphService.createEdge({
       sourceConceptId: conceptBId,
       targetConceptId: conceptCId,
@@ -93,13 +192,11 @@ describe('Academic Knowledge Graph & DAG Traversal Suite', () => {
     expect(res.body.success).toBe(true);
     expect(Array.isArray(res.body.data)).toBe(true);
 
-    // Concept C depends on B (depth 1) and A (depth 2)
     const prereqIds = res.body.data.map((p: any) => p.conceptId);
     expect(prereqIds).toContain(conceptBId);
   });
 
   it('Cycle detection: should reject edge that creates a directed cycle (C -> A)', async () => {
-    // Attempting to make C prerequisite of A creates a cycle A -> B -> C -> A
     await expect(
       GraphService.createEdge({
         sourceConceptId: conceptCId,

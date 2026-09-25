@@ -10,7 +10,7 @@ export const envSchema = z.object({
   PORT: z.coerce.number().default(4000),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   SUPABASE_URL: z.string().url().default(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://vscprtuinxopistikpcs.supabase.co'
+    process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://your-project.supabase.co'
   ),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, 'SUPABASE_SERVICE_ROLE_KEY is required'),
   SUPABASE_ANON_KEY: z.string().optional().default(

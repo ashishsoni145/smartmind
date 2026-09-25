@@ -1,10 +1,91 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../app';
 import { CurriculumService } from '../modules/curriculum/curriculum.service';
+import { supabase } from '../db/client';
+
+vi.mock('../db/client', () => ({
+  supabase: {
+    from: vi.fn(),
+  },
+}));
 
 describe('Curriculum & Syllabus Engine Suite', () => {
   const app = createApp();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    const mockBoards = [
+      { id: 'cbse', name: 'Central Board of Secondary Education', code: 'CBSE' },
+      { id: 'isc', name: 'Indian School Certificate', code: 'ISC' },
+    ];
+    const mockGrades = [
+      { id: 'class_11', name: 'Class 11', ordering: 1 },
+      { id: 'class_12', name: 'Class 12', ordering: 2 },
+      { id: 'dropper', name: 'Dropper / Repeater', ordering: 3 },
+    ];
+    const mockSubjects = [
+      { id: 'physics', name: 'Physics' },
+      { id: 'chemistry', name: 'Chemistry' },
+      { id: 'mathematics', name: 'Mathematics' },
+    ];
+    const mockNodes = [
+      {
+        id: 'ch_1',
+        subject_id: 'physics',
+        grade_id: 'class_11',
+        board_id: 'cbse',
+        node_type: 'chapter',
+        code: 'PHY-11-CH01',
+        title: 'Units and Measurements',
+        sequence_order: 1,
+      },
+    ];
+
+    (supabase.from as any).mockImplementation((table: string) => {
+      if (table === 'boards') {
+        return {
+          select: vi.fn().mockReturnValue({
+            order: vi.fn().mockResolvedValue({ data: mockBoards, error: null }),
+          }),
+        };
+      }
+      if (table === 'grades') {
+        return {
+          select: vi.fn().mockReturnValue({
+            order: vi.fn().mockResolvedValue({ data: mockGrades, error: null }),
+          }),
+        };
+      }
+      if (table === 'subjects') {
+        return {
+          select: vi.fn().mockReturnValue({
+            order: vi.fn().mockResolvedValue({ data: mockSubjects, error: null }),
+          }),
+        };
+      }
+      if (table === 'curriculum_nodes') {
+        const createQueryChain = () => {
+          const chain: any = {
+            eq: vi.fn(() => chain),
+            in: vi.fn(() => chain),
+            order: vi.fn(() => chain),
+            then: (resolve: any) => resolve({ data: mockNodes, error: null }),
+          };
+          return chain;
+        };
+
+        return {
+          select: vi.fn().mockReturnValue(createQueryChain()),
+          upsert: vi.fn().mockReturnValue({
+            select: vi.fn().mockResolvedValue({ data: mockNodes, error: null }),
+          }),
+        };
+      }
+      return {};
+    });
+  });
 
   it('GET /api/v1/curriculum/boards should return all supported boards', async () => {
     const res = await request(app).get('/api/v1/curriculum/boards');

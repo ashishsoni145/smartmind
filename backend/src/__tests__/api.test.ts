@@ -1,9 +1,35 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../app';
+import { supabase } from '../db/client';
+
+vi.mock('../db/client', () => ({
+  supabase: {
+    from: vi.fn(),
+  },
+}));
 
 describe('SharpMind Academic OS Backend API Suite', () => {
   const app = createApp();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    (supabase.from as any).mockImplementation(() => {
+      const createChain = () => {
+        const chain: any = {
+          select: vi.fn(() => chain),
+          or: vi.fn(() => chain),
+          eq: vi.fn(() => chain),
+          ilike: vi.fn(() => chain),
+          limit: vi.fn(() => chain),
+          then: (resolve: any) => resolve({ data: [], error: null }),
+        };
+        return chain;
+      };
+      return createChain();
+    });
+  });
 
   it('GET /health should return 200 OK with system status', async () => {
     const res = await request(app).get('/health');
