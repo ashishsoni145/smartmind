@@ -50,19 +50,22 @@ jobs:
       - name: Probe C - default resolution
         continue-on-error: true
         run: |
-          npm --prefix apps/mobile run gradle -- projects --no-daemon --stacktrace 2>&1 | tail -c 12000 | tee probeC.log
+          npm --prefix apps/mobile run gradle -- projects --no-daemon --stacktrace 2>&1 | tee rawC.log
+          grep -vE '^[[:space:]]+at ' rawC.log | grep -vE '^[[:space:]]*$' | head -60 > probeC.log
 
       - name: Probe A - explicit canonical path
         continue-on-error: true
         run: |
           CANON=$(readlink -f apps/mobile/node_modules/@react-native/gradle-plugin)
           echo "canonical=$CANON"
-          npm --prefix apps/mobile run gradle -- projects --no-daemon --stacktrace -PreactNativeGradlePluginDir="$CANON" 2>&1 | tail -c 12000 | tee probeA.log
+          npm --prefix apps/mobile run gradle -- projects --no-daemon --stacktrace -PreactNativeGradlePluginDir="$CANON" 2>&1 | tee rawA.log
+          { echo "canonical=$CANON"; grep -vE '^[[:space:]]+at ' rawA.log | grep -vE '^[[:space:]]*$' | head -60; } > probeA.log
 
       - name: Probe B - explicit symlink path
         continue-on-error: true
         run: |
-          npm --prefix apps/mobile run gradle -- projects --no-daemon --stacktrace -PreactNativeGradlePluginDir=apps/mobile/node_modules/@react-native/gradle-plugin 2>&1 | tail -c 12000 | tee probeB.log
+          npm --prefix apps/mobile run gradle -- projects --no-daemon --stacktrace -PreactNativeGradlePluginDir=apps/mobile/node_modules/@react-native/gradle-plugin 2>&1 | tee rawB.log
+          grep -vE '^[[:space:]]+at ' rawB.log | grep -vE '^[[:space:]]*$' | head -60 > probeB.log
 
       - name: Post logs to the pull request
         if: always()
