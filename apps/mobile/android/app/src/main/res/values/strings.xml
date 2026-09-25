@@ -8,6 +8,12 @@
     <string name="reminder_channel_name">Study reminders</string>
     <string name="reminder_channel_description">Reminders you enable for study, revision, and assessments.</string>
     <string name="focus_notification_title">SharpMind Focus is on</string>
+    <string name="focus_notification_paused_title">SharpMind Focus is paused</string>
     <string name="intervention_title">Back to your study session</string>
-    <string name="intervention_body">A restriction you configured was detected. SharpMind did not record the screen.</string>
+    <string name="intervention_body">A restriction you configured was detected. SharpMind opened this screen; it did not close the other app and did not record the screen.</string>
+    <string name="time_limit_title">Time limit reached</string>
+    <string name="time_limit_body">You set a time limit for %1$s in this focus session. SharpMind cannot close it; this is a reminder.</string>
+    <string name="intervention_return">Return to SharpMind</string>
+    <string name="intervention_dismiss">Dismiss and continue</string>
+    <string name="intervention_end">End focus session</string>
 </resources>

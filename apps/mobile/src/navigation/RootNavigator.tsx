@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, BackHandler, Text, View } from 'react-native';
+import { ActivityIndicator, BackHandler, View } from 'react-native';
 import { NavigationContainer, DefaultTheme, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -24,6 +24,8 @@ import {
 } from '../screens/study/StudyScreens';
 import { FocusHomeScreen, FocusSessionScreen, FocusSetupScreen, PermissionSetupScreen } from '../screens/focus/FocusScreens';
 import { AnalyticsScreen, HistoryScreen, MasteryScreen, ProgressHubScreen, ReadinessScreen } from '../screens/progress/ProgressScreens';
+import { Button, Screen, Text } from '../components/ui';
+import { toUserError } from '../utils/errors';
 import { useAuth } from '../services/auth';
 import { useStudent } from '../hooks/useStudent';
 import { useTheme } from '../theme/ThemeProvider';
@@ -153,17 +155,36 @@ function MainTabs() {
 
 function Authenticated() {
   const student = useStudent();
+  const auth = useAuth();
   const completed = (student.profile as { onboardingCompleted?: boolean } | null)?.onboardingCompleted;
   if (student.loading) return <Boot label="Loading academic profile" />;
+  if (student.error && !student.profile && !student.me) {
+    // Profile never loaded (offline, server down, 5xx). Do not drop the user into tabs full of errors.
+    const error = toUserError(student.error);
+    return <ProfileUnavailable message={error.message} onRetry={() => student.refetch()} onSignOut={() => auth.signOut()} />;
+  }
   if (student.profile && completed === false) return <OnboardingGate />;
   return <MainTabs />;
+}
+
+function ProfileUnavailable({ message, onRetry, onSignOut }: { message: string; onRetry: () => void; onSignOut: () => void }) {
+  return (
+    <Screen headerless>
+      <View style={{ flex: 1, justifyContent: 'center', gap: 12, paddingVertical: 48 }}>
+        <Text variant="title" weight="700">Could not load your profile</Text>
+        <Text tone="secondary">{message}</Text>
+        <Button label="Try again" onPress={onRetry} />
+        <Button label="Sign out" tone="ghost" onPress={onSignOut} />
+      </View>
+    </Screen>
+  );
 }
 
 function OnboardingGate() {
   const theme = useTheme();
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
-      <OnboardingScreen />
+      <OnboardingScreen standalone />
     </View>
   );
 }
@@ -171,9 +192,9 @@ function OnboardingGate() {
 function Boot({ label }: { label: string }) {
   const theme = useTheme();
   return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background, gap: 12 }}>
+    <View accessibilityRole="progressbar" accessibilityLabel={label} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background, gap: 12 }}>
       <ActivityIndicator color={theme.colors.accent} />
-      <Text style={{ color: theme.colors.textSecondary }}>{label}</Text>
+      <Text tone="secondary">{label}</Text>
     </View>
   );
 }
@@ -189,8 +210,10 @@ export function RootNavigator() {
         prefixes: ['sharpmind://app'],
         config: {
           screens: {
-            HomeTab: { screens: { Home: 'home', Profile: 'profile' } },
-            FocusTab: { screens: { FocusHome: 'focus', FocusSession: 'focus/session' } },
+            HomeTab: { screens: { Home: 'home', Profile: 'profile', Notifications: 'notifications', Subscription: 'subscription' } },
+            StudyTab: { screens: { StudyHub: 'study', Planner: 'study/planner', Revision: 'study/revision', Tests: 'study/tests' } },
+            FocusTab: { screens: { FocusHome: 'focus', FocusSession: 'focus/session', Permissions: 'focus/permissions' } },
+            ProgressTab: { screens: { ProgressHub: 'progress' } },
           },
         },
       }}

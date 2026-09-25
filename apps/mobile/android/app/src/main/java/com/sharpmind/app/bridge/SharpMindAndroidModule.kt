@@ -92,6 +92,22 @@ class SharpMindAndroidModule(reactContext: ReactApplicationContext) :
         promise.resolve(runtime().statusJson())
     }
 
+    override fun linkBackendSession(sessionId: String, promise: Promise) {
+        try {
+            promise.resolve(FocusRuntime.sessionToJson(runtime().linkBackendSession(sessionId)).toString())
+        } catch (error: Exception) {
+            reject(promise, error)
+        }
+    }
+
+    override fun retryFocusPermissions(promise: Promise) {
+        try {
+            promise.resolve(FocusRuntime.sessionToJson(runtime().retryPermissions()).toString())
+        } catch (error: Exception) {
+            reject(promise, error)
+        }
+    }
+
     override fun getRequiredPermissions(promise: Promise) {
         val manager = PermissionManager(reactApplicationContext)
         val snapshot = manager.snapshot()
@@ -290,14 +306,34 @@ class SharpMindAndroidModule(reactContext: ReactApplicationContext) :
 
     override fun readFileBase64(uri: String, promise: Promise) {
         try {
-            val stream = reactApplicationContext.contentResolver.openInputStream(Uri.parse(uri))
+            val parsed = Uri.parse(uri)
+            if (parsed.scheme != "content" && parsed.scheme != "file") {
+                throw IllegalArgumentException("unsupported_uri_scheme")
+            }
+            val stream = reactApplicationContext.contentResolver.openInputStream(parsed)
                 ?: throw IllegalArgumentException("unreadable_uri")
-            val bytes = stream.use { it.readBytes() }
-            if (bytes.size > MAX_IMAGE_BYTES) {
+            // Read at most MAX_IMAGE_BYTES + 1 so an oversized file is rejected without buffering it fully.
+            val buffer = java.io.ByteArrayOutputStream()
+            val chunk = ByteArray(64 * 1024)
+            var total = 0
+            var tooLarge = false
+            stream.use { input ->
+                while (true) {
+                    val read = input.read(chunk)
+                    if (read <= 0) break
+                    total += read
+                    if (total > MAX_IMAGE_BYTES) {
+                        tooLarge = true
+                        break
+                    }
+                    buffer.write(chunk, 0, read)
+                }
+            }
+            if (tooLarge) {
                 promise.reject("FILE_TOO_LARGE", "Image exceeds 8 MB.")
                 return
             }
-            promise.resolve(Base64.encodeToString(bytes, Base64.NO_WRAP))
+            promise.resolve(Base64.encodeToString(buffer.toByteArray(), Base64.NO_WRAP))
         } catch (error: Exception) {
             reject(promise, error)
         }

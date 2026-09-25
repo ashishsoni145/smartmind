@@ -20,6 +20,8 @@ export type FocusSnapshot = {
   startedAtEpochMs: number | null;
   accumulatedActiveMs: number;
   activeElapsedMs: number;
+  /** Device clock when the snapshot was produced; lets JS extrapolate the clock without polling. */
+  snapshotAtEpochMs: number;
   endedAtEpochMs: number | null;
   backendSessionId: string | null;
   failureReason: string | null;
@@ -59,6 +61,13 @@ export class NativeUnavailableError extends Error {
   }
 }
 
+export class NativePayloadError extends Error {
+  constructor(message = 'The native module returned an unreadable payload.') {
+    super(message);
+    this.name = 'NativePayloadError';
+  }
+}
+
 function moduleOrNull(): Spec | null {
   return TurboModuleRegistry.get<Spec>('SharpMindAndroid') ?? (NativeModules.SharpMindAndroid as Spec | undefined) ?? null;
 }
@@ -73,7 +82,36 @@ function requireModule(): Spec {
 
 function parseJson<T>(raw: string, fallback: T): T {
   if (!raw) return fallback;
-  return JSON.parse(raw) as T;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    throw new NativePayloadError();
+  }
+}
+
+const idleSnapshot: FocusSnapshot = {
+  id: '',
+  objective: '',
+  targetDurationMinutes: 25,
+  strictMode: false,
+  phase: 'IDLE',
+  startedAtEpochMs: null,
+  accumulatedActiveMs: 0,
+  activeElapsedMs: 0,
+  snapshotAtEpochMs: 0,
+  endedAtEpochMs: null,
+  backendSessionId: null,
+  failureReason: null,
+  subjectId: null,
+  curriculumNodeId: null,
+  taskId: null,
+  restrictionRuleIds: [],
+};
+
+function snapshot(raw: string): FocusSnapshot {
+  const parsed = parseJson<Partial<FocusSnapshot>>(raw, {});
+  if (!parsed.phase) throw new NativePayloadError('The native focus engine returned a snapshot without a phase.');
+  return { ...idleSnapshot, ...parsed, snapshotAtEpochMs: parsed.snapshotAtEpochMs || Date.now() };
 }
 
 export const focusNative = {
@@ -81,22 +119,28 @@ export const focusNative = {
     return moduleOrNull() != null;
   },
   async start(config: Record<string, unknown>): Promise<FocusSnapshot> {
-    return parseJson(await requireModule().startFocusSession(JSON.stringify(config)), {} as FocusSnapshot);
+    return snapshot(await requireModule().startFocusSession(JSON.stringify(config)));
   },
   async stop(confirmStrict: boolean): Promise<FocusSnapshot> {
-    return parseJson(await requireModule().stopFocusSession(confirmStrict), {} as FocusSnapshot);
+    return snapshot(await requireModule().stopFocusSession(confirmStrict));
   },
   async cancel(confirmStrict: boolean): Promise<FocusSnapshot> {
-    return parseJson(await requireModule().cancelFocusSession(confirmStrict), {} as FocusSnapshot);
+    return snapshot(await requireModule().cancelFocusSession(confirmStrict));
   },
   async pause(): Promise<FocusSnapshot> {
-    return parseJson(await requireModule().pauseFocusSession(), {} as FocusSnapshot);
+    return snapshot(await requireModule().pauseFocusSession());
   },
   async resume(): Promise<FocusSnapshot> {
-    return parseJson(await requireModule().resumeFocusSession(), {} as FocusSnapshot);
+    return snapshot(await requireModule().resumeFocusSession());
   },
   async status(): Promise<FocusSnapshot> {
-    return parseJson(await requireModule().getFocusStatus(), {} as FocusSnapshot);
+    return snapshot(await requireModule().getFocusStatus());
+  },
+  async linkBackendSession(sessionId: string): Promise<FocusSnapshot> {
+    return snapshot(await requireModule().linkBackendSession(sessionId));
+  },
+  async retryPermissions(): Promise<FocusSnapshot> {
+    return snapshot(await requireModule().retryFocusPermissions());
   },
   async permissions(): Promise<PermissionReport> {
     return parseJson(await requireModule().getRequiredPermissions(), {} as PermissionReport);

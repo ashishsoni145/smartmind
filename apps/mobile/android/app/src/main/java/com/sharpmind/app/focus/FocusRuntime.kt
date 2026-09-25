@@ -38,7 +38,7 @@ class FocusRuntime(private val context: Context) {
     private val listeners = CopyOnWriteArrayList<(String, String) -> Unit>()
     private val lock = Any()
 
-    private var session: FocusSession = readSession()
+    private var session: FocusSession = recoverSession()
     private var rules: List<RestrictionRule> = readRules()
     private var lastPermission: PermissionSnapshot? = null
     private var lastInterventionAt: Long = 0
@@ -70,6 +70,7 @@ class FocusRuntime(private val context: Context) {
                 System.currentTimeMillis(),
             )
             val permission = permissions.snapshot()
+            lastPermission = permission
             val needsAccessibility = rules.any { it.id in ruleIds && it.ruleType == RuleType.CONTENT_RESTRICTION }
             val ready = PermissionLogic.enforcementReady(permission, needsAccessibility)
             val activated = if (ready) {
@@ -92,6 +93,77 @@ class FocusRuntime(private val context: Context) {
     }
 
     fun pause(): FocusSession = transition(FocusCommand.Pause)
+
+    /**
+     * Called by the foreground service on every poll. Completes the session when the target
+     * duration is reached and records a heartbeat so a later process restart can freeze the
+     * clock at a confirmed moment instead of guessing.
+     */
+    fun tick(now: Long = System.currentTimeMillis()): FocusSession {
+        val expired = synchronized(lock) {
+            writeHeartbeatLocked(now)
+            if (session.phase == FocusPhase.ACTIVE && session.activeElapsedMs(now) >= session.targetDurationMinutes * 60_000L) {
+                session = machine.apply(session, FocusCommand.Expire, now)
+                persistLocked()
+                true
+            } else {
+                false
+            }
+        }
+        if (expired) {
+            FocusForegroundService.stop(context)
+            emit("focus_status", statusJson())
+            emit("focus_completed", statusJson())
+        }
+        return snapshot()
+    }
+
+    /** Attaches the server session id. Idempotent for the same id; rejects re-linking to a different one. */
+    fun linkBackendSession(backendSessionId: String): FocusSession {
+        val next = synchronized(lock) {
+            if (session.backendSessionId == backendSessionId) {
+                session
+            } else {
+                session = machine.apply(session, FocusCommand.LinkBackend(backendSessionId), System.currentTimeMillis())
+                persistLocked()
+                session
+            }
+        }
+        emit("focus_status", statusJson())
+        return next
+    }
+
+    /**
+     * From PERMISSION_REQUIRED: re-check permissions and, if they are now sufficient for the
+     * selected rules, continue (activate a never-started session, or resume a paused one).
+     * If they are still missing the phase does not change and no error is thrown.
+     */
+    fun retryPermissions(now: Long = System.currentTimeMillis()): FocusSession {
+        val next = synchronized(lock) {
+            if (session.phase != FocusPhase.PERMISSION_REQUIRED) {
+                return@synchronized session
+            }
+            val permission = permissions.snapshot()
+            lastPermission = permission
+            val needsAccessibility = rules.any { it.id in session.restrictionRuleIds && it.ruleType == RuleType.CONTENT_RESTRICTION }
+            if (!PermissionLogic.enforcementReady(permission, needsAccessibility)) {
+                return@synchronized session
+            }
+            val granted = machine.apply(session, FocusCommand.PermissionsGranted, now)
+            session = when (granted.phase) {
+                FocusPhase.PREPARING -> machine.apply(granted, FocusCommand.Activate, now)
+                FocusPhase.PAUSED -> machine.apply(granted, FocusCommand.Resume, now)
+                else -> granted
+            }
+            persistLocked()
+            session
+        }
+        if (next.phase == FocusPhase.ACTIVE) {
+            FocusForegroundService.start(context)
+        }
+        emit("focus_status", statusJson())
+        return next
+    }
 
     fun resume(): FocusSession {
         val next = transition(FocusCommand.Resume)
@@ -269,6 +341,35 @@ class FocusRuntime(private val context: Context) {
         File(directory, "usage.txt").writeText(UsagePathPolicy.encodeUsage(usageMsByPackage))
     }
 
+    private fun writeHeartbeatLocked(now: Long) {
+        try {
+            File(directory, "heartbeat.txt").writeText(now.toString())
+        } catch (_: Exception) {
+            // A missed heartbeat only makes recovery more conservative.
+        }
+    }
+
+    private fun readHeartbeat(): Long? {
+        val file = File(directory, "heartbeat.txt")
+        if (!file.exists()) {
+            return null
+        }
+        return file.readText().trim().toLongOrNull()
+    }
+
+    /**
+     * The runtime is constructed once per process. If the persisted session claims ACTIVE the
+     * service that enforced it is gone, so reconcile before anything reads the state.
+     */
+    private fun recoverSession(): FocusSession {
+        val stored = readSession()
+        val recovered = SessionRecovery.reconcile(stored, readHeartbeat(), System.currentTimeMillis())
+        if (recovered != stored) {
+            File(directory, "session.txt").writeText(SessionCodec.encodeSession(recovered))
+        }
+        return recovered
+    }
+
     private fun readUsage(): Map<String, Long> {
         val file = File(directory, "usage.txt")
         if (!file.exists()) {
@@ -307,6 +408,7 @@ class FocusRuntime(private val context: Context) {
                 .put("startedAtEpochMs", session.startedAtEpochMs)
                 .put("accumulatedActiveMs", session.accumulatedActiveMs)
                 .put("activeElapsedMs", session.activeElapsedMs(now))
+                .put("snapshotAtEpochMs", now)
                 .put("endedAtEpochMs", session.endedAtEpochMs)
                 .put("backendSessionId", session.backendSessionId)
                 .put("failureReason", session.failureReason)

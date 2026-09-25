@@ -37,8 +37,46 @@ def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 def mobilePackage = new groovy.json.JsonSlurper().parse(file('../../package.json'))
 def appVersionName = System.getenv('SHARPMIND_VERSION_NAME') ?: mobilePackage.version
 def appVersionCode = (System.getenv('SHARPMIND_VERSION_CODE') ?: '1') as Integer
+
+/**
+ * Release signing policy.
+ *
+ * - SHARPMIND_KEYSTORE_PATH + SHARPMIND_KEYSTORE_PASSWORD + SHARPMIND_KEY_ALIAS + SHARPMIND_KEY_PASSWORD
+ *   => production signing. All four are required; a partial set is a hard error, never a silent fallback.
+ * - SHARPMIND_ALLOW_DEBUG_SIGNED_RELEASE=1 (and no keystore path)
+ *   => engineering release signed with the checked-in debug keystore. Installable for local
+ *      verification of the minified bundle. Not a Play upload.
+ * - Neither
+ *   => any release task (assembleRelease, bundleRelease) fails at configuration time.
+ */
 def releaseKeystore = System.getenv('SHARPMIND_KEYSTORE_PATH')
-def hasReleaseSigning = releaseKeystore && file(releaseKeystore).exists()
+def releaseStorePassword = System.getenv('SHARPMIND_KEYSTORE_PASSWORD')
+def releaseKeyAlias = System.getenv('SHARPMIND_KEY_ALIAS')
+def releaseKeyPassword = System.getenv('SHARPMIND_KEY_PASSWORD')
+def allowDebugSignedRelease = (System.getenv('SHARPMIND_ALLOW_DEBUG_SIGNED_RELEASE') ?: '') in ['1', 'true', 'yes']
+def hasReleaseSigning = false
+if (releaseKeystore) {
+    def missing = []
+    if (!file(releaseKeystore).exists()) missing << "SHARPMIND_KEYSTORE_PATH (file not found: ${releaseKeystore})"
+    if (!releaseStorePassword) missing << 'SHARPMIND_KEYSTORE_PASSWORD'
+    if (!releaseKeyAlias) missing << 'SHARPMIND_KEY_ALIAS'
+    if (!releaseKeyPassword) missing << 'SHARPMIND_KEY_PASSWORD'
+    if (!missing.isEmpty()) {
+        throw new GradleException("Release signing is partially configured. Missing: ${missing.join(', ')}. Refusing to fall back to the debug keystore.")
+    }
+    hasReleaseSigning = true
+}
+def requestedReleaseTask = gradle.startParameter.taskNames.any { it.toLowerCase().contains('release') }
+if (requestedReleaseTask && !hasReleaseSigning && !allowDebugSignedRelease) {
+    throw new GradleException(
+        'Release build requested without a production keystore. Set SHARPMIND_KEYSTORE_PATH, SHARPMIND_KEYSTORE_PASSWORD, ' +
+        'SHARPMIND_KEY_ALIAS and SHARPMIND_KEY_PASSWORD for a Play Store release, or set SHARPMIND_ALLOW_DEBUG_SIGNED_RELEASE=1 ' +
+        'for a local engineering release that is signed with the debug keystore and must not be uploaded.'
+    )
+}
+if (requestedReleaseTask && !hasReleaseSigning && allowDebugSignedRelease) {
+    logger.warn('WARNING: SharpMind release artifacts will be signed with the DEBUG keystore (SHARPMIND_ALLOW_DEBUG_SIGNED_RELEASE=1). Engineering verification only. Do not upload to Google Play.')
+}
 
 android {
     ndkVersion rootProject.ext.ndkVersion
@@ -65,12 +103,12 @@ android {
         release {
             if (hasReleaseSigning) {
                 storeFile file(releaseKeystore)
-                storePassword System.getenv('SHARPMIND_KEYSTORE_PASSWORD')
-                keyAlias System.getenv('SHARPMIND_KEY_ALIAS')
-                keyPassword System.getenv('SHARPMIND_KEY_PASSWORD')
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
             } else {
-                // CI and local verification can produce an installable AAB without a
-                // production keystore. Play upload requires SHARPMIND_KEYSTORE_*.
+                // Only reachable with SHARPMIND_ALLOW_DEBUG_SIGNED_RELEASE=1 (engineering release)
+                // or when no release task was requested. See the policy comment above.
                 storeFile file('debug.keystore')
                 storePassword 'android'
                 keyAlias 'androiddebugkey'
@@ -120,7 +158,9 @@ dependencies {
 
 tasks.register("writePublicConfig", Exec) {
     workingDir file("../../")
+    // Gradle resolves `node` to node.exe on Windows; no shell wrapper is needed.
     commandLine "node", "scripts/write-public-config.mjs"
+    environment "SHARPMIND_APP_ENV", requestedReleaseTask ? "release" : "debug"
 }
 
 preBuild.dependsOn("writePublicConfig")

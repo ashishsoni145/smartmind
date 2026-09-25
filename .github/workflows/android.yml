@@ -17,10 +17,18 @@ on:
       - 'package-lock.json'
       - '.github/workflows/android.yml'
   workflow_dispatch:
+    inputs:
+      production_release:
+        description: 'Build a Play-signed release AAB (requires SHARPMIND_KEYSTORE_* secrets; fails if they are missing)'
+        type: boolean
+        default: false
 
 concurrency:
   group: android-${{ github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   verify:
@@ -41,14 +49,17 @@ jobs:
       - name: Mobile typecheck
         run: npm run mobile:typecheck
 
-      - name: Mobile tests
+      - name: Mobile JS tests
         run: npm run mobile:test
 
       - name: Web typecheck
         run: npm --prefix apps/web run typecheck
 
-  android:
-    name: Kotlin tests, debug APK, release AAB
+      - name: Backend typecheck
+        run: npm --prefix backend run typecheck
+
+  android-debug:
+    name: Kotlin tests and debug APK
     runs-on: ubuntu-latest
     timeout-minutes: 45
     needs: verify
@@ -57,9 +68,6 @@ jobs:
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
       NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
       SHARPMIND_VERSION_CODE: ${{ github.run_number }}
-      SHARPMIND_KEYSTORE_PASSWORD: ${{ secrets.SHARPMIND_KEYSTORE_PASSWORD }}
-      SHARPMIND_KEY_ALIAS: ${{ secrets.SHARPMIND_KEY_ALIAS }}
-      SHARPMIND_KEY_PASSWORD: ${{ secrets.SHARPMIND_KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@v7
 
@@ -72,7 +80,10 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
-          cache: gradle
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
@@ -80,28 +91,20 @@ jobs:
       - name: Check client configuration
         run: |
           if [ -z "$NEXT_PUBLIC_SUPABASE_URL" ] || [ -z "$NEXT_PUBLIC_SUPABASE_ANON_KEY" ] || [ -z "$NEXT_PUBLIC_API_URL" ]; then
-            echo "::warning title=Unconfigured client::Supabase or API secrets are missing. The APK can be installed, but sign-in and data calls stay disabled until NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, and NEXT_PUBLIC_API_URL are set."
+            echo "::warning title=Unconfigured client::Supabase or API secrets are missing. The debug APK builds and installs, but sign-in and data calls stay disabled until NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY and NEXT_PUBLIC_API_URL are set."
           fi
-
-      - name: Decode release keystore
-        env:
-          KEYSTORE_BASE64: ${{ secrets.SHARPMIND_KEYSTORE_BASE64 }}
-        run: |
-          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$SHARPMIND_KEYSTORE_PASSWORD" ] || [ -z "$SHARPMIND_KEY_ALIAS" ] || [ -z "$SHARPMIND_KEY_PASSWORD" ]; then
-            echo "::warning title=Release AAB skipped::Set SHARPMIND_KEYSTORE_BASE64, SHARPMIND_KEYSTORE_PASSWORD, SHARPMIND_KEY_ALIAS, and SHARPMIND_KEY_PASSWORD to upload a signed release bundle. Debug APK still builds."
-            exit 0
-          fi
-          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/sharpmind-release.keystore"
-          echo "SHARPMIND_KEYSTORE_PATH=$RUNNER_TEMP/sharpmind-release.keystore" >> "$GITHUB_ENV"
-          echo "SHARPMIND_HAS_RELEASE_KEYSTORE=1" >> "$GITHUB_ENV"
 
       - name: Kotlin unit tests
-        working-directory: apps/mobile/android
-        run: ./gradlew --no-daemon testDebugUnitTest
+        run: npm --prefix apps/mobile run test:android -- --no-daemon --stacktrace
 
       - name: Assemble debug APK
-        working-directory: apps/mobile/android
-        run: ./gradlew --no-daemon assembleDebug
+        run: npm --prefix apps/mobile run build:debug -- --no-daemon
+
+      - name: Verify debug APK exists
+        run: |
+          set -e
+          ls -la apps/mobile/android/app/build/outputs/apk/debug/
+          test -n "$(find apps/mobile/android/app/build/outputs/apk/debug -name '*.apk' -print -quit)" || { echo "::error::assembleDebug produced no APK"; exit 1; }
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v7
@@ -111,16 +114,113 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Bundle release AAB
-        if: env.SHARPMIND_HAS_RELEASE_KEYSTORE == '1'
-        working-directory: apps/mobile/android
-        run: ./gradlew --no-daemon bundleRelease
+      - name: Upload Kotlin test reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: sharpmind-android-unit-test-reports
+          path: apps/mobile/android/app/build/reports/tests/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  android-release:
+    name: Production release AAB
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: android-debug
+    # Runs on main pushes and on manual dispatch with production_release=true.
+    # It requires the full signing secret set and FAILS if any of them is missing.
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.production_release)
+    environment: production
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+      # versionCode = run_number + SHARPMIND_VERSION_CODE_OFFSET (repository variable, default 0).
+      # Raise the offset if the workflow is ever recreated so Play never sees a reused versionCode.
+      SHARPMIND_VERSION_CODE_OFFSET: ${{ vars.SHARPMIND_VERSION_CODE_OFFSET }}
+      SHARPMIND_VERSION_NAME: ${{ vars.SHARPMIND_VERSION_NAME }}
+      SHARPMIND_KEYSTORE_PASSWORD: ${{ secrets.SHARPMIND_KEYSTORE_PASSWORD }}
+      SHARPMIND_KEY_ALIAS: ${{ secrets.SHARPMIND_KEY_ALIAS }}
+      SHARPMIND_KEY_PASSWORD: ${{ secrets.SHARPMIND_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Resolve deterministic versionCode
+        run: |
+          set -e
+          offset="${SHARPMIND_VERSION_CODE_OFFSET:-0}"
+          case "$offset" in ''|*[!0-9]*) echo "::error::SHARPMIND_VERSION_CODE_OFFSET must be a non-negative integer"; exit 1;; esac
+          code=$(( ${{ github.run_number }} + offset ))
+          echo "SHARPMIND_VERSION_CODE=$code" >> "$GITHUB_ENV"
+          echo "versionCode=$code (run_number ${{ github.run_number }} + offset $offset)"
+
+      - name: Require production configuration
+        env:
+          KEYSTORE_BASE64: ${{ secrets.SHARPMIND_KEYSTORE_BASE64 }}
+        run: |
+          missing=""
+          [ -z "$KEYSTORE_BASE64" ] && missing="$missing SHARPMIND_KEYSTORE_BASE64"
+          [ -z "$SHARPMIND_KEYSTORE_PASSWORD" ] && missing="$missing SHARPMIND_KEYSTORE_PASSWORD"
+          [ -z "$SHARPMIND_KEY_ALIAS" ] && missing="$missing SHARPMIND_KEY_ALIAS"
+          [ -z "$SHARPMIND_KEY_PASSWORD" ] && missing="$missing SHARPMIND_KEY_PASSWORD"
+          [ -z "$NEXT_PUBLIC_SUPABASE_URL" ] && missing="$missing NEXT_PUBLIC_SUPABASE_URL"
+          [ -z "$NEXT_PUBLIC_SUPABASE_ANON_KEY" ] && missing="$missing NEXT_PUBLIC_SUPABASE_ANON_KEY"
+          [ -z "$NEXT_PUBLIC_API_URL" ] && missing="$missing NEXT_PUBLIC_API_URL"
+          if [ -n "$missing" ]; then
+            echo "::error title=Production release blocked::Missing required secrets:$missing. A Play Store release is never signed with the debug keystore."
+            exit 1
+          fi
+          echo "Production configuration present. versionCode=$SHARPMIND_VERSION_CODE versionName=${SHARPMIND_VERSION_NAME:-package.json}"
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: true
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Decode release keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.SHARPMIND_KEYSTORE_BASE64 }}
+        run: |
+          set -e
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/sharpmind-release.keystore"
+          test -s "$RUNNER_TEMP/sharpmind-release.keystore" || { echo "::error::Decoded keystore is empty"; exit 1; }
+          echo "SHARPMIND_KEYSTORE_PATH=$RUNNER_TEMP/sharpmind-release.keystore" >> "$GITHUB_ENV"
+
+      - name: Bundle signed release AAB
+        run: npm --prefix apps/mobile run bundle -- --no-daemon
+
+      - name: Verify release AAB exists and is not debug-signed
+        run: |
+          set -e
+          AAB="$(find apps/mobile/android/app/build/outputs/bundle/release -name '*.aab' -print -quit)"
+          test -n "$AAB" || { echo "::error::bundleRelease produced no AAB"; exit 1; }
+          echo "AAB: $AAB"
+          # The debug keystore's certificate must never sign a production artifact.
+          if unzip -p "$AAB" 'META-INF/*.RSA' 'META-INF/*.DSA' 'META-INF/*.EC' 2>/dev/null | keytool -printcert 2>/dev/null | grep -qi 'CN=Android Debug'; then
+            echo "::error::Release AAB is signed with the Android debug certificate"; exit 1
+          fi
+
+      - name: Remove keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/sharpmind-release.keystore"
 
       - name: Upload release AAB
-        if: env.SHARPMIND_HAS_RELEASE_KEYSTORE == '1'
         uses: actions/upload-artifact@v7
         with:
           name: sharpmind-android-release-aab
           path: apps/mobile/android/app/build/outputs/bundle/release/*.aab
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 30

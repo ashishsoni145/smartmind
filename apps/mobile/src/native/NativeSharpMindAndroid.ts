@@ -8,6 +8,8 @@ export interface Spec extends TurboModule {
   pauseFocusSession(): Promise<string>;
   resumeFocusSession(): Promise<string>;
   getFocusStatus(): Promise<string>;
+  linkBackendSession(sessionId: string): Promise<string>;
+  retryFocusPermissions(): Promise<string>;
   getRequiredPermissions(): Promise<string>;
   openAccessibilitySettings(): Promise<string>;
   openUsageAccessSettings(): Promise<string>;

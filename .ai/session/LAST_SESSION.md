@@ -1,23 +1,23 @@
 # Last Session Handoff
 
-Session: Android React Native + Kotlin client on 2026-09-24. ADR 0010 supersedes ADR 0009.
+Session: Android app audit, hardening and productionisation on 2026-09-25 (branch `arena/01a0d77a-smartmind`). Builds on ADR 0010 (React Native + Kotlin, no WebView).
 
 ### What Was Accomplished
-- Removed the Capacitor shell. `apps/mobile` is a React Native 0.87 TypeScript client plus a Kotlin focus engine under `android/app/src/main/java/com/sharpmind/app/`.
-- Primary UI does not load `apps/web` or `https://sharpminds.live`.
-- Usage-path enforcement records and intervenes on `APP_BLOCK`, `TIME_LIMIT`, and `FOCUS_ONLY`. Content rules stay on the accessibility path and are not upgraded to app blocks. Usage access still cannot force-close another app.
-- JS screens cover auth, home, tutor, study, focus, progress, and profile. Pure-module Jest tests exist. Kotlin unit and instrumentation sources exist but have not been executed here.
-- Root scripts are `mobile:start`, `mobile:android`, `mobile:test`, `mobile:typecheck`, `mobile:build:debug`, `mobile:build:release`, and `mobile:bundle`.
-- CI (`.github/workflows/android.yml`) typechecks, runs JS tests, runs Kotlin unit tests, uploads a debug APK, and uploads a release AAB only when keystore secrets exist.
+- Cross-platform Gradle runner (`apps/mobile/scripts/gradle.mjs`) behind `mobile:build:debug`, `mobile:build:release`, `mobile:bundle`, `test:android`; works from Windows PowerShell.
+- Release signing hardened: partial/missing signing env fails Gradle; debug-keystore fallback only with `SHARPMIND_ALLOW_DEBUG_SIGNED_RELEASE=1`. CI release job fails without `SHARPMIND_KEYSTORE_BASE64/PASSWORD/KEY_ALIAS/KEY_PASSWORD` and public config, verifies the AAB is not debug-signed, never logs secrets.
+- JS layer: request timeouts, status-mapped user errors, 401 handling with login notice, connectivity banner, error boundary, themed UI kit, all screens rewritten off raw RN `Text` with loading/error/empty/retry states; real onboarding form; honest revision, test-runner, tutor attachment, notification and subscription flows.
+- Focus Mode: JS hook + persisted idempotent outbox; Kotlin expiry, backend linking, crash/reboot recovery (never auto-resume), `START_NOT_STICKY` service, accessibility pre-filter, truthful intervention UI, extra protected packages.
+- Tests: Jest 14 → 35; Kotlin `SessionRecoveryTest` added.
+- Docs: `apps/mobile/README.md`, `apps/mobile/PLAY_AUDIT.md`.
 
 ### Verification Status
-- `npm install` completed.
+- `npm ci` completed.
 - `npm run mobile:typecheck` passed.
-- `npm run mobile:test` passed (14 tests).
-- `npm --prefix apps/web run typecheck` passed. Web sources were not modified.
-- No JDK or Android SDK in this sandbox. Kotlin unit tests and the APK were not executed here. GitHub Actions is the build proof.
+- `npm run mobile:test` passed (35 tests, 3 suites).
+- `npm --prefix apps/web run typecheck` and `npm --prefix backend run typecheck` passed (sources untouched).
+- No JDK / Android SDK and no access to Maven/Gradle/Google hosts in the sandbox: `testDebugUnitTest`, `assembleDebug`, `bundleRelease` were NOT executed here. Kotlin changes are written conservatively against existing APIs; GitHub Actions `android-debug` is the proof path.
 
 ### Next Checkpoint
-- Confirm Android CI is green and install the debug APK artifact.
-- Add repo secrets for Supabase URL, anon key, API URL, and (for the AAB) `SHARPMIND_KEYSTORE_BASE64` plus signing passwords.
-- If Play rejects the AccessibilityService, keep content rules unsupported. Do not hide the service or turn content rules into silent app blocks.
+- Watch the first CI run on this branch: Kotlin compile + `SessionRecoveryTest`, `assembleDebug` artifact.
+- Add repo secrets (public Supabase URL/anon key/API URL) and the `production` environment secrets for the AAB job.
+- Follow-ups listed in `apps/mobile/README.md` → Known limitations (written-answer questions, diagrams, reflection notes).
