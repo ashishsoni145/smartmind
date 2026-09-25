@@ -1,7 +1,7 @@
 # TEMPORARY diagnostic workflow - deleted once the Android CI failure is diagnosed.
-# It re-runs the same command as the "Kotlin tests and debug APK" job and posts the
-# captured Gradle output on the pull request so it can be read from an environment
-# that cannot reach results-receiver.actions.githubusercontent.com.
+# Re-runs the same Gradle entry points as the "Kotlin tests and debug APK" job and posts
+# the captured output on the pull request so it can be read from an environment that
+# cannot reach results-receiver.actions.githubusercontent.com.
 name: Android debug log (temporary)
 
 on:
@@ -36,25 +36,51 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
 
-      - name: Show resolved plugin location
+      - name: Show install layout
         continue-on-error: true
         run: |
-          ls -la node_modules/@react-native/gradle-plugin | head -20
-          ls -la apps/mobile/node_modules/@react-native/ 2>/dev/null
+          echo "--- apps/mobile/node_modules/@react-native ---"
+          ls -la apps/mobile/node_modules/@react-native/ 2>&1 | head -20
+          echo "--- readlink -f (canonical) ---"
+          readlink -f apps/mobile/node_modules/@react-native/gradle-plugin || true
+          echo "--- root plugin dir ---"
+          ls node_modules/@react-native/gradle-plugin | head -20
+        id: layout
 
-      - name: Run Kotlin unit tests (capture log)
+      - name: Probe C - default resolution
         continue-on-error: true
         run: |
-          set -o pipefail
-          npm --prefix apps/mobile run test:android -- --no-daemon --stacktrace 2>&1 | tee gradle.log
-          echo "GRADLE_EXIT=${PIPESTATUS[0]}"
+          npm --prefix apps/mobile run gradle -- projects --no-daemon --stacktrace 2>&1 | tail -c 12000 | tee probeC.log
 
-      - name: Post log to the pull request
+      - name: Probe A - explicit canonical path
+        continue-on-error: true
+        run: |
+          CANON=$(readlink -f apps/mobile/node_modules/@react-native/gradle-plugin)
+          echo "canonical=$CANON"
+          npm --prefix apps/mobile run gradle -- projects --no-daemon --stacktrace -PreactNativeGradlePluginDir="$CANON" 2>&1 | tail -c 12000 | tee probeA.log
+
+      - name: Probe B - explicit symlink path
+        continue-on-error: true
+        run: |
+          npm --prefix apps/mobile run gradle -- projects --no-daemon --stacktrace -PreactNativeGradlePluginDir=apps/mobile/node_modules/@react-native/gradle-plugin 2>&1 | tail -c 12000 | tee probeB.log
+
+      - name: Post logs to the pull request
         if: always()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          tail -c 30000 gradle.log > gradle-tail.log
-          jq -Rs '{body: ("Gradle log (`testDebugUnitTest`)\n\n```\n" + . + "\n```")}' gradle-tail.log > comment.json
+          {
+            echo "### Probe C - default resolution (no -P override)"; echo; echo '```';
+            cat probeC.log 2>/dev/null || echo "(no output)";
+            echo '```';
+            echo; echo "### Probe A - explicit canonical path"; echo; echo '```';
+            cat probeA.log 2>/dev/null || echo "(no output)";
+            echo '```';
+            echo; echo "### Probe B - explicit symlink path"; echo; echo '```';
+            cat probeB.log 2>/dev/null || echo "(no output)";
+            echo '```';
+          } > report.md
+          tail -c 60000 report.md > report-tail.md
+          jq -Rs '{body: .}' report-tail.md > comment.json
           gh api "repos/${{ github.repository }}/issues/${PR_NUMBER}/comments" --input comment.json
