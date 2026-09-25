@@ -2,35 +2,39 @@ import { createApp } from './app';
 import { config } from './config';
 import { logger } from './lib/logger';
 
-const app = createApp();
+export const app = createApp();
 
-const server = app.listen(config.port, () => {
-  logger.info(
-    {
-      port: config.port,
-      env: config.env,
-      apiPrefix: config.apiPrefix,
-    },
-    `🚀 SharpMind Backend API server started on http://localhost:${config.port}`
-  );
-});
+let server: ReturnType<typeof app.listen> | undefined;
 
-// Graceful shutdown handling
-const handleGracefulShutdown = (signal: string) => {
-  logger.info(`Received ${signal}. Gracefully shutting down...`);
-  server.close(() => {
-    logger.info('HTTP server closed successfully');
-    process.exit(0);
+if (require.main === module) {
+  server = app.listen(config.port, () => {
+    logger.info(
+      {
+        port: config.port,
+        env: config.env,
+        apiPrefix: config.apiPrefix,
+      },
+      `🚀 SharpMind Backend API server started on http://localhost:${config.port}`
+    );
   });
 
-  // Force close after 10s if dangling connections exist
-  setTimeout(() => {
-    logger.error('Could not close connections in time, forcefully shutting down');
-    process.exit(1);
-  }, 10000);
-};
+  const handleGracefulShutdown = (signal: string) => {
+    logger.info(`Received ${signal}. Gracefully shutting down...`);
+    if (server) {
+      server.close(() => {
+        logger.info('HTTP server closed successfully');
+        process.exit(0);
+      });
+    }
 
-process.on('SIGTERM', () => handleGracefulShutdown('SIGTERM'));
-process.on('SIGINT', () => handleGracefulShutdown('SIGINT'));
+    setTimeout(() => {
+      logger.error('Could not close connections in time, forcefully shutting down');
+      process.exit(1);
+    }, 10000);
+  };
 
-export default server;
+  process.on('SIGTERM', () => handleGracefulShutdown('SIGTERM'));
+  process.on('SIGINT', () => handleGracefulShutdown('SIGINT'));
+}
+
+export default app;

@@ -1,8 +1,38 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ContextAssembler } from '../ai/retrieval/context-assembler';
+import { supabase } from '../db/client';
+
+vi.mock('../db/client', () => ({
+  supabase: {
+    from: vi.fn(),
+    rpc: vi.fn(),
+  },
+}));
 
 describe('Selective Context Retrieval & Assembly (Phase 06 Part 02)', () => {
   const assembler = new ContextAssembler();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    (supabase.rpc as any).mockResolvedValue({ data: [], error: null });
+
+    (supabase.from as any).mockImplementation(() => {
+      const createChain = () => {
+        const chain: any = {
+          select: vi.fn(() => chain),
+          eq: vi.fn(() => chain),
+          in: vi.fn(() => chain),
+          order: vi.fn(() => chain),
+          limit: vi.fn(() => chain),
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+          then: (resolve: any) => resolve({ data: [], error: null }),
+        };
+        return chain;
+      };
+      return createChain();
+    });
+  });
 
   it('should assemble empty/graceful context when database has no matches', async () => {
     const context = await assembler.assemble({
@@ -28,17 +58,13 @@ describe('Selective Context Retrieval & Assembly (Phase 06 Part 02)', () => {
   });
 
   it('should format citations with appropriate provenance IDs', async () => {
-    // Test custom assembler with injected mock slice retrieval
-    class CustomMockAssembler extends ContextAssembler {
-      // Testing the formatting logic
-    }
+    class CustomMockAssembler extends ContextAssembler {}
 
     const testAssembler = new CustomMockAssembler();
     const result = await testAssembler.assemble({
       studentId: 'student-provenance-test',
     });
 
-    // Check citations structure
     for (const citation of result.citations) {
       expect(citation).toHaveProperty('source');
       expect(citation).toHaveProperty('chapterOrDoc');
