@@ -1,7 +1,7 @@
 # TEMPORARY diagnostic workflow - deleted once the Android CI failure is diagnosed.
-# Re-runs the same Gradle entry points as the "Kotlin tests and debug APK" job and posts
-# the captured output on the pull request so it can be read from an environment that
-# cannot reach results-receiver.actions.githubusercontent.com.
+# Runs several settings.gradle variants and posts the filtered Gradle output on the pull
+# request so it can be read from an environment that cannot reach
+# results-receiver.actions.githubusercontent.com.
 name: Android debug log (temporary)
 
 on:
@@ -36,36 +36,68 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
 
-      - name: Show install layout
+      - name: Install layout
         continue-on-error: true
         run: |
-          echo "--- apps/mobile/node_modules/@react-native ---"
-          ls -la apps/mobile/node_modules/@react-native/ 2>&1 | head -20
-          echo "--- readlink -f (canonical) ---"
+          ls -la apps/mobile/node_modules/@react-native/ 2>&1 | head
           readlink -f apps/mobile/node_modules/@react-native/gradle-plugin || true
-          echo "--- root plugin dir ---"
-          ls node_modules/@react-native/gradle-plugin | head -20
-        id: layout
+          ls node_modules/@react-native/gradle-plugin | head -5
 
-      - name: Probe C - default resolution
+      - name: Run variants
         continue-on-error: true
         run: |
-          npm --prefix apps/mobile run gradle -- projects --no-daemon --stacktrace 2>&1 | tee rawC.log
-          grep -vE '^[[:space:]]+at ' rawC.log | grep -vE '^[[:space:]]*$' | head -60 > probeC.log
+          {
+          SETTINGS=apps/mobile/android/settings.gradle
+          cp "$SETTINGS" /tmp/settings.mine.gradle
+          run_variant () {
+            name="$1"
+            echo "===== variant $name ====="
+            npm --prefix apps/mobile run gradle -- projects --no-daemon --stacktrace > "/tmp/raw-$name.log" 2>&1
+            echo "exit=$?"
+            grep -vE '^[[:space:]]+at ' "/tmp/raw-$name.log" | grep -vE '^[[:space:]]*$' | head -25
+            echo "-----"
+          }
 
-      - name: Probe A - explicit canonical path
-        continue-on-error: true
-        run: |
-          CANON=$(readlink -f apps/mobile/node_modules/@react-native/gradle-plugin)
-          echo "canonical=$CANON"
-          npm --prefix apps/mobile run gradle -- projects --no-daemon --stacktrace -PreactNativeGradlePluginDir="$CANON" 2>&1 | tee rawA.log
-          { echo "canonical=$CANON"; grep -vE '^[[:space:]]+at ' rawA.log | grep -vE '^[[:space:]]*$' | head -60; } > probeA.log
+          # V0: the committed settings.gradle (control)
+          run_variant V0
 
-      - name: Probe B - explicit symlink path
-        continue-on-error: true
-        run: |
-          npm --prefix apps/mobile run gradle -- projects --no-daemon --stacktrace -PreactNativeGradlePluginDir=apps/mobile/node_modules/@react-native/gradle-plugin 2>&1 | tee rawB.log
-          grep -vE '^[[:space:]]+at ' rawB.log | grep -vE '^[[:space:]]*$' | head -60 > probeB.log
+          # V1: minimal RN-template style, relative String, single includeBuild
+          cat > "$SETTINGS" <<'EOF'
+          pluginManagement { includeBuild("../../../node_modules/@react-native/gradle-plugin") }
+          plugins { id("com.facebook.react.settings") }
+          rootProject.name = 'SharpMind'
+          EOF
+          run_variant V1
+
+          # V2: RN-template style with the settings-level includeBuild as well
+          cat > "$SETTINGS" <<'EOF'
+          pluginManagement { includeBuild("../../../node_modules/@react-native/gradle-plugin") }
+          plugins { id("com.facebook.react.settings") }
+          rootProject.name = 'SharpMind'
+          includeBuild('../../../node_modules/@react-native/gradle-plugin')
+          EOF
+          run_variant V2
+
+          # V3: canonical File object inside pluginManagement
+          cat > "$SETTINGS" <<'EOF'
+          pluginManagement { includeBuild(new File(rootDir, "../../../node_modules/@react-native/gradle-plugin").canonicalFile) }
+          plugins { id("com.facebook.react.settings") }
+          rootProject.name = 'SharpMind'
+          includeBuild(new File(rootDir, "../../../node_modules/@react-native/gradle-plugin").canonicalFile)
+          EOF
+          run_variant V3
+
+          # V4: mobile symlink path (what the old settings.gradle found first)
+          cat > "$SETTINGS" <<'EOF'
+          pluginManagement { includeBuild(new File(rootDir, "../node_modules/@react-native/gradle-plugin").canonicalFile) }
+          plugins { id("com.facebook.react.settings") }
+          rootProject.name = 'SharpMind'
+          includeBuild(new File(rootDir, "../node_modules/@react-native/gradle-plugin").canonicalFile)
+          EOF
+          run_variant V4
+
+          cp /tmp/settings.mine.gradle "$SETTINGS"
+          } 2>&1 | tee /tmp/variants-report.txt
 
       - name: Post logs to the pull request
         if: always()
@@ -73,17 +105,5 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          {
-            echo "### Probe C - default resolution (no -P override)"; echo; echo '```';
-            cat probeC.log 2>/dev/null || echo "(no output)";
-            echo '```';
-            echo; echo "### Probe A - explicit canonical path"; echo; echo '```';
-            cat probeA.log 2>/dev/null || echo "(no output)";
-            echo '```';
-            echo; echo "### Probe B - explicit symlink path"; echo; echo '```';
-            cat probeB.log 2>/dev/null || echo "(no output)";
-            echo '```';
-          } > report.md
-          tail -c 60000 report.md > report-tail.md
-          jq -Rs '{body: .}' report-tail.md > comment.json
+          jq -Rs '{body: ("```\n" + . + "\n```")}' /tmp/variants-report.txt > comment.json 2>/dev/null || echo '{"body":"no report"}' > comment.json
           gh api "repos/${{ github.repository }}/issues/${PR_NUMBER}/comments" --input comment.json
