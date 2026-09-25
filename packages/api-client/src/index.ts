@@ -51,7 +51,11 @@ export class SharpMindApiClient {
   private defaultHeaders: Record<string, string>;
 
   constructor(config: ApiClientConfig = {}) {
-    this.baseUrl = (config.baseUrl || 'http://localhost:4000/api/v1').replace(/\/$/, '');
+    let base = (config.baseUrl || "http://localhost:4000/api/v1").replace(/\/$/, "");
+    if (!base.endsWith("/api/v1") && !base.includes("/api/v1")) {
+      base = `${base}/api/v1`;
+    }
+    this.baseUrl = base;
     this.getToken = config.getToken;
     this.defaultHeaders = config.headers || {};
   }

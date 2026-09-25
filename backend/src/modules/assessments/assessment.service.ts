@@ -25,6 +25,89 @@ import type {
 
 export class AssessmentService {
   /**
+   * Get submission history for a student
+   */
+  public static async getSubmissions(
+    studentId: string,
+    limit = 20,
+    offset = 0
+  ): Promise<{ submissions: AssessmentSubmission[]; total: number }> {
+    const { data, count, error } = await supabase
+      .from("assessment_submissions")
+      .select("*, assessments(*)", { count: "exact" })
+      .eq("student_id", studentId)
+      .order("started_at", { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) throw new BadRequestError(error.message);
+
+    const submissions: AssessmentSubmission[] = (data || []).map((row: any) => ({
+      id: row.id,
+      assessmentId: row.assessment_id,
+      studentId: row.student_id,
+      totalScore: Number(row.total_score || 0),
+      maxScore: Number(row.max_score || 0),
+      accuracyPercentage: Number(row.accuracy_percentage || 0),
+      timeTakenSeconds: Number(row.time_taken_seconds || 0),
+      timeRemainingSeconds: Number(row.time_remaining_seconds || 0),
+      status: row.status,
+      startedAt: row.started_at,
+      completedAt: row.completed_at,
+      postTestAnalysis: row.post_test_analysis,
+    }));
+
+    return { submissions, total: count || 0 };
+  }
+
+  /**
+   * Get a specific submission by ID
+   */
+  public static async getSubmissionById(
+    submissionId: string,
+    studentId?: string
+  ): Promise<AssessmentSubmission> {
+    let q = supabase
+      .from("assessment_submissions")
+      .select("*, assessment_answers(*)")
+      .eq("id", submissionId);
+
+    if (studentId) {
+      q = q.eq("student_id", studentId);
+    }
+
+    const { data, error } = await q.maybeSingle();
+
+    if (error) throw new BadRequestError(error.message);
+    if (!data) throw new NotFoundError("Assessment submission not found");
+
+    return {
+      id: data.id,
+      assessmentId: data.assessment_id,
+      studentId: data.student_id,
+      totalScore: Number(data.total_score || 0),
+      maxScore: Number(data.max_score || 0),
+      accuracyPercentage: Number(data.accuracy_percentage || 0),
+      timeTakenSeconds: Number(data.time_taken_seconds || 0),
+      timeRemainingSeconds: Number(data.time_remaining_seconds || 0),
+      status: data.status,
+      startedAt: data.started_at,
+      completedAt: data.completed_at,
+      postTestAnalysis: data.post_test_analysis,
+      answers: (data.assessment_answers || []).map((a: any) => ({
+        questionId: a.question_id,
+        selectedOptions: a.selected_options || [],
+        numericalAnswer: a.numerical_answer,
+        isCorrect: a.is_correct,
+        marksAwarded: a.marks_awarded,
+        timeSpentSeconds: a.time_spent_seconds || 0,
+        status: (a.selected_options && a.selected_options.length > 0) || a.numerical_answer != null
+          ? "answered"
+          : "unanswered",
+      })),
+    };
+  }
+
+  /**
    * List assessments by filter
    */
   public static async listAssessments(filters: ListAssessmentsQueryInput) {

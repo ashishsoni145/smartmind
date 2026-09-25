@@ -10,6 +10,29 @@ import {
 import { IdentityService } from '../auth/identity.service';
 
 export class AssessmentController {
+  public static async getSubmissions(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const studentProfileId = await AssessmentController.resolveStudentProfileId(req);
+      const limit = Number(req.query.limit) || 20;
+      const offset = Number(req.query.offset) || 0;
+      const result = await AssessmentService.getSubmissions(studentProfileId, limit, offset);
+      sendSuccess(res, result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  public static async getSubmissionById(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { submissionId } = req.params;
+      const studentProfileId = await AssessmentController.resolveStudentProfileId(req);
+      const submission = await AssessmentService.getSubmissionById(submissionId, studentProfileId);
+      sendSuccess(res, submission);
+    } catch (err) {
+      next(err);
+    }
+  }
+
   private static async resolveStudentProfileId(req: Request): Promise<string> {
     if (req.studentProfileId) return req.studentProfileId;
     return IdentityService.getStudentProfileIdForUser(req.user!.id);
