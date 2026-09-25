@@ -1,8 +1,13 @@
 # Current
 
-Android client rebuild (ADR 0010) is in progress. Capacitor is gone. React Native screens and Kotlin focus sources are in `apps/mobile`. Usage-path `TIME_LIMIT` and `FOCUS_ONLY` are wired. Local proof still required: `npm install`, `npm run mobile:typecheck`, `npm run mobile:test`. APK proof is GitHub Actions, not this sandbox.
+Android production distribution and the client/server secret boundary (ADR 0011) are implemented. Public client configuration is committed in `apps/mobile/config/production.json`; distributed builds fail rather than fall back to localhost; a third `qaStandalone` variant ships a bundled-JS, production-configured, sideloadable APK; `scripts/security-audit.mjs` scans sources and built APK/AAB artifacts; CI has `verify` → `android-debug` / `android-qa` → `android-release` with bundle, signature and secret assertions. Backend: Gemini key moved to a header, log redaction added, transport + AI rate limiting added.
+
+Local proof complete: mobile typecheck, Jest 52/52, Node build-script tests 28/28, auditor self test, source audit, backend typecheck, backend tests 252/252. APK/AAB proof is GitHub Actions, not this sandbox — no JDK, no Android SDK, and Maven/Google hosts are unreachable here. Blocking follow-up: supply the public Supabase anon key, otherwise `android-qa` and `android-release` fail at the configuration gate (intended, with an actionable message).
 
 # Previous
+
+Android client rebuild (ADR 0010) completed. Capacitor is gone. React Native screens and Kotlin focus sources are in `apps/mobile`. Usage-path `TIME_LIMIT` and `FOCUS_ONLY` are wired.
+
  
 Phase 03 — COMPLETED (Parts 01–04).
  

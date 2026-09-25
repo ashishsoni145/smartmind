@@ -37,9 +37,28 @@ Launcher visibility uses a `<queries>` intent for `MAIN`/`LAUNCHER` plus the thr
 ## Data and security
 
 - Session tokens live in Keystore-backed `EncryptedSharedPreferences`. The non-secure file cache refuses keys that look like tokens or secrets.
-- The APK embeds only the Supabase URL, anon key and API URL. The config generator rejects service-role and LLM provider keys.
+- The APK embeds only the Supabase URL, the Supabase anon key and the API URL. All three are public values; the anon key is the publishable key Supabase intends clients to hold, and Row Level Security (enabled on 26/26 tables) is the access control. The config generator decodes any Supabase JWT it is given and rejects one whose `role` claim is `service_role`, and it rejects provider-key shapes (`sk-or-v1-`, `sk-ant-`, `AIza…`, `gsk_…`, `sb_secret_`), PEM private key blocks and connection strings with embedded passwords.
+- Server-only credentials — provider keys, `SUPABASE_SERVICE_ROLE_KEY`, database credentials, signing material, Razorpay/Twilio/MSG91 secrets — are never read by any mobile build step. They live only in the backend environment and in GitHub Actions secrets.
 - File reads for attachments accept only `content://` and `file://` URIs, stream at most 8 MB, and the MIME type is sniffed from bytes, not the extension.
-- `allowBackup=false`; release builds refuse to point at localhost.
+- `allowBackup=false`.
+- Distributed builds (`qaStandalone`, `release`) refuse to point at localhost, `10.0.2.2`, a loopback or private/LAN address, a `.local`/`.internal` host, or any non-HTTPS URL. The build fails with the name of the missing non-secret variable rather than degrading. `usesCleartextTraffic` is `false` for both.
+- The build machine's LAN IPv4, which the React Native Gradle plugin would otherwise write into `res/values` as `react_native_dev_server_ip`, is pinned to `0.0.0.0` for every non-debug build so no developer-machine address ships.
+- There is no fallback behaviour of any kind: no mock AI reply, no invented score, mastery, readiness or entitlement, no fake subscription, no hard-coded account. When the backend is unreachable the UI shows a real network error.
+
+## Artifact audit
+
+Every APK and AAB produced by CI is scanned by `apps/mobile/scripts/security-audit.mjs` before it is
+uploaded. It verifies that the React Native bundle is inside the artifact and is Hermes bytecode,
+that the configured production API URL really is in the bundle, that no developer host is the app's
+own API URL and none is baked into the resource table, that no credential shape appears in the
+bundle, DEX, resources, manifest, native libraries or assets, and that a distributed artifact is not
+signed with the Android debug certificate.
+
+Findings are printed masked, so the audit is safe in public CI logs, and intentionally public values
+are allowlisted rather than reported. `audit:selftest` plants real secrets into synthetic APK/AAB
+fixtures and asserts they are caught, so a green audit cannot mean the scanner never ran. The audit
+report is uploaded next to each artifact
+(`sharpmind-android-qa-audit`, `sharpmind-android-release-audit`).
 
 ## Billing
 

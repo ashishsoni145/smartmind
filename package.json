@@ -25,7 +25,12 @@
     "mobile:test": "npm --prefix apps/mobile test",
     "mobile:typecheck": "npm --prefix apps/mobile run typecheck",
     "mobile:build:debug": "npm --prefix apps/mobile run build:debug",
+    "mobile:build:qa": "npm --prefix apps/mobile run build:qa",
     "mobile:build:release": "npm --prefix apps/mobile run build:release",
-    "mobile:bundle": "npm --prefix apps/mobile run bundle"
+    "mobile:bundle": "npm --prefix apps/mobile run bundle",
+    "mobile:audit": "npm --prefix apps/mobile run audit",
+    "mobile:audit:source": "npm --prefix apps/mobile run audit:source",
+    "mobile:audit:artifact": "npm --prefix apps/mobile run audit:artifact",
+    "mobile:check:config:release": "npm --prefix apps/mobile run check:config:release"
   }
 }

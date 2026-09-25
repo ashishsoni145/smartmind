@@ -1,6 +1,5 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
-apply plugin: "com.facebook.react"
 
 def mobileNodeModules = file("../../node_modules")
 def repoNodeModules = file("../../../node_modules")
@@ -13,9 +12,68 @@ def resolvedRnDir = resolveNodePackage("react-native")
 def resolvedCodegenDir = resolveNodePackage("@react-native/codegen")
 
 /**
+ * ---------------------------------------------------------------------------
+ * Which client environment is being built
+ * ---------------------------------------------------------------------------
+ *
+ * Three variants exist and they are not interchangeable:
+ *
+ *   debug         Metro-based development. JS is served from the dev server, the emulator
+ *                 loopback is an acceptable backend, and nothing is minified.
+ *   qaStandalone  Engineering/QA artifact. The React Native bundle is compiled into the APK,
+ *                 Metro is never contacted, production configuration rules are enforced, and it
+ *                 is signed with the checked-in debug keystore so any device can install it
+ *                 without a Play upload key. This is the "computer switched off" test build.
+ *   release       The Play Store artifact. Bundled JS, production configuration, minified, and
+ *                 signed with the upload keystore held only in CI secrets.
+ *
+ * `qaStandalone` and `release` are both "distributed": scripts/write-public-config.mjs refuses to
+ * generate their client config unless a public HTTPS backend URL and the public Supabase
+ * configuration are present. There is no localhost fallback and no silent degradation.
+ */
+def requestedTasks = gradle.startParameter.taskNames.collect { it.toLowerCase() }
+def qaTaskRequested = requestedTasks.any { it.contains('qastandalone') }
+def releaseTaskRequested = requestedTasks.any { it.contains('release') }
+def debugTaskRequested = requestedTasks.any { it.contains('debug') }
+
+def sharpMindAppEnv = 'debug'
+if (releaseTaskRequested) {
+    sharpMindAppEnv = 'release'
+} else if (qaTaskRequested) {
+    sharpMindAppEnv = 'qa'
+} else if (debugTaskRequested || requestedTasks.isEmpty()) {
+    sharpMindAppEnv = 'debug'
+}
+// A distributed build must never carry production rules under a debug label, and vice versa.
+def distributedBuildRequested = sharpMindAppEnv != 'debug'
+
+/**
+ * The React Native Gradle plugin writes the *build machine's* LAN IPv4 address into
+ * `res/values` as `react_native_dev_server_ip` so a debug build can find Metro. That address is a
+ * developer-machine detail: it must not be baked into an artifact that is distributed to students,
+ * and it is dead configuration there anyway because a release/QA build loads the bundle from its
+ * own assets and never contacts a dev server.
+ *
+ * Pinning it before the plugin is applied keeps the debug workflow exactly as it was (a debug task
+ * request leaves the property unset, so the plugin's own detection runs) while removing the
+ * developer LAN address from qaStandalone and release artifacts. An explicit
+ * `-PreactNativeDevServerIp=...` always wins.
+ */
+if (distributedBuildRequested && !project.hasProperty('reactNativeDevServerIp')) {
+    project.ext.reactNativeDevServerIp = '0.0.0.0'
+}
+
+apply plugin: "com.facebook.react"
+
+/**
  * React Native Android configuration.
  * JS lives in apps/mobile. Native modules may be hoisted to the monorepo root.
  * nodeExecutableAndArgs is the node binary list, not a shell. Public config is written by writePublicConfig.
+ *
+ * Bundling: the React Native Gradle plugin creates `createBundle<Variant>JsAndAssets` for every
+ * variant that is NOT listed in `react.debuggableVariants` (default: ["debug", "debugOptimized"]).
+ * `qaStandalone` and `release` therefore embed their own Hermes-compiled
+ * `assets/index.android.bundle` and run with no Metro, no dev computer and no USB connection.
  */
 react {
     root = file("../../")
@@ -28,6 +86,9 @@ react {
     if (resolvedRnDir != null) {
         cliFile = new File(resolvedRnDir, "cli.js")
     }
+    // Explicit, so a future rename of the debug build type can never silently switch a
+    // distributed variant to loading JS from Metro.
+    debuggableVariants.set(["debug", "debugOptimized"])
     autolinkLibrariesWithApp()
 }
 
@@ -48,6 +109,10 @@ def appVersionCode = (System.getenv('SHARPMIND_VERSION_CODE') ?: '1') as Integer
  *      verification of the minified bundle. Not a Play upload.
  * - Neither
  *   => any release task (assembleRelease, bundleRelease) fails at configuration time.
+ *
+ * `qaStandalone` is intentionally excluded from this policy: it is always signed with the debug
+ * keystore so QA can install it on a physical device without access to the upload key, and the
+ * artifact audit reports that fact. It must never be uploaded to Google Play.
  */
 def releaseKeystore = System.getenv('SHARPMIND_KEYSTORE_PATH')
 def releaseStorePassword = System.getenv('SHARPMIND_KEYSTORE_PASSWORD')
@@ -66,16 +131,20 @@ if (releaseKeystore) {
     }
     hasReleaseSigning = true
 }
-def requestedReleaseTask = gradle.startParameter.taskNames.any { it.toLowerCase().contains('release') }
-if (requestedReleaseTask && !hasReleaseSigning && !allowDebugSignedRelease) {
+if (releaseTaskRequested && !hasReleaseSigning && !allowDebugSignedRelease) {
     throw new GradleException(
         'Release build requested without a production keystore. Set SHARPMIND_KEYSTORE_PATH, SHARPMIND_KEYSTORE_PASSWORD, ' +
         'SHARPMIND_KEY_ALIAS and SHARPMIND_KEY_PASSWORD for a Play Store release, or set SHARPMIND_ALLOW_DEBUG_SIGNED_RELEASE=1 ' +
-        'for a local engineering release that is signed with the debug keystore and must not be uploaded.'
+        'for a local engineering release that is signed with the debug keystore and must not be uploaded. ' +
+        'For an installable QA artifact that needs no upload key, build the qaStandalone variant instead: ' +
+        'npm --prefix apps/mobile run build:qa'
     )
 }
-if (requestedReleaseTask && !hasReleaseSigning && allowDebugSignedRelease) {
+if (releaseTaskRequested && !hasReleaseSigning && allowDebugSignedRelease) {
     logger.warn('WARNING: SharpMind release artifacts will be signed with the DEBUG keystore (SHARPMIND_ALLOW_DEBUG_SIGNED_RELEASE=1). Engineering verification only. Do not upload to Google Play.')
+}
+if (qaTaskRequested) {
+    logger.warn('NOTE: qaStandalone embeds the production React Native bundle and enforces production configuration, but is signed with the checked-in debug keystore so it can be sideloaded for testing. It is NOT a Google Play artifact.')
 }
 
 android {
@@ -121,6 +190,25 @@ android {
             signingConfig signingConfigs.debug
             buildConfigField "String", "SHARPMIND_APP_ENV", "\"debug\""
         }
+        /**
+         * Standalone QA artifact: bundled JS, no Metro, production configuration rules, minified
+         * exactly like release, but debug-signed so it installs anywhere.
+         *
+         * `matchingFallbacks` is required because the autolinked React Native libraries publish
+         * only debug and release variants; without it AGP cannot resolve their dependencies for a
+         * custom build type. `usesCleartextTraffic` must be declared here too - the React Native
+         * plugin only fills that manifest placeholder for debug/release/debugOptimized, and the
+         * manifest would otherwise fail to merge.
+         */
+        qaStandalone {
+            signingConfig signingConfigs.debug
+            debuggable false
+            minifyEnabled enableProguardInReleaseBuilds
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+            matchingFallbacks += ['release']
+            manifestPlaceholders["usesCleartextTraffic"] = "false"
+            buildConfigField "String", "SHARPMIND_APP_ENV", "\"qa\""
+        }
         release {
             signingConfig signingConfigs.release
             minifyEnabled enableProguardInReleaseBuilds
@@ -156,11 +244,93 @@ dependencies {
     androidTestImplementation "androidx.test:core:1.6.1"
 }
 
+/**
+ * Generates src/config/public-env.generated.ts - the ONLY place client configuration enters the
+ * bundle. SHARPMIND_APP_ENV selects the rule set:
+ *
+ *   debug   missing values are allowed and the emulator loopback is used, with a warning;
+ *   qa      production rules: a public HTTPS backend URL and the public Supabase configuration are
+ *   release required, and the script exits non-zero (failing this build) when they are absent.
+ *
+ * The script also refuses to embed any privileged value it finds in the environment and never
+ * prints a secret. See apps/mobile/scripts/write-public-config.mjs.
+ */
 tasks.register("writePublicConfig", Exec) {
     workingDir file("../../")
     // Gradle resolves `node` to node.exe on Windows; no shell wrapper is needed.
     commandLine "node", "scripts/write-public-config.mjs"
-    environment "SHARPMIND_APP_ENV", requestedReleaseTask ? "release" : "debug"
+    environment "SHARPMIND_APP_ENV", sharpMindAppEnv
 }
 
 preBuild.dependsOn("writePublicConfig")
+
+/**
+ * Fails the build before any packaging happens when a distributed variant would ship without a
+ * valid production client configuration. `writePublicConfig` already enforces this; this task
+ * exists so the failure message is attributed to an obvious task name in CI logs.
+ */
+tasks.register("verifyProductionClientConfig") {
+    dependsOn("writePublicConfig")
+    doLast {
+        def generated = file("../../src/config/public-env.generated.ts")
+        if (!generated.exists()) {
+            throw new GradleException("Public client config was not generated at ${generated}. Run `npm --prefix apps/mobile run prepare:env`.")
+        }
+        if (!distributedBuildRequested) {
+            return
+        }
+        def text = generated.getText('UTF-8')
+        def readField = { String name ->
+            def matcher = (text =~ /"${name}":\s*"([^"]*)"/)
+            matcher.find() ? matcher.group(1) : ''
+        }
+        def apiUrl = readField('apiUrl')
+        def apiUrlSource = readField('apiUrlSource')
+        def supabaseUrl = readField('supabaseUrl')
+        def anonKey = readField('supabaseAnonKey')
+
+        def problems = []
+        if (!apiUrl || apiUrlSource != 'configured') {
+            problems << 'SHARPMIND_API_URL (public HTTPS backend base URL, e.g. https://api.example.com/api/v1)'
+        }
+        if (apiUrl && !apiUrl.startsWith('https://')) {
+            problems << "SHARPMIND_API_URL must be https:// for a ${sharpMindAppEnv} build"
+        }
+
+        // Inspect the host, not the whole string, so a domain that merely contains "lan" or "10."
+        // somewhere in its path is not mistaken for a developer machine.
+        def host = ''
+        if (apiUrl) {
+            try {
+                host = (new URI(apiUrl).host ?: '').toLowerCase()
+            } catch (Exception ignored) {
+                host = ''
+            }
+        }
+        if (apiUrl && !host) {
+            problems << 'SHARPMIND_API_URL is not a valid absolute URL'
+        }
+        def developerHosts = ['localhost', '127.0.0.1', '10.0.2.2', '0.0.0.0', '::1', 'host.docker.internal']
+        def privateHost = host ==~ /^(?:10\.|127\.|0\.|169\.254\.|192\.168\.|172\.(?:1[6-9]|2[0-9]|3[01])\.).*/
+        if (host && (developerHosts.contains(host) || host.endsWith('.local') || host.endsWith('.internal') || host.endsWith('.lan') || privateHost)) {
+            problems << "SHARPMIND_API_URL must not point at a developer machine (got host ${host})"
+        }
+        if (!supabaseUrl) problems << 'SHARPMIND_SUPABASE_URL (public Supabase project URL)'
+        if (!anonKey) problems << 'SHARPMIND_SUPABASE_ANON_KEY (public Supabase anon/publishable key - never the service-role key)'
+
+        if (!problems.isEmpty()) {
+            throw new GradleException(
+                "Refusing to build the ${sharpMindAppEnv} variant without public client configuration. Missing or invalid NON-SECRET values:\n  - " +
+                problems.unique().join('\n  - ') +
+                '\nThese are public values (a backend URL and the Supabase publishable key); they are not secrets. Set them in the ' +
+                'environment, in GitHub Actions variables/secrets, or in apps/mobile/config/production.json. This build never falls ' +
+                'back to localhost or 10.0.2.2, never disables networking silently, and never substitutes mock data.'
+            )
+        }
+        logger.lifecycle("Production client configuration verified for ${sharpMindAppEnv}: ${apiUrl}")
+    }
+}
+
+tasks.matching { it.name in ['assembleQaStandalone', 'assembleRelease', 'bundleRelease', 'bundleQaStandalone'] }.configureEach {
+    dependsOn("verifyProductionClientConfig")
+}

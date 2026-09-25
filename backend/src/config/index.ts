@@ -18,6 +18,14 @@ export const config = {
   },
   logging: {
     level: env.LOG_LEVEL,
+    redactCredentials: true,
+  },
+  rateLimit: {
+    enabled: env.RATE_LIMIT_ENABLED,
+    windowMs: env.RATE_LIMIT_WINDOW_MS,
+    max: env.RATE_LIMIT_MAX,
+    aiWindowMs: env.AI_RATE_LIMIT_WINDOW_MS,
+    aiMax: env.AI_RATE_LIMIT_MAX,
   },
 } as const;
 

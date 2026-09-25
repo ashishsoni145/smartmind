@@ -1,5 +1,22 @@
 # Next
 
-- Confirm the Android GitHub Actions run is green and install the debug APK artifact. Kotlin tests and the APK were not executed in the sandbox.
-- Add repository secrets: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_API_URL`. For a Play AAB, also add `SHARPMIND_KEYSTORE_BASE64`, `SHARPMIND_KEYSTORE_PASSWORD`, `SHARPMIND_KEY_ALIAS`, and `SHARPMIND_KEY_PASSWORD`.
-- If Play rejects the AccessibilityService, keep content rules unsupported. Do not hide the service or turn those rules into silent app blocks.
+- Supply the public Supabase anon key so a distributed build can be produced: either commit it in
+  `apps/mobile/config/production.json` (verify its JWT `role` claim is `anon` first) or set
+  `SHARPMIND_SUPABASE_ANON_KEY` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` as a repository variable. Until
+  then `android-qa` and `android-release` fail at the configuration gate with an actionable message,
+  which is the intended behaviour.
+- Add the `production` GitHub environment secrets for a Play AAB: `SHARPMIND_KEYSTORE_BASE64`,
+  `SHARPMIND_KEYSTORE_PASSWORD`, `SHARPMIND_KEY_ALIAS`, `SHARPMIND_KEY_PASSWORD`. Optionally set the
+  `SHARPMIND_VERSION_NAME` and `SHARPMIND_VERSION_CODE_OFFSET` repository variables.
+- Confirm the GitHub Actions run is green and download `sharpmind-android-qa-apk`.
+- Run the physical-device test in `apps/mobile/README.md` -> "Physical-device test (QA APK)" on real
+  hardware: install, stop Metro, unplug USB, switch the computer off, launch, then walk every flow.
+  This cannot be automated and has not been performed yet.
+- When the backend moves behind a custom domain, update `apiUrl` in
+  `apps/mobile/config/production.json` (or `SHARPMIND_API_URL`) and rebuild.
+- Complete the Play Console declarations listed in `apps/mobile/PLAY_AUDIT.md` (special-use
+  foreground service, AccessibilityService, usage access). Nothing publishes automatically.
+- If Play rejects the AccessibilityService, keep content rules unsupported. Do not hide the service
+  or turn those rules into silent app blocks.
+- Follow-up on the honest limitation recorded in ADR 0011: transport rate limiting is process-local,
+  so a globally exact quota needs shared state (Upstash/Redis) or an edge layer.

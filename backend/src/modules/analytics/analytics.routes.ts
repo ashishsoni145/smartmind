@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { AnalyticsController } from './analytics.controller';
 import { requireAuth } from '../../middleware/auth';
 import { resolveStudentProfile } from '../../middleware/identity';
+import { aiRateLimit } from '../../middleware/ai-rate-limit';
 
 const router = Router();
 
@@ -10,7 +11,8 @@ router.use(requireAuth);
 router.use(resolveStudentProfile);
 
 router.get('/health-score', AnalyticsController.getHealthScore);
-router.get('/debrief', AnalyticsController.getDailyDebrief);
-router.get('/weekly-review', AnalyticsController.getWeeklyReview);
+// Both of these call the review-analytics agent, so they carry the shared AI cap.
+router.get('/debrief', aiRateLimit, AnalyticsController.getDailyDebrief);
+router.get('/weekly-review', aiRateLimit, AnalyticsController.getWeeklyReview);
 
 export { router as analyticsRoutes };
