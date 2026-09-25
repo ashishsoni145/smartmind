@@ -21,6 +21,13 @@
  * the resolved path is canonicalised because the apps/mobile entries are symlinks into the
  * hoisted root node_modules (Gradle keys composite builds by path).
  *
+ * The plugin directory is handed to includeBuild() as a slash-separated path String.
+ * That is not cosmetic: inside pluginManagement {}, only the String overload registers a
+ * build for plugin resolution. Passing a File (as this file used to do) registers the
+ * build for dependency substitution only, and Gradle then fails with
+ * "Plugin [id: 'com.facebook.react.settings'] was not found ... Included Builds
+ * (No included builds contain this plugin)".
+ *
  * The single resolved directory is registered twice, exactly as the React Native 0.87.1
  * template does:
  *   1. inside pluginManagement, so `plugins { id("com.facebook.react.settings") }` resolves;
@@ -76,12 +83,17 @@ pluginManagement {
         )
     }
 
-    // Apps/mobile/node_modules entries are symlinks into the hoisted root node_modules;
-    // always hand Gradle the real directory.
-    gradle.ext.reactNativeGradlePluginDir = resolved.canonicalFile
+    // Path relative to this settings file, always with forward slashes, so the String
+    // overload of includeBuild() is used on every platform.
+    def pluginPath = rootDir.canonicalFile.toPath()
+        .relativize(resolved.canonicalFile.toPath())
+        .toString()
+        .replace(File.separator, '/')
+
+    gradle.ext.reactNativeGradlePluginPath = pluginPath
 
     // Makes com.facebook.react.settings (and its autolinking extension) resolvable below.
-    includeBuild(gradle.ext.reactNativeGradlePluginDir)
+    includeBuild(pluginPath)
 }
 
 plugins { id("com.facebook.react.settings") }
@@ -92,4 +104,4 @@ include ':app'
 
 // Registers the same plugin build for dependency substitution, so the root buildscript
 // classpath resolves com.facebook.react:react-native-gradle-plugin from the local sources.
-includeBuild(gradle.ext.reactNativeGradlePluginDir)
+includeBuild(gradle.ext.reactNativeGradlePluginPath)
