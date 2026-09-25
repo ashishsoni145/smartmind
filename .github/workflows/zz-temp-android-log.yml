@@ -1,0 +1,102 @@
+# TEMPORARY diagnostic workflow - deleted once the Android CI failure is diagnosed.
+# Runs the real Kotlin unit test and debug APK commands and posts the filtered Gradle
+# output on the pull request so it can be read from an environment that cannot reach
+# results-receiver.actions.githubusercontent.com.
+name: Android debug log (temporary)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  gradle-log:
+    name: Capture Gradle log
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Absolute-String includeBuild probe
+        continue-on-error: true
+        run: |
+          set +e
+          SETTINGS=apps/mobile/android/settings.gradle
+          cp "$SETTINGS" /tmp/settings.mine.gradle
+          {
+            printf 'pluginManagement { includeBuild("%s/node_modules/@react-native/gradle-plugin") }\n' "$GITHUB_WORKSPACE"
+            printf 'plugins { id("com.facebook.react.settings") }\n'
+            printf "rootProject.name = 'SharpMind'\n"
+            printf 'includeBuild("%s/node_modules/@react-native/gradle-plugin")\n' "$GITHUB_WORKSPACE"
+          } > "$SETTINGS"
+          npm --prefix apps/mobile run gradle -- projects --no-daemon --stacktrace > /tmp/raw-abs.log 2>&1
+          echo "absolute-string-exit=$?"
+          grep -vE '^[[:space:]]+at ' /tmp/raw-abs.log | grep -vE '^> Task ' | grep -vE '^[[:space:]]*$' | head -20
+          cp /tmp/settings.mine.gradle "$SETTINGS"
+
+      - name: Kotlin unit tests and debug APK
+        continue-on-error: true
+        run: |
+          set +e
+          {
+            echo "===== testDebugUnitTest ====="
+            npm --prefix apps/mobile run test:android -- --no-daemon --stacktrace > /tmp/raw-test.log 2>&1
+            echo "test-exit=$?"
+            grep -E "^(FAILURE|BUILD|.*FAILED|.*What went wrong)" /tmp/raw-test.log | head -20
+            echo "----- JUnit summary -----"
+            python3 - <<'PY'
+            import glob, xml.etree.ElementTree as ET
+            total = failed = 0
+            files = sorted(glob.glob('apps/mobile/android/app/build/test-results/testDebugUnitTest/*.xml'))
+            for f in files:
+                r = ET.parse(f).getroot()
+                t = int(r.get('tests', 0)); fl = int(r.get('failures', 0)) + int(r.get('errors', 0))
+                total += t; failed += fl
+                print(r.get('name'), 'tests=' + str(t), 'failures=' + str(fl))
+            print('TOTAL tests=' + str(total), 'failures=' + str(failed))
+            PY
+            echo "----- test report files -----"
+            ls apps/mobile/android/app/build/reports/tests/testDebugUnitTest/ 2>&1 | head
+
+            echo "===== assembleDebug ====="
+            npm --prefix apps/mobile run build:debug -- --no-daemon --stacktrace > /tmp/raw-build.log 2>&1
+            echo "build-exit=$?"
+            grep -E "^(BUILD|.*What went wrong)" /tmp/raw-build.log | head -10
+            tail -5 /tmp/raw-build.log
+
+            echo "===== APK ====="
+            ls -la apps/mobile/android/app/build/outputs/apk/debug/
+            sha256sum apps/mobile/android/app/build/outputs/apk/debug/*.apk
+            unzip -l apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk | tail -3
+            unzip -l apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk | grep -E "classes.*\.dex|lib/arm64-v8a/libhermes|assets/index.android.bundle|AndroidManifest.xml" | head -10
+            cat apps/mobile/android/app/build/outputs/apk/debug/output-metadata.json
+          } 2>&1 | tee /tmp/report.txt
+
+      - name: Post logs to the pull request
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          tail -c 40000 /tmp/report.txt > /tmp/report-tail.txt
+          jq -Rs '{body: ("```\n" + . + "\n```")}' /tmp/report-tail.txt > comment.json
+          gh api "repos/${{ github.repository }}/issues/${PR_NUMBER}/comments" --input comment.json
