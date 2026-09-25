@@ -1,19 +1,89 @@
-pluginManagement {
-    def pluginDir = [
-        file("../node_modules/@react-native/gradle-plugin"),
-        file("../../node_modules/@react-native/gradle-plugin"),
-    ].find { it.exists() }
-    if (pluginDir == null) {
-        throw new GradleException("Cannot find @react-native/gradle-plugin. Run npm install from the repository root, then apps/mobile postinstall.")
-    }
-    includeBuild(pluginDir)
+/**
+ * React Native Gradle Plugin (RNGP) resolution.
+ *
+ * This Android project lives at <repo>/apps/mobile/android, but the repository is an
+ * npm-workspaces monorepo: `npm ci` at the repository root hoists every dependency -
+ * including @react-native/gradle-plugin - into <repo>/node_modules. Depending on how the
+ * workspace was installed, the plugin can legitimately live in any of these places:
+ *
+ *   <repo>/apps/mobile/node_modules/@react-native/gradle-plugin
+ *       `npm install` inside apps/mobile, or the symlinks created by
+ *       apps/mobile/scripts/link-native-deps.mjs (root postinstall / apps/mobile postinstall).
+ *   <repo>/apps/node_modules/@react-native/gradle-plugin
+ *       workspace layouts that do not hoist all the way to the repository root.
+ *   <repo>/node_modules/@react-native/gradle-plugin
+ *       hoisted npm-workspaces install - what CI gets, and the default on macOS, Linux
+ *       and Windows.
+ *
+ * Every remaining ancestor is searched too, so the build keeps working if the app is ever
+ * nested deeper or if the workspace root moves. A candidate only counts when it actually
+ * contains a Gradle build, so an empty or stale directory never masks a real install.
+ *
+ * The result is a single directory used by exactly two includeBuild() calls:
+ *   1. inside pluginManagement - so `plugins { id("com.facebook.react.settings") }` resolves;
+ *   2. at settings level - so the root buildscript classpath entry
+ *      `com.facebook.react:react-native-gradle-plugin` is substituted by these local
+ *      sources instead of being downloaded from Maven Central.
+ * These are the same two registrations the React Native 0.87.1 template performs.
+ */
+
+def isReactNativeGradlePlugin = { File candidate ->
+    return candidate.isDirectory() &&
+        (new File(candidate, "settings.gradle").isFile() || new File(candidate, "settings.gradle.kts").isFile())
 }
+
+def pluginCandidates = []
+
+// Optional escape hatch for unusual layouts, e.g.
+//   ./gradlew assembleDebug -PreactNativeGradlePluginDir=/path/to/@react-native/gradle-plugin
+// Never required; there is no machine-specific default here.
+def explicitPluginDir = gradle.startParameter.projectProperties?.get("reactNativeGradlePluginDir")
+if (explicitPluginDir) {
+    def explicit = new File(explicitPluginDir)
+    pluginCandidates << (explicit.isAbsolute() ? explicit : new File(rootDir, explicitPluginDir))
+}
+
+// apps/mobile/node_modules (also the symlink target created by scripts/link-native-deps.mjs),
+// apps/node_modules, <repository-root>/node_modules.
+pluginCandidates << new File(rootDir, "../node_modules/@react-native/gradle-plugin")
+pluginCandidates << new File(rootDir, "../../node_modules/@react-native/gradle-plugin")
+pluginCandidates << new File(rootDir, "../../../node_modules/@react-native/gradle-plugin")
+
+// Any other ancestor <dir>/node_modules/@react-native/gradle-plugin.
+def ancestor = rootDir.parentFile
+while (ancestor != null) {
+    pluginCandidates << new File(ancestor, "node_modules/@react-native/gradle-plugin")
+    ancestor = ancestor.parentFile
+}
+
+def reactNativeGradlePluginDir = pluginCandidates.find { isReactNativeGradlePlugin(it) }
+
+if (reactNativeGradlePluginDir == null) {
+    throw new GradleException(
+        "Cannot find the React Native Gradle plugin (@react-native/gradle-plugin), so " +
+        "com.facebook.react.settings cannot be applied.\nSearched:\n  " +
+        pluginCandidates.collect { it.absolutePath }.unique().join("\n  ") + "\n\n" +
+        "Fix: run `npm ci` from the repository root. This repository is an npm-workspaces " +
+        "monorepo, so that single command installs apps/mobile too and hoists " +
+        "@react-native/gradle-plugin into <repo>/node_modules.\n" +
+        "For a standalone checkout, run `npm install` inside apps/mobile instead.\n" +
+        "A non-standard location can be selected with " +
+        "-PreactNativeGradlePluginDir=<path to @react-native/gradle-plugin>."
+    )
+}
+
+pluginManagement {
+    // Makes `com.facebook.react.settings` (and its autolinking extension) resolvable below.
+    includeBuild(reactNativeGradlePluginDir)
+}
+
 plugins { id("com.facebook.react.settings") }
 extensions.configure(com.facebook.react.ReactSettingsExtension) { ex -> ex.autolinkLibrariesFromCommand() }
+
 rootProject.name = 'SharpMind'
 include ':app'
-def pluginDir = [
-    file("../node_modules/@react-native/gradle-plugin"),
-    file("../../node_modules/@react-native/gradle-plugin"),
-].find { it.exists() }
-includeBuild(pluginDir)
+
+// Registers the same plugin build for dependency substitution, so the root
+// buildscript classpath resolves `com.facebook.react:react-native-gradle-plugin`
+// from the local sources matched above.
+includeBuild(reactNativeGradlePluginDir)
