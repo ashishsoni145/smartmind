@@ -10,9 +10,7 @@ function createTutorAdapter(): TutorAdapter {
   if (hasSupabase) {
     return new SupabaseAITutorAdapter();
   }
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('Critical Configuration Error: Supabase credentials are missing in production.');
-  }
+
   return new LocalAITutorAdapter();
 }
 

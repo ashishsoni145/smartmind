@@ -17,7 +17,9 @@ const router = Router();
 router.use(requireAuth);
 router.use(resolveStudentProfile);
 
-router.get('/', validateQuery(listAssessmentsQuerySchema), AssessmentController.listAssessments);
+router.get("/history/submissions", AssessmentController.getSubmissions);
+router.get("/submissions/:submissionId", requireResourceOwner("submission", "submissionId"), AssessmentController.getSubmissionById);
+router.get("/", validateQuery(listAssessmentsQuerySchema), AssessmentController.listAssessments);
 router.post('/', requireAdmin, validateBody(createAssessmentSchema), AssessmentController.createAssessment);
 router.get('/:id', AssessmentController.getAssessmentById);
 router.post('/:id/start', AssessmentController.startAttempt);
