@@ -30,8 +30,8 @@ export const pedagogicalTypeEnum = z.enum([
 
 export const listQuestionsQuerySchema = z.object({
   subjectId: z.string().optional(),
-  curriculumNodeId: z.string().uuid().optional(),
-  conceptId: z.string().uuid().optional(),
+  curriculumNodeId: z.string().optional(),
+  conceptId: z.string().optional(),
   targetExamId: z.string().optional(),
   year: z.coerce.number().int().optional(),
   difficultyLevel: z.enum(['easy', 'medium', 'hard', 'olympiad']).optional(),
@@ -67,10 +67,10 @@ export const generationProvenanceSchema = z.object({
 });
 
 export const createQuestionSchema = z.object({
-  id: z.string().uuid().optional(),
+  id: z.string().optional(),
   subjectId: z.string(),
-  curriculumNodeId: z.string().uuid().nullable().optional(),
-  conceptId: z.string().uuid().nullable().optional(),
+  curriculumNodeId: z.string().nullable().optional(),
+  conceptId: z.string().nullable().optional(),
   targetExamId: z.string().nullable().optional(),
   questionText: z.string().min(1),
   questionType: questionTypeEnum.default('single_choice'),

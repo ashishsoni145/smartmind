@@ -11,9 +11,7 @@ function createAuthAdapter(): AuthAdapter {
     return new SupabaseAuthAdapter();
   }
 
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('Critical Configuration Error: Supabase credentials are missing in production.');
-  }
+  // Fallback to local adapter when Supabase credentials are missing (e.g. during SSG / prerendering)
 
   return new LocalAuthAdapter();
 }

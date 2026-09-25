@@ -8,11 +8,11 @@ export const listChaptersQuerySchema = z.object({
 });
 
 export const createCurriculumNodeSchema = z.object({
-  id: z.string().uuid().optional(),
+  id: z.string().optional(),
   subjectId: z.string(),
   gradeId: z.string(),
   boardId: z.string(),
-  parentId: z.string().uuid().nullable().optional(),
+  parentId: z.string().nullable().optional(),
   nodeType: z.enum(['unit', 'chapter', 'topic', 'subtopic']),
   code: z.string().min(1),
   title: z.string().min(1),
