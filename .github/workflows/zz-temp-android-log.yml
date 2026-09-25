@@ -1,0 +1,60 @@
+# TEMPORARY diagnostic workflow - deleted once the Android CI failure is diagnosed.
+# It re-runs the same command as the "Kotlin tests and debug APK" job and posts the
+# captured Gradle output on the pull request so it can be read from an environment
+# that cannot reach results-receiver.actions.githubusercontent.com.
+name: Android debug log (temporary)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  gradle-log:
+    name: Capture Gradle log
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Show resolved plugin location
+        continue-on-error: true
+        run: |
+          ls -la node_modules/@react-native/gradle-plugin | head -20
+          ls -la apps/mobile/node_modules/@react-native/ 2>/dev/null
+
+      - name: Run Kotlin unit tests (capture log)
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          npm --prefix apps/mobile run test:android -- --no-daemon --stacktrace 2>&1 | tee gradle.log
+          echo "GRADLE_EXIT=${PIPESTATUS[0]}"
+
+      - name: Post log to the pull request
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          tail -c 30000 gradle.log > gradle-tail.log
+          jq -Rs '{body: ("Gradle log (`testDebugUnitTest`)\n\n```\n" + . + "\n```")}' gradle-tail.log > comment.json
+          gh api "repos/${{ github.repository }}/issues/${PR_NUMBER}/comments" --input comment.json
