@@ -1,4 +1,4 @@
-﻿# Changelog
+# Changelog
 
 ## 2026-09-14
 
@@ -7,4 +7,4 @@
 
 ## 2026-09-24
 
-- Added the Android app (`apps/mobile`, Capacitor 8) wrapping the `apps/web` static export, a CI workflow that builds the debug APK, and ADR 0009.
+- Added the Android app (`apps/mobile`, Capacitor 8) wrapping the `apps/web` static export, a CI workflow that builds the debug APK, and ADR 0009. Superseded the same day by ADR 0010: Capacitor removed; React Native + Kotlin client; CI no longer builds the web export into the APK.

@@ -34,7 +34,7 @@ This document tracks technical debt, future system integrations, and planned pha
 ---
 
 ## Phase 06: Cross-Platform Native Apps (Desktop & Mobile)
-- [x] **Android App**: Delivered as a Capacitor 8 shell around the `apps/web` static export (ADR 0009) instead of React Native/Expo, which reuses every adapter and screen without duplication.
-- [ ] **iOS App**: `npx cap add ios` in `apps/mobile` using the same approach.
+- [ ] **Android App**: React Native + Kotlin client (ADR 0010). Capacitor shell removed. Remaining proof is a green Android CI run (typecheck, JS tests, Kotlin unit tests, debug APK). Do not treat sources as a working APK until that artifact exists.
+- [ ] **iOS App**: Separate native client later. Do not add Capacitor.
 - [ ] **Offline Cache & Sync**: SQLite/WatermelonDB local cache for offline NCERT reading and test-taking on mobile devices.
 - [ ] **Push Notifications**: Connect FCM / APNs to `NotificationSettings` for study alerts and spaced repetition decay reminders.

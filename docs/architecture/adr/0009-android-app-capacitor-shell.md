@@ -1,7 +1,7 @@
 # ADR 0009: Android app as a Capacitor shell around the static web export
 
 ## Status
-Accepted (2026-09-24)
+Superseded by ADR 0010 (2026-09-24). The Capacitor shell was removed. Do not restore it.
 
 ## Context
 SharpMind targets web, Android, iOS, Windows, and macOS (`.ai/PROJECT_CONTEXT.md`). ADR 0001 says

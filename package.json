@@ -18,9 +18,14 @@
     "lint": "npm --prefix apps/web run lint",
     "typecheck": "npm --prefix apps/web run typecheck",
     "typecheck:backend": "npm --prefix backend run typecheck",
-    "typecheck:all": "npm --prefix backend run typecheck && npm --prefix apps/web run typecheck",
+    "typecheck:all": "npm --prefix backend run typecheck && npm --prefix apps/web run typecheck && npm --prefix apps/mobile run typecheck",
     "test:backend": "npm --prefix backend run test",
-    "build:mobile": "npm --prefix apps/mobile run build",
-    "apk:debug": "npm --prefix apps/mobile run apk:debug"
+    "mobile:start": "npm --prefix apps/mobile start",
+    "mobile:android": "npm --prefix apps/mobile run android",
+    "mobile:test": "npm --prefix apps/mobile test",
+    "mobile:typecheck": "npm --prefix apps/mobile run typecheck",
+    "mobile:build:debug": "npm --prefix apps/mobile run build:debug",
+    "mobile:build:release": "npm --prefix apps/mobile run build:release",
+    "mobile:bundle": "npm --prefix apps/mobile run bundle"
   }
 }

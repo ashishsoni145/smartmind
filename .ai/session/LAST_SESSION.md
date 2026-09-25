@@ -1,19 +1,23 @@
 # Last Session Handoff
 
-Session: Android App (Capacitor shell) on 2026-09-24.
+Session: Android React Native + Kotlin client on 2026-09-24. ADR 0010 supersedes ADR 0009.
 
 ### What Was Accomplished
-- Created `apps/mobile`, a Capacitor 8 Android project that wraps the `apps/web` static export (ADR 0009).
-- Added `StaticExportWebViewClient` so full-page navigations such as `/app/planner/` load the correct exported page. JUnit tests cover the path rewriting.
-- Added SharpMind adaptive/themed icons, a splash screen, dark system bars, `allowBackup=false`, and env-driven release signing and versioning.
-- Added `.github/workflows/android.yml`, which builds, unit-tests, and uploads a debug APK artifact.
-- Updated the docs: `apps/mobile/README.md`, ADR 0009, PROJECT_MAP, DECISIONS, backlog, and CHANGELOG.
+- Removed the Capacitor shell. `apps/mobile` is a React Native 0.87 TypeScript client plus a Kotlin focus engine under `android/app/src/main/java/com/sharpmind/app/`.
+- Primary UI does not load `apps/web` or `https://sharpminds.live`.
+- Usage-path enforcement records and intervenes on `APP_BLOCK`, `TIME_LIMIT`, and `FOCUS_ONLY`. Content rules stay on the accessibility path and are not upgraded to app blocks. Usage access still cannot force-close another app.
+- JS screens cover auth, home, tutor, study, focus, progress, and profile. Pure-module Jest tests exist. Kotlin unit and instrumentation sources exist but have not been executed here.
+- Root scripts are `mobile:start`, `mobile:android`, `mobile:test`, `mobile:typecheck`, `mobile:build:debug`, `mobile:build:release`, and `mobile:bundle`.
+- CI (`.github/workflows/android.yml`) typechecks, runs JS tests, runs Kotlin unit tests, uploads a debug APK, and uploads a release AAB only when keystore secrets exist.
 
 ### Verification Status
-- `npm --prefix apps/mobile run build` succeeds (Next.js export of 36 static pages, then `cap sync android`). Google Fonts were mocked locally because the sandbox has no access to fonts.googleapis.com.
-- Gradle/APK build: not runnable in the sandbox (Maven, Google, and Gradle hosts are unreachable). The GitHub Actions workflow performs it on the PR.
+- `npm install` completed.
+- `npm run mobile:typecheck` passed.
+- `npm run mobile:test` passed (14 tests).
+- `npm --prefix apps/web run typecheck` passed. Web sources were not modified.
+- No JDK or Android SDK in this sandbox. Kotlin unit tests and the APK were not executed here. GitHub Actions is the build proof.
 
 ### Next Checkpoint
-- Confirm the Android CI run is green and install the APK artifact on a device.
-- Add repo secrets `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `NEXT_PUBLIC_API_URL`, and add `https://localhost` to the backend `CORS_ORIGIN`.
-- Later: Android App Links for email flows, FCM push notifications, an offline cache, and iOS (`cap add ios`).
+- Confirm Android CI is green and install the debug APK artifact.
+- Add repo secrets for Supabase URL, anon key, API URL, and (for the AAB) `SHARPMIND_KEYSTORE_BASE64` plus signing passwords.
+- If Play rejects the AccessibilityService, keep content rules unsupported. Do not hide the service or turn content rules into silent app blocks.

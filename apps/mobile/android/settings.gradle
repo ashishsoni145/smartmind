@@ -1,5 +1,19 @@
+pluginManagement {
+    def pluginDir = [
+        file("../node_modules/@react-native/gradle-plugin"),
+        file("../../node_modules/@react-native/gradle-plugin"),
+    ].find { it.exists() }
+    if (pluginDir == null) {
+        throw new GradleException("Cannot find @react-native/gradle-plugin. Run npm install from the repository root, then apps/mobile postinstall.")
+    }
+    includeBuild(pluginDir)
+}
+plugins { id("com.facebook.react.settings") }
+extensions.configure(com.facebook.react.ReactSettingsExtension) { ex -> ex.autolinkLibrariesFromCommand() }
+rootProject.name = 'SharpMind'
 include ':app'
-include ':capacitor-cordova-android-plugins'
-project(':capacitor-cordova-android-plugins').projectDir = new File('./capacitor-cordova-android-plugins/')
-
-apply from: 'capacitor.settings.gradle'
+def pluginDir = [
+    file("../node_modules/@react-native/gradle-plugin"),
+    file("../../node_modules/@react-native/gradle-plugin"),
+].find { it.exists() }
+includeBuild(pluginDir)

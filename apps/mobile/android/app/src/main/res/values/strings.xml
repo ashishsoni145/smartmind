@@ -1,7 +1,13 @@
-<?xml version='1.0' encoding='utf-8'?>
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">SharpMind</string>
-    <string name="title_activity_main">SharpMind</string>
-    <string name="package_name">com.sharpmind.app</string>
-    <string name="custom_url_scheme">com.sharpmind.app</string>
+    <string name="accessibility_service_label">SharpMind Focus</string>
+    <string name="accessibility_service_description">SharpMind uses this only during a focus session you start, to notice configured distracting surfaces such as YouTube Shorts or Instagram Reels and leave them. It does not read passwords, store messages, record the screen, or upload window content. Turn it off any time in Android Settings → Accessibility. SharpMind cannot prevent you from disabling it.</string>
+    <string name="focus_channel_name">Focus session</string>
+    <string name="focus_channel_description">Visible notification while a SharpMind focus session is enforcing restrictions you configured.</string>
+    <string name="reminder_channel_name">Study reminders</string>
+    <string name="reminder_channel_description">Reminders you enable for study, revision, and assessments.</string>
+    <string name="focus_notification_title">SharpMind Focus is on</string>
+    <string name="intervention_title">Back to your study session</string>
+    <string name="intervention_body">A restriction you configured was detected. SharpMind did not record the screen.</string>
 </resources>
