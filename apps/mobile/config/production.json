@@ -1,5 +1,5 @@
 {
   "apiUrl": "https://sharpmindbackend-zeta.vercel.app/api/v1",
   "supabaseUrl": "https://vscprtuinxopistikpcs.supabase.co",
-  "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzY3BydHVpbnhvcGlzdGlrcGNzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzODM5MjMsImV4cCI6MjEwNDk1OTkyM30.bEEMTSVdHM1ghFjBnya1-SU_aGHZoUxWmoZhcjWi3KU"
+  "supabaseAnonKey": ""
 }
