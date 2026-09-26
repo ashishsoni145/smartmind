@@ -108,14 +108,17 @@ while guaranteeing that no private provider/service credential ever crosses into
   `{"status":"ok","environment":"production"}`.
 
 ## NOT verified — be honest about this
-- **No Gradle build ran.** The sandbox has no JDK, no Android SDK, and cannot reach
-  `dl.google.com`, `services.gradle.org`, `maven.google.com` or Maven Central. `testDebugUnitTest`,
-  `assembleDebug`, `assembleQaStandalone` and `bundleRelease` were not executed here; GitHub Actions
-  is the proof path. Do not claim an artifact exists until a run uploads it.
+- **No Gradle build ran in the sandbox** (no JDK, no Android SDK, no route to `dl.google.com`,
+  `services.gradle.org` or Maven Central). CI is the proof path and it has now proven
+  `testDebugUnitTest` and `assembleDebug`. `assembleQaStandalone` and `bundleRelease` have never run
+  anywhere, so the `qaStandalone` build type — `matchingFallbacks`, its explicit
+  `usesCleartextTraffic` placeholder and its bundle task — is configured-OK but not built-OK.
 - **No physical-device test.** Cannot be automated; the protocol is written in
   `apps/mobile/README.md` and must be run by a human.
-- **No real APK/AAB was scanned.** The auditor is proven against synthetic fixtures it builds itself,
-  not against a real AGP-produced artifact.
+- **A real debug APK has now been scanned** (`android-debug`, run 36215983558) and the audit is
+  clean. A real *distributed* APK/AAB has not: `qaStandalone` and `release` have never been built
+  because the configuration gate blocks them, so the Hermes-bundle assertions, the distributed-artifact
+  rules and the non-debug-signature check are still unproven against a real artifact.
 - **`android-qa` and `android-release` will fail at the configuration gate** until the public Supabase
   anon key is supplied (commit it in `config/production.json` after verifying its `role` claim is
   `anon`, or set `SHARPMIND_SUPABASE_ANON_KEY`). That failure is the intended behaviour, and its
@@ -123,38 +126,64 @@ while guaranteeing that no private provider/service credential ever crosses into
   (HTTP 403), so it could not be added from here.
 - No Play Console upload, and nothing publishes automatically.
 
-## CI results observed on this branch (run 36184628852, PR #15)
-- `verify` — **success**. Mobile/web/backend typecheck, Jest, the 28 Node build-script tests,
-  `audit:selftest`, `audit:source --format github` and the backend suite all pass in CI.
-- `android-qa` — **failure, exactly as designed.** It stopped at "Validate public client
-  configuration for a distributed build"; every later step was skipped. The gate is the reason the
-  job is red, not a build defect.
-- `android-debug` — `Kotlin unit tests` **success**, which is the important signal: Gradle 9.4.1,
-  AGP 9.2.1 and the RNGP `settings.gradle` resolution all work, and the whole `android { }` block
-  (including the new `qaStandalone` build type, `matchingFallbacks += ['release']` and its explicit
-  `usesCleartextTraffic` placeholder) configures cleanly. `Assemble debug APK` was still running when
-  GitHub authentication expired in the sandbox; its final status was not observed.
-- GitHub auth then failed with HTTP 401 / "could not read Username", so the CI result could not be
-  read to completion and one follow-up commit could not be pushed. **Reconnect GitHub in Arena.**
+## CI results on this branch (PR #15)
+Run 36184628852 (the first one) found a real defect; run 36215983558 is green apart from the
+deliberate configuration gate.
+
+- `verify` — **success**, twice. Mobile/web/backend typecheck, Jest 52, the Node build-script tests
+  (28, now 30), `audit:selftest`, `audit:source --format github` and the backend suite (252).
+- `android-debug` — **success**. Kotlin unit tests, `assembleDebug`, the APK-exists assertion, the
+  secret audit **of a real AGP-produced APK**, and the artifact upload all pass.
+  `sharpmind-android-debug-apk` is 48,826,073 bytes. This is the first time the auditor has scanned
+  an artifact a real build produced rather than a fixture it built itself.
+- `android-qa` — **failure at "Validate public client configuration for a distributed build", and
+  nothing after it runs.** That is the gate doing its job: `SHARPMIND_SUPABASE_ANON_KEY` is still
+  empty. Not a build defect.
+- `android-release` — skipped on pull requests by design.
+
+### The defect CI caught (fixed in `0497302`)
+`android-debug` failed with `artifact not found :: apps/mobile/android/app/build/outputs/apk/debug/
+app-debug.apk: The path does not exist.` — for a file the previous step had just proved exists.
+
+`npm --prefix apps/mobile run audit:artifact -- <path>` executes the script with cwd = `apps/mobile`,
+so a repository-root-relative path resolved to `apps/mobile/apps/mobile/android/...`. The auditor's
+`source` command already resolved its targets against `repoRoot`; `artifact` called `fs.existsSync`
+on the raw argument.
+
+That failure mode is worse than a crash. A path pointing at a stale or different file would have
+produced a clean-looking audit of the wrong thing. Fixed on both sides:
+- `resolveArtifactPath()` in `security-audit.mjs` tries cwd, then the repository root, then
+  `apps/mobile`, and the "artifact not found" finding now lists every absolute path it tried plus
+  the cwd it ran in.
+- every artifact path in `android.yml` is made absolute with `realpath`.
+- two regression tests reproduce the CI invocation exactly (cwd = `apps/mobile`, root-relative path).
+  Proven meaningful: 28/30 without the resolver, 30/30 with it.
+
+**Lesson for any script invoked through `npm --prefix`: the working directory is the package
+directory, not the repository root. Never pass it a relative path, and never resolve one against
+`process.cwd()` alone.**
 
 ## Git state
-- `b198f71 feat(android): make SharpMind a standalone, Play-shippable production client` — pushed,
-  on PR #15 (https://github.com/ashishsoni145/smartmind/pull/15).
-- Follow-ups pushed after GitHub auth was restored: the **Pre-release checklist** in
-  `apps/mobile/PLAY_AUDIT.md`, the release-runbook pointer to it in `README.md`, CI reading the
-  public client config from a repository *variable* or a *secret*, and this memory update.
+Everything is pushed to `arena/01a0d9f2-smartmind` / PR #15:
+- `b198f71 feat(android): make SharpMind a standalone, Play-shippable production client`
+- `d5bb475 docs(android): add the pre-release checklist and document where public config lives in CI`
+- `77f37a6 ci(android): accept the public client config as a repository variable OR a secret`
+- `8c89fe3 docs(memory): record the CI results, PR #15 and the sandbox rollback recovery`
+- `0497302 fix(audit): resolve artifact paths from the repository root, and pass absolute paths in CI`
 
-The sandbox lost GitHub credentials part-way through (HTTP 401) and its working copy was rolled back
-to `cf13cde` while the files stayed modified; the follow-ups were re-committed on top of the fetched
-`b198f71` so history stays linear. Nothing was lost.
+The sandbox lost GitHub credentials part-way through the session (HTTP 401) and its working copy was
+rolled back to `cf13cde` while the files stayed modified; the follow-ups were re-committed on top of
+the fetched `b198f71` once auth returned, so history stayed linear. Nothing was lost.
 
 ## Next checkpoint
-1. Read the finished `android-debug` job on PR #15. If `Assemble debug APK` and the debug APK audit
-   passed, the Gradle toolchain is proven for debug and only the distributed variants remain.
-2. Supply the anon key: set `SHARPMIND_SUPABASE_ANON_KEY` as a repository variable, or commit it in
-   `apps/mobile/config/production.json` after verifying its JWT `role` claim is `anon`. Re-run;
-   `android-qa` should then build and assert `assets/index.android.bundle` inside the APK.
-3. Add the `production` keystore secrets; run the workflow with `production_release=true`; download
+1. Supply the anon key. The owner chose to set `SHARPMIND_SUPABASE_ANON_KEY` as a **repository
+   variable**; the workflow now also accepts it as a secret of the same name, and
+   `config/production.json` correctly stays empty so the variable wins. Verify its JWT `role` claim
+   is `anon` first. Then `android-qa` should build `assembleQaStandalone`, assert
+   `assets/index.android.bundle` is inside the APK, and audit it as a distributed build.
+2. Add the `production` keystore secrets; run the workflow with `production_release=true`; download
    the AAB and its audit report.
-4. Perform the physical-device test in `apps/mobile/README.md` with the computer switched off, then
+3. Perform the physical-device test in `apps/mobile/README.md` with the computer switched off, then
    work through the **Pre-release checklist** in `apps/mobile/PLAY_AUDIT.md`.
+4. Remove the web-only hardcoded demo accounts (`Password123!`) in
+   `apps/web/src/lib/adapters/auth/local-auth-adapter.ts`.

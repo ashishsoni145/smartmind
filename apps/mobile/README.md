@@ -125,6 +125,13 @@ public CI logs. Intentionally public values (the backend URL, the Supabase proje
 release AAB, a release APK with deliberately planted secrets, and a debug APK with no bundle — and
 asserts the expected verdict for each. Run it before trusting a green audit.
 
+**Passing an artifact path.** `npm --prefix apps/mobile run …` executes the script with the working
+directory set to `apps/mobile`, not the repository root, so a path you typed relative to the
+repository root does not resolve the way you expect. The auditor therefore tries the cwd, the
+repository root and `apps/mobile` in turn, and lists every absolute path it attempted when it finds
+nothing — but the CI steps still pass `realpath`-absolutes, and so should you. An auditor that
+quietly scanned the wrong file, or no file, is worse than no auditor.
+
 Obfuscation, base64, encryption with an embedded key and "we moved it into Kotlin" are not
 remediations. A finding means the value is removed from the mobile build and kept on the backend.
 

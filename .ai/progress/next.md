@@ -1,18 +1,20 @@
 # Next
 
-- Read the finished `android-debug` job on PR #15 (run 36184628852): the Kotlin unit tests passed,
-  `Assemble debug APK` and the debug APK audit were still running when the sandbox lost GitHub
-  credentials. Everything is now pushed to PR #15.
+- `android-debug` on PR #15 is green (run 36215983558): a real `assembleDebug` and a clean secret
+  audit of a real APK, uploaded as `sharpmind-android-debug-apk`. `assembleQaStandalone` and
+  `bundleRelease` have still never run anywhere — the gate blocks them — so the `qaStandalone` build
+  type is configured-OK, not yet built-OK.
 - Work through the **Pre-release checklist** at the end of `apps/mobile/PLAY_AUDIT.md` before any
   Play submission. It separates what CI already enforces from what only a human can sign off.
 - Fix the web-only hardcoded demo accounts in
   `apps/web/src/lib/adapters/auth/local-auth-adapter.ts` (password `Password123!`, advertised on the
   login page). They are **not** in the Android bundle, but they are a live production credential
   issue on `sharpminds.vercel.app` and deserve their own change.
-- Supply the public Supabase anon key so a distributed build can be produced: either commit it in
-  `apps/mobile/config/production.json` (verify its JWT `role` claim is `anon` first) or set
-  `SHARPMIND_SUPABASE_ANON_KEY` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` as a repository variable. Until
-  then `android-qa` and `android-release` fail at the configuration gate with an actionable message,
+- **Blocking, and the only thing standing between here and a distributed build:** supply the public
+  Supabase anon key. The owner chose to set `SHARPMIND_SUPABASE_ANON_KEY` as a repository variable;
+  the workflow also accepts a secret of the same name, and `config/production.json` correctly stays
+  empty so the variable wins. Verify the JWT `role` claim is `anon` first. Until it is set,
+  `android-qa` and `android-release` fail at the configuration gate with an actionable message,
   which is the intended behaviour.
 - Add the `production` GitHub environment secrets for a Play AAB: `SHARPMIND_KEYSTORE_BASE64`,
   `SHARPMIND_KEYSTORE_PASSWORD`, `SHARPMIND_KEY_ALIAS`, `SHARPMIND_KEY_PASSWORD`. Optionally set the
