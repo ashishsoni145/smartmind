@@ -26,7 +26,17 @@ import {
 } from '@sharpmind/types';
 
 export interface ApiClientConfig {
-  baseUrl?: string;
+  /**
+   * Absolute base URL of the SharpMind backend, e.g. `https://api.example.com/api/v1`.
+   *
+   * Required, and deliberately so. This used to default to `http://localhost:4000/api/v1`, which
+   * meant a client built without configuration did not fail - it quietly sent a user's traffic to a
+   * developer machine over cleartext HTTP. That default shipped inside the production JavaScript
+   * bundle of every consumer, including the Android app, whether or not it could ever be reached.
+   * An explicit `http://localhost` is still fine when a developer passes one on purpose; what is not
+   * acceptable is a default that decides for them.
+   */
+  baseUrl: string;
   getToken?: () => string | null | Promise<string | null>;
   headers?: Record<string, string>;
 }
@@ -50,8 +60,19 @@ export class SharpMindApiClient {
   private getToken?: () => string | null | Promise<string | null>;
   private defaultHeaders: Record<string, string>;
 
-  constructor(config: ApiClientConfig = {}) {
-    let base = (config.baseUrl || "http://localhost:4000/api/v1").replace(/\/$/, "");
+  constructor(config: ApiClientConfig) {
+    const configured = typeof config?.baseUrl === 'string' ? config.baseUrl.trim() : '';
+    if (!configured) {
+      // Fail at construction, not at first request: a client with no backend is a build or
+      // deployment error, and discovering it three screens into a session is the worst place to
+      // find out. There is no fallback URL to fall back to.
+      throw new ApiClientError(
+        'SharpMindApiClient requires an explicit baseUrl (for example https://api.example.com/api/v1). There is no default: silently falling back to a developer machine would send a misconfigured client to http://localhost over cleartext HTTP instead of failing.',
+        0,
+        'API_NOT_CONFIGURED'
+      );
+    }
+    let base = configured.replace(/\/$/, "");
     if (!base.endsWith("/api/v1") && !base.includes("/api/v1")) {
       base = `${base}/api/v1`;
     }

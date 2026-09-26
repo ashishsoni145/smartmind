@@ -392,3 +392,37 @@ describe('security-audit', () => {
     assert.notEqual(result.status, 0);
   });
 });
+
+/**
+ * The shared API client is compiled into the mobile bundle, so a hardcoded fallback URL in it ships
+ * to every installed device. `SharpMindApiClient` used to default `baseUrl` to
+ * `http://localhost:4000/api/v1`; both consumers always passed one, so it was dead code that still
+ * landed in the production bundle. It was caught by bundling for real and grepping the output, which
+ * is not something a reviewer can be relied on to repeat - so it is asserted here instead.
+ */
+describe('shared packages never default to a developer machine', () => {
+  const apiClientSource = path.join(repoRoot, 'packages/api-client/src/index.ts');
+
+  test('the api-client has no hardcoded fallback base URL', () => {
+    const source = fs.readFileSync(apiClientSource, 'utf8');
+    // Strip comments before matching. The file legitimately *mentions* the old default to explain
+    // why it was removed, and Babel drops comments from the production bundle - verified: a real
+    // `--dev false` bundle of this app contains zero occurrences of that host. What must not exist
+    // is a developer host in code, which is what would actually ship.
+    // The `(^|[^:])` guard keeps the `//` inside string literals such as 'https://api.example.com'.
+    const code = source
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/(^|[^:])\/\/.*$/gm, '$1');
+    assert.equal(
+      /localhost:\d+|10\.0\.2\.2|127\.0\.0\.1/.test(code),
+      false,
+      'packages/api-client must not contain a developer host in code: it is compiled into the mobile bundle'
+    );
+    assert.match(
+      source,
+      /baseUrl: string;/,
+      'ApiClientConfig.baseUrl must stay required, not optional - an optional field invites the default back'
+    );
+    assert.match(source, /API_NOT_CONFIGURED/, 'a missing baseUrl must fail with an explicit code');
+  });
+});
