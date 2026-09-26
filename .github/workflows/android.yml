@@ -126,10 +126,36 @@ jobs:
         run: npm ci --no-audit --no-fund
 
       - name: Kotlin unit tests
-        run: npm --prefix apps/mobile run test:android -- --no-daemon --stacktrace
+        run: |
+          # Capture the log as well as streaming it, so a failure can be republished as check
+          # annotations. Actions logs live in blob storage that is not reachable from every
+          # environment; annotations are served by api.github.com, which is.
+          set -o pipefail
+          LOG="$RUNNER_TEMP/kotlin-tests.log"
+          set +e
+          npm --prefix apps/mobile run test:android -- --no-daemon --stacktrace 2>&1 | tee "$LOG"
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            bash apps/mobile/scripts/report-build-failure.sh "$LOG" "testDebugUnitTest"
+            exit "$status"
+          fi
 
       - name: Assemble debug APK
-        run: npm --prefix apps/mobile run build:debug -- --no-daemon
+        run: |
+          # Capture the log as well as streaming it, so a failure can be republished as check
+          # annotations. Actions logs live in blob storage that is not reachable from every
+          # environment; annotations are served by api.github.com, which is.
+          set -o pipefail
+          LOG="$RUNNER_TEMP/debug-build.log"
+          set +e
+          npm --prefix apps/mobile run build:debug -- --no-daemon 2>&1 | tee "$LOG"
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            bash apps/mobile/scripts/report-build-failure.sh "$LOG" "assembleDebug"
+            exit "$status"
+          fi
 
       - name: Verify debug APK exists
         run: |
@@ -207,7 +233,20 @@ jobs:
         run: npm --prefix apps/mobile run check:config -- --app-env qa
 
       - name: Build standalone QA APK
-        run: npm --prefix apps/mobile run build:qa -- --no-daemon --stacktrace
+        run: |
+          # Capture the log as well as streaming it, so a failure can be republished as check
+          # annotations. Actions logs live in blob storage that is not reachable from every
+          # environment; annotations are served by api.github.com, which is.
+          set -o pipefail
+          LOG="$RUNNER_TEMP/qa-build.log"
+          set +e
+          npm --prefix apps/mobile run build:qa -- --no-daemon --stacktrace 2>&1 | tee "$LOG"
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            bash apps/mobile/scripts/report-build-failure.sh "$LOG" "assembleQaStandalone"
+            exit "$status"
+          fi
 
       - name: Verify the React Native bundle is inside the QA APK
         run: |
@@ -330,7 +369,20 @@ jobs:
           echo "SHARPMIND_KEYSTORE_PATH=$RUNNER_TEMP/sharpmind-release.keystore" >> "$GITHUB_ENV"
 
       - name: Bundle signed release AAB
-        run: npm --prefix apps/mobile run bundle -- --no-daemon --stacktrace
+        run: |
+          # Capture the log as well as streaming it, so a failure can be republished as check
+          # annotations. Actions logs live in blob storage that is not reachable from every
+          # environment; annotations are served by api.github.com, which is.
+          set -o pipefail
+          LOG="$RUNNER_TEMP/release-build.log"
+          set +e
+          npm --prefix apps/mobile run bundle -- --no-daemon --stacktrace 2>&1 | tee "$LOG"
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            bash apps/mobile/scripts/report-build-failure.sh "$LOG" "bundleRelease"
+            exit "$status"
+          fi
 
       - name: Verify the AAB exists and embeds the React Native bundle
         run: |
