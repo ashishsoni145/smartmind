@@ -63,3 +63,63 @@ report is uploaded next to each artifact
 ## Billing
 
 There is no Play Billing client. `UserSettings.subscription` from the backend is the only trusted tier. A local `isPro` flag is rejected. Until the backend publishes a purchase-verification endpoint, `features/entitlements/billing.ts` reports `not_available` and the Subscription screen shows the free plan with no purchase button. When billing ships, the purchase token must be verified server-side before any entitlement changes.
+
+## Pre-release checklist
+
+The go/no-go list for a Play submission. Items marked **CI** are enforced by `.github/workflows/android.yml`
+and cannot be skipped; items marked **human** cannot be automated and must be signed off by a person.
+
+### Configuration
+
+- [ ] **CI** `verify` green: mobile/web/backend typecheck, Jest, build-script tests, `audit:selftest`, `audit:source`.
+- [ ] **CI** `check:config --app-env release` passes, i.e. `SHARPMIND_API_URL` (or the committed
+      `config/production.json`) is an HTTPS, non-developer URL and `SHARPMIND_SUPABASE_ANON_KEY` is present.
+- [ ] **human** The Supabase key that will ship has been decoded and its JWT `role` claim is `anon`.
+      Anything else is rejected by the build — do not work around it.
+- [ ] **human** `config/production.json` points at the *production* backend, not a preview deployment.
+
+### Artifact
+
+- [ ] **CI** `android-debug` green: Kotlin unit tests pass and the debug APK contains no credential shape.
+- [ ] **CI** `android-qa` green: `assets/index.android.bundle` is inside the APK, so the app cannot need Metro.
+- [ ] **CI** `android-release` green: `base/assets/index.android.bundle` is inside the AAB, the AAB carries a
+      signing certificate that is **not** the Android debug certificate, and `audit:artifact` is clean.
+- [ ] **human** `sharpmind-android-release-audit` downloaded and read, not just seen to be green.
+- [ ] **human** `versionName` bumped; `versionCode` (= `run_number + SHARPMIND_VERSION_CODE_OFFSET`) is higher
+      than every previously uploaded build.
+
+### Signing
+
+- [ ] **human** `SHARPMIND_KEYSTORE_BASE64`, `SHARPMIND_KEYSTORE_PASSWORD`, `SHARPMIND_KEY_ALIAS`,
+      `SHARPMIND_KEY_PASSWORD` are set in the `production` environment.
+- [ ] **human** The upload keystore exists **only** in CI secrets and in an offline backup. It is not in the
+      repository, not in a local `.env`, and not in chat. Losing it means losing the app's Play identity.
+
+### Physical device (cannot be automated — see `README.md` → "Physical-device test")
+
+- [ ] **human** QA APK installed on real hardware from the Actions artifact, with the development machine
+      switched off, Metro stopped and USB unplugged before first launch.
+- [ ] **human** No "Could not connect to development server" dialog appears.
+- [ ] **human** Full flow walked: sign-in → onboarding → dashboard → study → tutor → tests → revision →
+      mistakes → analytics → notifications → Focus Mode → kill and reopen (session persists).
+- [ ] **human** With device data off, the app shows a real network error — never invented data — and Retry
+      recovers when data returns.
+- [ ] **human** Focus Mode enforcement verified against the actual rules on the device, including permission
+      revocation mid-session (`PERMISSION_REQUIRED`) and behaviour after a reboot.
+
+### Play Console
+
+- [ ] **human** Special-use foreground service, AccessibilityService and usage-access declarations completed
+      in the Play Console, matching the wording in this file. Do not rebrand or hide the accessibility service
+      to avoid a declaration.
+- [ ] **human** Data safety form matches reality: no window text, no installed-app list, no screenshots, no raw
+      usage data leaves the device.
+- [ ] **human** The AAB is uploaded by a person. Nothing in this repository publishes to Play automatically.
+
+### Known non-blocking items
+
+- [ ] Rate limiting is process-local. On Vercel serverless it is per-instance, so it is a best-effort abuse
+      brake, not a hard quota. The authoritative per-student budget is the AI token budget in the backend.
+- [ ] `apps/web/src/lib/adapters/auth/local-auth-adapter.ts` ships hardcoded demo accounts with the password
+      `Password123!` and the login page advertises them. This is web-only and is **not** in the Android bundle,
+      but it must be removed before the web app carries real student data.

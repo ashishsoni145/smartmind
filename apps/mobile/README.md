@@ -65,6 +65,12 @@ Three values, and only three, are ever inlined into the JavaScript bundle. They 
 | Supabase project URL | `SHARPMIND_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_URL` | `https://vscprtuinxopistikpcs.supabase.co` |
 | Supabase anon key | `SHARPMIND_SUPABASE_ANON_KEY` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | *(supplied at build time)* |
 
+In CI these are read from the repository **variables** *or* from **secrets** of the same name —
+`.github/workflows/android.yml` tries `vars.SHARPMIND_*` first and falls back to
+`secrets.SHARPMIND_*` and then `secrets.NEXT_PUBLIC_*`. These are public values, so a variable is
+their natural home, but you should not have to remember which of the two a public value belongs in.
+Only `SHARPMIND_KEYSTORE_*` and `SHARPMIND_KEY_*` must be secrets, in the `production` environment.
+
 `scripts/write-public-config.mjs` writes `src/config/public-env.generated.ts` (git-ignored) and
 enforces the rules in `scripts/lib/secret-policy.mjs`:
 
@@ -202,7 +208,9 @@ result against the artifact you tested.
    `android-release` green with the AAB, the bundle assertion, the non-debug-signature assertion and
    a clean audit.
 5. Download `sharpmind-android-release-aab` and read `sharpmind-android-release-audit`.
-6. Upload the AAB in the Play Console yourself. **Nothing in this repository publishes
+6. Work through the **Pre-release checklist** in `PLAY_AUDIT.md`. It is the authoritative go/no-go list and
+   separates what CI already enforces from what only a human can sign off.
+7. Upload the AAB in the Play Console yourself. **Nothing in this repository publishes
    automatically.** Complete the Play declarations in `PLAY_AUDIT.md` (special-use foreground
    service, AccessibilityService, usage access) before submitting.
 
