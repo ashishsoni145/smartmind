@@ -1,3 +1,6 @@
+import { androidPlatformRoutes } from './platforms/android';
+import { webPlatformRoutes } from './platforms/web';
+import { windowsPlatformRoutes } from './platforms/windows';
 import express, { Express } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -134,6 +137,11 @@ export const createApp = (): Express => {
   app.use(`${config.apiPrefix}/focus`, focusRoutes);
   app.use(`${config.apiPrefix}/analytics`, analyticsRoutes);
   app.use(`${config.apiPrefix}/notifications`, notificationRoutes);
+
+  // Platform-specific API boundaries
+  app.use(`${config.apiPrefix}/android`, androidPlatformRoutes);
+  app.use(`${config.apiPrefix}/web`, webPlatformRoutes);
+  app.use(`${config.apiPrefix}/windows`, windowsPlatformRoutes);
 
   // Catch-all 404 handler
   app.use(notFoundHandler);

@@ -19,7 +19,7 @@ export class SupabaseAITutorAdapter implements TutorAdapter {
       const { data, error } = await supabase
         .from('tutor_sessions')
         .select('*')
-        .eq('user_id', userId)
+        .eq('student_id', userId)
         .order('updated_at', { ascending: false });
 
       if (error || !data) {
@@ -29,7 +29,7 @@ export class SupabaseAITutorAdapter implements TutorAdapter {
 
       return data.map((row) => ({
         id: row.id,
-        userId: row.user_id,
+        userId: row.student_id,
         title: row.title,
         subjectId: row.subject_id,
         curriculumNodeId: row.curriculum_node_id,
@@ -58,7 +58,7 @@ export class SupabaseAITutorAdapter implements TutorAdapter {
 
       return {
         id: data.id,
-        userId: data.user_id,
+        userId: data.student_id,
         title: data.title,
         subjectId: data.subject_id,
         curriculumNodeId: data.curriculum_node_id,
@@ -85,7 +85,7 @@ export class SupabaseAITutorAdapter implements TutorAdapter {
     const { data, error } = await supabase
       .from('tutor_sessions')
       .insert({
-        user_id: userId,
+        student_id: userId,
         title: sessionTitle,
         subject_id: context?.subjectId || null,
         curriculum_node_id: context?.chapterId || null,
@@ -100,7 +100,7 @@ export class SupabaseAITutorAdapter implements TutorAdapter {
 
     return {
       id: data.id,
-      userId: data.user_id,
+      userId: data.student_id,
       title: data.title,
       subjectId: data.subject_id,
       curriculumNodeId: data.curriculum_node_id,

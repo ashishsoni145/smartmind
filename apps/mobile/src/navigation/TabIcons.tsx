@@ -8,7 +8,7 @@ interface TabIconProps {
 }
 
 export function TabIcon({ name, color, focused }: TabIconProps) {
-  const strokeWidth = focused ? 2.2 : 1.6;
+  const strokeWidth = focused ? 2.4 : 1.8;
 
   switch (name) {
     case 'home':
@@ -40,16 +40,18 @@ export function TabIcon({ name, color, focused }: TabIconProps) {
       return (
         <View style={styles.container}>
           <View style={[styles.targetOuter, { borderColor: color, borderWidth: strokeWidth }]}>
-            <View style={[styles.targetInner, { backgroundColor: color }]} />
+            <View style={[styles.targetMiddle, { borderColor: color, borderWidth: strokeWidth / 2 }]}>
+              <View style={[styles.targetInner, { backgroundColor: color }]} />
+            </View>
           </View>
         </View>
       );
     case 'progress':
       return (
         <View style={[styles.container, styles.chartRow]}>
-          <View style={[styles.chartBar, { height: 7, backgroundColor: color }]} />
-          <View style={[styles.chartBar, { height: 13, backgroundColor: color }]} />
-          <View style={[styles.chartBar, { height: 18, backgroundColor: color }]} />
+          <View style={[styles.chartBar, { height: 8, backgroundColor: color }]} />
+          <View style={[styles.chartBar, { height: 14, backgroundColor: color }]} />
+          <View style={[styles.chartBar, { height: 20, backgroundColor: color }]} />
         </View>
       );
     default:
@@ -59,8 +61,8 @@ export function TabIcon({ name, color, focused }: TabIconProps) {
 
 const styles = StyleSheet.create({
   container: {
-    width: 24,
-    height: 24,
+    width: 28,
+    height: 28,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -70,52 +72,59 @@ const styles = StyleSheet.create({
   chartRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    paddingHorizontal: 2,
+    justifyContent: 'space-around',
+    width: 22,
   },
   roof: {
-    width: 12,
-    height: 12,
+    width: 14,
+    height: 14,
     transform: [{ rotate: '-45deg' }],
-    marginBottom: -5,
+    marginBottom: -6,
   },
   houseBody: {
-    width: 14,
-    height: 10,
-    borderBottomLeftRadius: 2,
-    borderBottomRightRadius: 2,
+    width: 16,
+    height: 12,
+    borderBottomLeftRadius: 3,
+    borderBottomRightRadius: 3,
   },
   speechBubble: {
-    width: 20,
-    height: 15,
-    borderRadius: 7,
+    width: 22,
+    height: 16,
+    borderRadius: 8,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-evenly',
-    paddingHorizontal: 2,
+    paddingHorizontal: 3,
   },
   speechTail: {
-    width: 4,
-    height: 4,
+    width: 5,
+    height: 5,
     alignSelf: 'flex-start',
-    marginLeft: 6,
-    marginTop: -2,
+    marginLeft: 7,
+    marginTop: -3,
     transform: [{ rotate: '45deg' }],
   },
   dot: {
-    width: 2.5,
-    height: 2.5,
+    width: 3,
+    height: 3,
     borderRadius: 1.5,
   },
   bookHalf: {
-    width: 8,
-    height: 15,
-    borderRadius: 2,
+    width: 9,
+    height: 16,
+    borderRadius: 3,
   },
   targetOuter: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  targetMiddle: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -125,7 +134,7 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   chartBar: {
-    width: 4,
-    borderRadius: 2,
+    width: 5,
+    borderRadius: 2.5,
   },
 });

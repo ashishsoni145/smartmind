@@ -1,3 +1,4 @@
+import { IdentityService } from '../auth/identity.service';
 import { supabase } from '../../db/client';
 import { NotFoundError, BadRequestError } from '../../lib/errors';
 import { logger } from '../../lib/logger';
@@ -23,9 +24,9 @@ export class TutorService {
    * Create a new persistent AI Tutor session
    */
   static async createSession(userId: string, input: CreateSessionInput): Promise<TutorSession> {
+    const studentProfileId = await IdentityService.getStudentProfileIdForUser(userId);
     const sessionPayload = {
-      user_id: userId,
-      student_id: userId,
+      student_id: studentProfileId,
       title: input.title || 'New Study Session',
       current_mode: input.mode || 'socratic',
       subject_id: input.subjectId || null,
@@ -58,6 +59,7 @@ export class TutorService {
     userId: string,
     query: ListSessionsQueryInput
   ): Promise<{ sessions: TutorSession[]; total: number }> {
+    const studentProfileId = await IdentityService.getStudentProfileIdForUser(userId);
     const page = query.page || 1;
     const limit = query.limit || 20;
     const from = (page - 1) * limit;
@@ -66,7 +68,7 @@ export class TutorService {
     const { data, count, error } = await supabase
       .from('tutor_sessions')
       .select('*', { count: 'exact' })
-      .eq('user_id', userId)
+      .eq('student_id', studentProfileId)
       .order('updated_at', { ascending: false })
       .range(from, to);
 
@@ -84,11 +86,12 @@ export class TutorService {
    * Get a session by ID with its messages
    */
   static async getSession(sessionId: string, userId: string): Promise<{ session: TutorSession; messages: TutorMessage[] }> {
+    const studentProfileId = await IdentityService.getStudentProfileIdForUser(userId);
     const { data: sessionRow, error: sessionErr } = await supabase
       .from('tutor_sessions')
       .select('*')
       .eq('id', sessionId)
-      .eq('user_id', userId)
+      .eq('student_id', studentProfileId)
       .maybeSingle();
 
     if (sessionErr || !sessionRow) {
@@ -120,12 +123,13 @@ export class TutorService {
     userId: string,
     input: SendMessageInput
   ): Promise<{ studentMessage: TutorMessage; assistantMessage: TutorMessage }> {
+    const studentProfileId = await IdentityService.getStudentProfileIdForUser(userId);
     // 1. Fetch and verify session
     const { data: sessionRow, error: sessionErr } = await supabase
       .from('tutor_sessions')
       .select('*')
       .eq('id', sessionId)
-      .eq('user_id', userId)
+      .eq('student_id', studentProfileId)
       .maybeSingle();
 
     if (sessionErr || !sessionRow) {
@@ -259,11 +263,12 @@ export class TutorService {
    * Delete a tutor session and associated messages
    */
   static async deleteSession(sessionId: string, userId: string): Promise<void> {
+    const studentProfileId = await IdentityService.getStudentProfileIdForUser(userId);
     const { error } = await supabase
       .from('tutor_sessions')
       .delete()
       .eq('id', sessionId)
-      .eq('user_id', userId);
+      .eq('student_id', studentProfileId);
 
     if (error) {
       throw new BadRequestError(`Failed to delete session: ${error.message}`);
@@ -273,7 +278,7 @@ export class TutorService {
   private static mapSessionRow(row: any): TutorSession {
     return {
       id: row.id,
-      userId: row.user_id,
+      userId: row.student_id,
       studentId: row.student_id,
       title: row.title || 'Study Session',
       subjectId: row.subject_id || undefined,
