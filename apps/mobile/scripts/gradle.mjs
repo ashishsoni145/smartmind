@@ -30,7 +30,20 @@ if (!fs.existsSync(wrapper)) {
   process.exit(2);
 }
 
-const config = spawnSync(process.execPath, [path.join(here, 'write-public-config.mjs')], { stdio: 'inherit' });
+/**
+ * Mirror android/app/build.gradle's task classification so the config written here matches the one
+ * Gradle writes. `release` wins over `qa`, which wins over `debug`. Distributed variants get the
+ * strict rule set: missing public configuration fails instead of falling back to localhost.
+ */
+const taskArgs = args.filter((arg) => !arg.startsWith('-'));
+const lower = taskArgs.map((arg) => arg.toLowerCase());
+const appEnv = lower.some((arg) => arg.includes('release'))
+  ? 'release'
+  : lower.some((arg) => arg.includes('qastandalone'))
+    ? 'qa'
+    : 'debug';
+
+const config = spawnSync(process.execPath, [path.join(here, 'write-public-config.mjs'), '--app-env', appEnv], { stdio: 'inherit' });
 if (config.status !== 0) {
   process.exit(config.status ?? 1);
 }

@@ -26,6 +26,7 @@ import { materialRoutes } from './modules/materials/material.routes';
 import { focusRoutes } from './modules/focus/focus.routes';
 import { analyticsRoutes } from './modules/analytics/analytics.routes';
 import { notificationRoutes } from './modules/notifications/notification.routes';
+import { createRateLimiter } from './middleware/rate-limit';
 
 export const createApp = (): Express => {
   const app = express();
@@ -80,6 +81,29 @@ export const createApp = (): Express => {
   // Health checks mounted at root and api prefix
   app.use('/health', healthRoutes);
   app.use(`${config.apiPrefix}/health`, healthRoutes);
+
+  /**
+   * Transport-level rate limiting for the versioned API.
+   *
+   * Mounted AFTER the health routes on purpose: the Android client probes /health to draw its
+   * connectivity banner, and a throttled health probe would report a false outage. Authenticated
+   * callers are counted per user id, anonymous callers per IP. AI-heavy routes get a much tighter
+   * second cap (see middleware/ai-rate-limit.ts).
+   *
+   * This is process-local state, so on a serverless deployment it bounds per-instance bursts rather
+   * than providing an exact global quota. It is a coarse abuse brake, not the entitlement check -
+   * authorisation, ownership and the per-student AI token budget remain authoritative elsewhere.
+   */
+  if (config.rateLimit.enabled) {
+    app.use(
+      config.apiPrefix,
+      createRateLimiter({
+        name: 'api',
+        windowMs: config.rateLimit.windowMs,
+        max: config.rateLimit.max,
+      })
+    );
+  }
 
   // Modular API routes
   app.use(`${config.apiPrefix}/users`, userRoutes);

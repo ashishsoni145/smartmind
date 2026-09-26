@@ -1,8 +1,17 @@
 # Current
 
-Android client rebuild (ADR 0010) is in progress. Capacitor is gone. React Native screens and Kotlin focus sources are in `apps/mobile`. Usage-path `TIME_LIMIT` and `FOCUS_ONLY` are wired. Local proof still required: `npm install`, `npm run mobile:typecheck`, `npm run mobile:test`. APK proof is GitHub Actions, not this sandbox.
+Android production distribution and the client/server secret boundary (ADR 0011) are implemented. Public client configuration is committed in `apps/mobile/config/production.json`; distributed builds fail rather than fall back to localhost; a third `qaStandalone` variant ships a bundled-JS, production-configured, sideloadable APK; `scripts/security-audit.mjs` scans sources and built APK/AAB artifacts; CI has `verify` → `android-debug` / `android-qa` → `android-release` with bundle, signature and secret assertions. Backend: Gemini key moved to a header, log redaction added, transport + AI rate limiting added.
+
+Local proof complete: mobile typecheck, Jest 52/52, Node build-script tests 30/30, auditor self test, source audit, backend typecheck, backend tests 252/252. APK/AAB proof is GitHub Actions, not this sandbox — no JDK, no Android SDK, and Maven/Google hosts are unreachable here. A real debug APK has now been built and audited clean in CI; `assembleQaStandalone` and `bundleRelease` have never run anywhere, because the gate blocks them. Blocking follow-up: supply the public Supabase anon key, otherwise `android-qa` and `android-release` fail at the configuration gate (intended, with an actionable message).
+
+All pushed to PR #15 (https://github.com/ashishsoni145/smartmind/pull/15): `b198f71` (the feature), `d5bb475` (pre-release checklist), `77f37a6` (CI reads the public config from a repository variable **or** a secret), `8c89fe3` (memory), `0497302` (auditor path fix). CI run 36215983558: `verify` **success**, `android-debug` **success** — a real `assembleDebug` plus a clean secret audit **of a real AGP-produced APK**, uploaded as `sharpmind-android-debug-apk` (48.8 MB). `android-qa` **fails at the configuration gate** with everything after it skipped, which is the intended behaviour while the anon key is empty. Node build-script tests are now 30/30.
+
+CI also caught a genuine defect, now fixed: `npm --prefix apps/mobile run audit:artifact -- <path>` runs with cwd = `apps/mobile`, so a repository-root-relative artifact path resolved to `apps/mobile/apps/mobile/...` and the auditor reported "artifact not found" for a file that existed. Worse, a path pointing at a stale file would have produced a clean-looking audit of the wrong artifact. `resolveArtifactPath()` now tries cwd, the repository root and `apps/mobile`; the workflow passes `realpath` absolutes; two regression tests reproduce the CI invocation (28/30 without the fix, 30/30 with it).
 
 # Previous
+
+Android client rebuild (ADR 0010) completed. Capacitor is gone. React Native screens and Kotlin focus sources are in `apps/mobile`. Usage-path `TIME_LIMIT` and `FOCUS_ONLY` are wired.
+
  
 Phase 03 — COMPLETED (Parts 01–04).
  

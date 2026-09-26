@@ -6,6 +6,20 @@ import { z } from 'zod';
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 dotenv.config(); // fallback to local cwd .env
 
+/**
+ * `z.coerce.boolean()` is wrong for environment variables: every non-empty string, including
+ * "false", coerces to true. Parse the usual spellings explicitly instead.
+ */
+const optionalBoolean = (defaultValue: boolean) =>
+  z
+    .union([z.boolean(), z.string()])
+    .optional()
+    .transform((value) => {
+      if (value === undefined || value === '') return defaultValue;
+      if (typeof value === 'boolean') return value;
+      return !['0', 'false', 'no', 'off'].includes(value.trim().toLowerCase());
+    });
+
 export const envSchema = z.object({
   PORT: z.coerce.number().default(4000),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -26,6 +40,15 @@ export const envSchema = z.object({
   APP_MODE: z.enum(['production', 'development', 'demo', 'test']).optional().default(
     (process.env.APP_MODE as any) || 'development'
   ),
+  /**
+   * Transport-level rate limiting. The authoritative per-student AI token budget lives in
+   * `ai/router/model-router.ts`; these caps stop a client hammering every other route.
+   */
+  RATE_LIMIT_ENABLED: optionalBoolean(true),
+  RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
+  RATE_LIMIT_MAX: z.coerce.number().int().positive().default(240),
+  AI_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
+  AI_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(20),
 }).refine(
   (data) => {
     if (data.NODE_ENV === 'production' && data.APP_MODE !== 'demo') {
@@ -54,6 +77,11 @@ const parseEnv = () => {
     AI_GEMINI_API_KEY: process.env.AI_GEMINI_API_KEY || process.env.GEMINI_API_KEY,
     AI_OPENROUTER_API_KEY: process.env.AI_OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY,
     APP_MODE: process.env.APP_MODE,
+    RATE_LIMIT_ENABLED: process.env.RATE_LIMIT_ENABLED,
+    RATE_LIMIT_WINDOW_MS: process.env.RATE_LIMIT_WINDOW_MS,
+    RATE_LIMIT_MAX: process.env.RATE_LIMIT_MAX,
+    AI_RATE_LIMIT_WINDOW_MS: process.env.AI_RATE_LIMIT_WINDOW_MS,
+    AI_RATE_LIMIT_MAX: process.env.AI_RATE_LIMIT_MAX,
   });
 
   if (!result.success) {

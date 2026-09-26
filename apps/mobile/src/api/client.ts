@@ -56,11 +56,16 @@ export async function fetchWithTimeout(input: string, init: RequestInit = {}, ti
   }
 }
 
+function unconfiguredError(resolved: { reason?: string }): ApiClientError {
+  return new ApiClientError(resolved.reason || 'The API URL is not configured for this build.', 0, 'API_NOT_CONFIGURED');
+}
+
 export function getApi(): SharpMindApiClient {
   if (!client) {
     const resolved = resolveApiUrl();
     if (!resolved.url) {
-      throw new ApiClientError('The API URL is not configured for this build.', 0, 'API_NOT_CONFIGURED');
+      // No fake data and no silent retarget: the call fails with the real reason.
+      throw unconfiguredError(resolved);
     }
     client = new SharpMindApiClient({
       baseUrl: resolved.url,
@@ -94,7 +99,7 @@ export async function withApi<T>(work: (api: SharpMindApiClient) => Promise<T>, 
 export async function authorizedFetch(path: string, init: RequestInit = {}, timeoutMs = LONG_TIMEOUT_MS): Promise<Response> {
   const resolved = resolveApiUrl();
   if (!resolved.url) {
-    throw new ApiClientError('The API URL is not configured for this build.', 0, 'API_NOT_CONFIGURED');
+    throw unconfiguredError(resolved);
   }
   const token = await tokenGetter();
   const headers = new Headers(init.headers);

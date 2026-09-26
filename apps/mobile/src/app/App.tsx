@@ -48,9 +48,10 @@ function ConnectivityBanner() {
   const api = resolveApiUrl();
   let label: string | null = null;
   let detail: string | null = null;
-  if (api.source === 'missing') {
-    label = 'Not configured';
-    detail = 'This release build has no API URL. Data calls stay disabled.';
+  if (api.source === 'missing' || api.source === 'invalid') {
+    // Honest failure: no invented data, no silent retarget to a developer machine.
+    label = api.source === 'invalid' ? 'Misconfigured' : 'Not configured';
+    detail = api.reason || 'This build has no usable backend URL. Data calls stay disabled.';
   } else if (connectivity.state === 'offline') {
     label = 'Offline';
     detail = 'SharpMind cannot reach the server. Nothing is invented; reconnect to sync.';

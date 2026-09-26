@@ -29,7 +29,9 @@ export class GeminiAiAdapter implements AiProviderAdapter {
 
     const model = request.preferredModel || 'gemini-1.5-flash';
     const startTime = Date.now();
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.apiKey}`;
+    // The key travels in the x-goog-api-key header, never in the query string: a URL can end up in
+    // an access log, a proxy log or an error message, and this key must not be loggable anywhere.
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
     // Format contents
     const contents: any[] = [];
@@ -84,6 +86,7 @@ export class GeminiAiAdapter implements AiProviderAdapter {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-goog-api-key': this.apiKey,
         },
         body: JSON.stringify(body),
         signal: controller.signal,

@@ -51,6 +51,12 @@ export class ConflictError extends AppError {
   }
 }
 
+export class TooManyRequestsError extends AppError {
+  constructor(message = 'Too many requests. Please slow down and try again shortly.', details?: unknown) {
+    super(message, 429, 'RATE_LIMITED', details);
+  }
+}
+
 export class ValidationError extends AppError {
   constructor(message = 'Validation failed', details?: unknown) {
     super(message, 422, 'VALIDATION_ERROR', details);
