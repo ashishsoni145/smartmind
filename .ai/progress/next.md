@@ -6,10 +6,13 @@
   type is configured-OK, not yet built-OK.
 - Work through the **Pre-release checklist** at the end of `apps/mobile/PLAY_AUDIT.md` before any
   Play submission. It separates what CI already enforces from what only a human can sign off.
-- Fix the web-only hardcoded demo accounts in
-  `apps/web/src/lib/adapters/auth/local-auth-adapter.ts` (password `Password123!`, advertised on the
-  login page). They are **not** in the Android bundle, but they are a live production credential
-  issue on `sharpminds.vercel.app` and deserve their own change.
+- Web: give `curriculum/index.ts`, `settings/index.ts` and `student/index.ts` the same explicit
+  opt-in treatment that `auth` and `tutor` now have. They still fall back silently to
+  `StaticCurriculumAdapter` / `LocalSettingsAdapter` / `LocalStudentProfileAdapter` when the Supabase
+  variables are missing. Lower urgency than auth was: all three sit behind authentication, so an
+  unconfigured deployment can no longer reach them, and they hold static reference data or the
+  visitor's own localStorage data rather than asserting a verified falsehood. `LocalSettingsAdapter`
+  also has a `changePassword` that reports success locally, which is the one to look at first.
 - **Blocking, and the only thing standing between here and a distributed build:** supply the public
   Supabase anon key. The owner chose to set `SHARPMIND_SUPABASE_ANON_KEY` as a repository variable;
   the workflow also accepts a secret of the same name, and `config/production.json` correctly stays

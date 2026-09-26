@@ -91,6 +91,38 @@ while guaranteeing that no private provider/service credential ever crosses into
   sections. `apps/mobile/.env.example` and `backend/.env.example` rewritten around the client-safe vs
   server-only split.
 
+### Web app: the same silent-fake-fallback defect, on the other side of the boundary
+Auditing the Android secret boundary turned up the identical defect class in `apps/web`. Every
+`apps/web/src/lib/adapters/*/index.ts` factory ended in a silent `else` returning a browser-only fake
+adapter when `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` were missing.
+
+- **auth** carried published credentials: `LocalAuthAdapter` seeds three accounts into the visitor's
+  `localStorage` with the password `Password123!` in the source, and the login page advertised them
+  unconditionally. A deployment missing its Supabase variables let anyone "sign in" as a student,
+  teacher or parent into a workspace no server had heard of. New `NotConfiguredAuthAdapter` refuses
+  every operation and explains why; `LocalAuthAdapter` needs `NEXT_PUBLIC_ALLOW_LOCAL_AUTH=1`; the
+  login page renders the evaluation buttons only when that adapter is genuinely live (it reads
+  `adapterName`, already exposed by `useAuth()`) and otherwise shows a deployment-error banner.
+- **tutor** was the worse fabrication: `generatePedagogicalResponse(query, mode, ...)` takes the
+  student's question and never reads it — the answer is chosen by `mode` alone. It claimed to have
+  analyzed diagrams it never opened, called unseen reasoning "conceptually accurate", and cited
+  "NCERT Curriculum Provenance" / "Verified Syllabus Reference" for sources never consulted.
+  `NotConfiguredTutorAdapter` (opt-in for the old one via `NEXT_PUBLIC_ALLOW_LOCAL_TUTOR=1`, a
+  *separate* flag so enabling local sign-in does not also enable fabricated teaching) does **not**
+  throw, because `handleSendMessage` calls `createSession` outside a try/catch and a throw would mean
+  an unhandled rejection and a blank screen. It returns a real session container and an assistant
+  message that says no answer was generated and why, with `citations: []` so invented provenance has
+  nowhere to come from.
+- `'not_configured'` was added to `AuthErrorCode` in **both** copies — `packages/types/src/auth.ts`
+  and the byte-identical `apps/web/src/packages/types/auth.ts` — because `apps/web/tsconfig.json`
+  resolves `@sharpmind/types` to the vendored copy while `next.config.ts` prefers the monorepo copy.
+  Nothing switches exhaustively on that union. **Those two trees must stay identical; that is an
+  existing invariant and an easy trap.**
+- Left alone deliberately: `curriculum`, `settings` and `student` keep the same silent fallback. All
+  three are behind authentication, so an unconfigured deployment can no longer reach them, and they
+  serve static reference data or the visitor's own localStorage data rather than asserting a verified
+  falsehood. `LocalSettingsAdapter.changePassword` reporting local success is the first to fix.
+
 ## Verification actually performed
 - `npm ci` — clean.
 - `npm run mobile:typecheck` — 0 errors.

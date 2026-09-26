@@ -120,6 +120,18 @@ and cannot be skipped; items marked **human** cannot be automated and must be si
 
 - [ ] Rate limiting is process-local. On Vercel serverless it is per-instance, so it is a best-effort abuse
       brake, not a hard quota. The authoritative per-student budget is the AI token budget in the backend.
-- [ ] `apps/web/src/lib/adapters/auth/local-auth-adapter.ts` ships hardcoded demo accounts with the password
-      `Password123!` and the login page advertises them. This is web-only and is **not** in the Android bundle,
-      but it must be removed before the web app carries real student data.
+- [x] The web app's silent fake-auth fallback is closed (web-only, never in the Android bundle).
+      `apps/web/src/lib/adapters/auth/index.ts` no longer falls back to `LocalAuthAdapter` when the
+      Supabase variables are missing: it now returns `NotConfiguredAuthAdapter`, which refuses every
+      sign-in and says why, and the "Evaluation Test Accounts" buttons render only when the
+      browser-only adapter is genuinely active. `LocalAITutorAdapter` — which answered from the tutor
+      *mode* without reading the question and cited "Verified Syllabus Reference" for sources it never
+      consulted — is likewise opt-in. Both need an explicit `NEXT_PUBLIC_ALLOW_LOCAL_AUTH=1` /
+      `NEXT_PUBLIC_ALLOW_LOCAL_TUTOR=1`. See the root `.env.example`.
+- [ ] Still open, and lower risk because all three sit **behind authentication** (so an unconfigured
+      deployment can no longer reach them): `curriculum/index.ts` falls back to
+      `StaticCurriculumAdapter`, `settings/index.ts` to `LocalSettingsAdapter` (including a local
+      `changePassword` that reports success) and `student/index.ts` to
+      `LocalStudentProfileAdapter`. These hold static reference data or the visitor's own
+      localStorage data rather than asserting a verified falsehood, but they are the same silent
+      fallback shape and should get the same explicit opt-in treatment.

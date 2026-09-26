@@ -246,3 +246,31 @@
     transform: translateY(0) scale(1);
   }
 }
+
+/*
+ * Persistent deployment-configuration warning. Shares the errorAlert palette but does not shake:
+ * this is not a transient mistake the visitor can retry away, so an attention animation on every
+ * mount would be noise. It states a fact about the deployment and stays put.
+ */
+.configAlert {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: rgba(255, 68, 68, 0.08);
+  border: 1px solid rgba(255, 68, 68, 0.2);
+  border-radius: var(--radius-xl);
+  color: #ff8888;
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-5);
+  line-height: 1.5;
+}
+
+/* Honest labelling under the evaluation-account buttons, which only render in local development. */
+.demoCaveat {
+  margin-top: var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  text-align: center;
+  line-height: 1.5;
+}

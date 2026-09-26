@@ -52,6 +52,8 @@ export type AuthErrorCode =
   | 'token_invalid_or_expired'
   | 'rate_limited'
   | 'network_error'
+  /** The deployment has no authentication service configured at all. Not a credential problem. */
+  | 'not_configured'
   | 'unknown_error';
 
 export interface AuthError {

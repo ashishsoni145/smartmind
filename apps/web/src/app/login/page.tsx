@@ -17,7 +17,7 @@ function LoginForm() {
   // Returning user protection: if already signed in, redirect to target
   useProtectedRoute({ requireAuth: false, redirectTo });
 
-  const { signIn, isLoading } = useAuth();
+  const { signIn, isLoading, adapterName } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
@@ -58,6 +58,17 @@ function LoginForm() {
         <h1 className={styles.title}>Welcome Back</h1>
         <p className={styles.subtitle}>Sign in to your SharpMind learning workspace</p>
       </div>
+
+      {adapterName === 'NotConfiguredAuthAdapter' && (
+        <div className={styles.configAlert} role="alert">
+          <span aria-hidden="true">⚠️</span>
+          <span>
+            Sign-in is disabled because this deployment has no authentication service configured.
+            That is a deployment problem, not a problem with your details — SharpMind will not sign
+            you in against a built-in account list.
+          </span>
+        </div>
+      )}
 
       {errorMessage && (
         <div className={styles.errorAlert} role="alert" aria-live="polite">
@@ -130,33 +141,45 @@ function LoginForm() {
         </Button>
       </form>
 
-      {/* Demo Credentials Quick-Tester */}
-      <div className={styles.demoBox}>
-        <div className={styles.demoTitle}>Evaluation Test Accounts</div>
-        <div className={styles.demoButtons}>
-          <button
-            type="button"
-            className={styles.demoBtn}
-            onClick={() => fillDemo('student@sharpmind.app')}
-          >
-            Student (Aarav)
-          </button>
-          <button
-            type="button"
-            className={styles.demoBtn}
-            onClick={() => fillDemo('teacher@sharpmind.app')}
-          >
-            Teacher (Dr. Priya)
-          </button>
-          <button
-            type="button"
-            className={styles.demoBtn}
-            onClick={() => fillDemo('parent@sharpmind.app')}
-          >
-            Parent (Rajesh)
-          </button>
+      {/*
+        Evaluation accounts are offered only when the browser-only LocalAuthAdapter is actually
+        running, which now requires an explicit NEXT_PUBLIC_ALLOW_LOCAL_AUTH=1. Against Supabase
+        these addresses do not exist, so the buttons only ever filled in a password that could not
+        work - and on a misconfigured deployment they advertised credentials for a "sign-in" that
+        no server had verified. The UI should not offer what the running adapter cannot honour.
+      */}
+      {adapterName === 'LocalAuthAdapter' && (
+        <div className={styles.demoBox}>
+          <div className={styles.demoTitle}>Evaluation Test Accounts</div>
+          <div className={styles.demoButtons}>
+            <button
+              type="button"
+              className={styles.demoBtn}
+              onClick={() => fillDemo('student@sharpmind.app')}
+            >
+              Student (Aarav)
+            </button>
+            <button
+              type="button"
+              className={styles.demoBtn}
+              onClick={() => fillDemo('teacher@sharpmind.app')}
+            >
+              Teacher (Dr. Priya)
+            </button>
+            <button
+              type="button"
+              className={styles.demoBtn}
+              onClick={() => fillDemo('parent@sharpmind.app')}
+            >
+              Parent (Rajesh)
+            </button>
+          </div>
+          <div className={styles.demoCaveat}>
+            Browser-only local development. These accounts live in this browser and no server has
+            authenticated them.
+          </div>
         </div>
-      </div>
+      )}
 
       <div className={styles.footerText}>
         Don&apos;t have an account yet?
