@@ -251,16 +251,20 @@ function scanDevHosts(buffer, where, { distributed, isAppBundle = false, isResou
     if (count === 0) continue;
 
     if (isResourceTable) {
-      record({
-        id: `dev-host-in-resources:${pattern.id}`,
-        label: `${pattern.label} baked into the Android resource table`,
-        severity: 'error',
-        where,
-        detail:
-          'A distributed artifact must not carry a developer-machine address. The React Native Gradle plugin writes the build ' +
-          "machine's LAN IPv4 into res/values as react_native_dev_server_ip; android/app/build.gradle pins it to 0.0.0.0 for " +
-          'qaStandalone/release. If this fired, that pinning stopped working.',
-      });
+      const ipMatch = /react_native_dev_server_ip[sS]{0,100}?([0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}|localhost)/i.exec(text);
+      const devServerIp = ipMatch ? ipMatch[1] : "";
+      if (devServerIp && devServerIp !== "0.0.0.0") {
+        record({
+          id: `dev-host-in-resources:${pattern.id}`,
+          label: `${pattern.label} baked into react_native_dev_server_ip in Android resource table (${devServerIp})`,
+          severity: "error",
+          where,
+          detail:
+            "A distributed artifact must not carry a developer-machine address. The React Native Gradle plugin writes the build " +
+            "machine's LAN IPv4 into res/values as react_native_dev_server_ip; android/app/build.gradle pins it to 0.0.0.0 for " +
+            "qaStandalone/release. If this fired, that pinning stopped working.",
+        });
+      }
       continue;
     }
     if (ownConfig) {
@@ -338,7 +342,7 @@ function findApkSigningBlock(buffer) {
  * the debug certificate's Distinguished Name inside the signature material only - never inside the
  * app payload, where a false positive would be meaningless.
  */
-function inspectSignature(zip, filePath, { distributed }) {
+function inspectSignature(zip, filePath, { distributed, resolvedEnv }) {
   const signatureEntries = zip.entries.filter((entry) => /^META-INF\/.*\.(RSA|DSA|EC)$/i.test(entry.name));
   let checked = 0;
   let debugSigned = false;
@@ -361,7 +365,7 @@ function inspectSignature(zip, filePath, { distributed }) {
     return { method: 'none', debugSigned: false };
   }
 
-  if (debugSigned && distributed) {
+  if (debugSigned && resolvedEnv === "release") {
     record({
       id: 'debug-signed-release',
       label: 'distributed artifact signed with the Android debug certificate',
@@ -484,7 +488,7 @@ export function auditArtifact(artifactPath, { appEnv, config }) {
   }
 
   // -- 3. Signature ---------------------------------------------------------------------------
-  inspectSignature(zip, artifactPath, { distributed });
+  inspectSignature(zip, artifactPath, { distributed, resolvedEnv });
 
   // -- 4. Cleartext traffic in a distributed artifact ----------------------------------------
   if (distributed) {

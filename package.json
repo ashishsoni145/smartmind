@@ -31,6 +31,7 @@
     "mobile:audit": "npm --prefix apps/mobile run audit",
     "mobile:audit:source": "npm --prefix apps/mobile run audit:source",
     "mobile:audit:artifact": "npm --prefix apps/mobile run audit:artifact",
-    "mobile:check:config:release": "npm --prefix apps/mobile run check:config:release"
+    "mobile:check:config:release": "npm --prefix apps/mobile run check:config:release",
+    "build:packages": "npm --prefix packages/types run build && npm --prefix packages/api-client run build"
   }
 }

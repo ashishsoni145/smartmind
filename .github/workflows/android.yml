@@ -63,6 +63,9 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
 
+      - name: Build shared workspace packages
+        run: npm run build:packages
+
       - name: Mobile typecheck
         run: npm run mobile:typecheck
 
@@ -124,6 +127,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
+
+      - name: Build shared workspace packages
+        run: npm run build:packages
 
       - name: Kotlin unit tests
         run: npm --prefix apps/mobile run test:android -- --no-daemon --stacktrace
@@ -201,6 +207,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
+
+      - name: Build shared workspace packages
+        run: npm run build:packages
 
       - name: Validate public client configuration for a distributed build
         # Fails with an actionable message naming the missing NON-SECRET value. Never prints a secret.
@@ -315,6 +324,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
+
+      - name: Build shared workspace packages
+        run: npm run build:packages
 
       - name: Validate public client configuration for a Play release
         # Fails with an actionable message naming the missing NON-SECRET value. Never prints a secret.

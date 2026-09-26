@@ -48,6 +48,20 @@ if (config.status !== 0) {
   process.exit(config.status ?? 1);
 }
 
+const monorepoRoot = path.resolve(here, '../..');
+const packagesBuild = spawnSync('npm', ['run', 'build:packages'], {
+  cwd: monorepoRoot,
+  stdio: 'inherit',
+  shell: isWindows,
+});
+if (packagesBuild.status !== 0) {
+  console.error('[mobile] Shared workspace packages build failed.');
+  process.exit(packagesBuild.status ?? 1);
+}
+if (config.status !== 0) {
+  process.exit(config.status ?? 1);
+}
+
 if (!isWindows) {
   try {
     fs.accessSync(wrapper, fs.constants.X_OK);

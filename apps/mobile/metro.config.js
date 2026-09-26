@@ -14,10 +14,6 @@ const config = {
       path.resolve(projectRoot, 'node_modules'),
       path.resolve(monorepoRoot, 'node_modules'),
     ],
-    extraNodeModules: {
-      '@sharpmind/api-client': path.resolve(monorepoRoot, 'packages/api-client/src'),
-      '@sharpmind/types': path.resolve(monorepoRoot, 'packages/types/src'),
-    },
   },
 };
 
