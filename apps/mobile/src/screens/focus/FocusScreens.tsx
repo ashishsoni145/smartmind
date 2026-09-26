@@ -129,6 +129,18 @@ export function PermissionSetupScreen() {
           </Card>
         );
       })}
+      <Card tone="warning">
+        <Text weight="700">Android "Controlled by restricted setting"?</Text>
+        <Text tone="secondary" variant="small">
+          If Android blocks App Usage Data or Accessibility with "Controlled by restricted setting" on sideloaded APKs:
+        </Text>
+        <Text tone="secondary" variant="small">
+          1. Go to phone Settings &gt; Apps &gt; SharpMind (or App Info).{"\n"}
+          2. Tap the top-right 3 dots menu (⋮).{"\n"}
+          3. Tap "Allow restricted settings".{"\n"}
+          4. Return here and tap "Open settings" again to toggle permission.
+        </Text>
+      </Card>
       {notice ? <InlineNotice tone="accent">{notice}</InlineNotice> : null}
       <Button label="Check again" tone="secondary" onPress={refresh} />
     </Screen>

@@ -45,12 +45,7 @@ function LoginForm() {
     }
   };
 
-  // Quick-fill helper for demo & evaluation
-  const fillDemo = (demoEmail: string) => {
-    setEmail(demoEmail);
-    setPassword('Password123!');
-    setErrorMessage(null);
-  };
+
 
   return (
     <div className={styles.card}>
@@ -130,33 +125,7 @@ function LoginForm() {
         </Button>
       </form>
 
-      {/* Demo Credentials Quick-Tester */}
-      <div className={styles.demoBox}>
-        <div className={styles.demoTitle}>Evaluation Test Accounts</div>
-        <div className={styles.demoButtons}>
-          <button
-            type="button"
-            className={styles.demoBtn}
-            onClick={() => fillDemo('student@sharpmind.app')}
-          >
-            Student (Aarav)
-          </button>
-          <button
-            type="button"
-            className={styles.demoBtn}
-            onClick={() => fillDemo('teacher@sharpmind.app')}
-          >
-            Teacher (Dr. Priya)
-          </button>
-          <button
-            type="button"
-            className={styles.demoBtn}
-            onClick={() => fillDemo('parent@sharpmind.app')}
-          >
-            Parent (Rajesh)
-          </button>
-        </div>
-      </div>
+
 
       <div className={styles.footerText}>
         Don&apos;t have an account yet?

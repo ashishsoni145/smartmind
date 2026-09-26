@@ -22,7 +22,12 @@
  * hoisted root node_modules (Gradle keys composite builds by path).
  *
  * The plugin directory is handed to includeBuild() as a slash-separated path String.
- * That is not cosmetic: inside pluginManagement {}, only the String overload registers a
+ * That is not cosmetic: inside pluginManagement {
+    repositories {
+        google()
+        maven { url 'https://maven-central.storage-download.googleapis.com/maven2/' }
+        mavenCentral()
+    }}, only the String overload registers a
  * build for plugin resolution. Passing a File (as this file used to do) registers the
  * build for dependency substitution only, and Gradle then fails with
  * "Plugin [id: 'com.facebook.react.settings'] was not found ... Included Builds
@@ -111,3 +116,11 @@ include ':app'
 // Registers the same plugin build for dependency substitution, so the root buildscript
 // classpath resolves com.facebook.react:react-native-gradle-plugin from the local sources.
 includeBuild(gradle.ext.reactNativeGradlePluginPath)
+
+dependencyResolutionManagement {
+    repositories {
+        google()
+        maven { url 'https://maven-central.storage-download.googleapis.com/maven2/' }
+        mavenCentral()
+    }
+}
