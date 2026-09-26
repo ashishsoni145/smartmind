@@ -2,7 +2,7 @@ apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 
 def mobileNodeModules = file("../../node_modules")
-def repoNodeModules = file("../../../node_modules")
+def repoNodeModules = file("../../../../node_modules")
 
 def resolveNodePackage = { String name ->
     [new File(mobileNodeModules, name), new File(repoNodeModules, name)].find { it.exists() }
@@ -10,6 +10,17 @@ def resolveNodePackage = { String name ->
 
 def resolvedRnDir = resolveNodePackage("react-native")
 def resolvedCodegenDir = resolveNodePackage("@react-native/codegen")
+
+def isWindows = org.gradle.internal.os.OperatingSystem.current().isWindows()
+def isMac = org.gradle.internal.os.OperatingSystem.current().isMacOsX()
+def hermesOsDir = isWindows ? "win64-bin/hermesc.exe" : (isMac ? "osx-bin/hermesc" : "linux64-bin/hermesc")
+
+def resolvedHermesc = [
+    new File(mobileNodeModules, "hermes-compiler/hermesc/${hermesOsDir}"),
+    new File(repoNodeModules, "hermes-compiler/hermesc/${hermesOsDir}"),
+    new File(mobileNodeModules, "react-native/sdks/hermesc/${hermesOsDir}"),
+    new File(repoNodeModules, "react-native/sdks/hermesc/${hermesOsDir}")
+].find { it.exists() }
 
 /**
  * ---------------------------------------------------------------------------
@@ -61,6 +72,12 @@ def distributedBuildRequested = sharpMindAppEnv != 'debug'
  */
 if (distributedBuildRequested && !project.hasProperty('reactNativeDevServerIp')) {
     project.ext.reactNativeDevServerIp = '0.0.0.0'
+    project.setProperty('reactNativeDevServerIp', '0.0.0.0')
+}
+
+if (distributedBuildRequested && !project.hasProperty("reactNativeDevServerIp")) {
+    project.ext.reactNativeDevServerIp = "0.0.0.0"
+    project.setProperty("reactNativeDevServerIp", "0.0.0.0")
 }
 
 apply plugin: "com.facebook.react"
@@ -85,6 +102,9 @@ react {
     }
     if (resolvedRnDir != null) {
         cliFile = new File(resolvedRnDir, "cli.js")
+    }
+    if (resolvedHermesc != null) {
+        hermesCommand.set(resolvedHermesc.absolutePath)
     }
     // Explicit, so a future rename of the debug build type can never silently switch a
     // distributed variant to loading JS from Metro.
@@ -155,6 +175,10 @@ android {
     namespace "com.sharpmind.app"
     defaultConfig {
         applicationId "com.sharpmind.app"
+        if (distributedBuildRequested) {
+            resValue "string", "react_native_dev_server_ip", "0.0.0.0"
+            resValue "integer", "react_native_dev_server_port", "0"
+        }
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode appVersionCode
@@ -201,6 +225,8 @@ android {
          * manifest would otherwise fail to merge.
          */
         qaStandalone {
+            resValue "string", "react_native_dev_server_ip", "0.0.0.0"
+            resValue "integer", "react_native_dev_server_port", "0"
             signingConfig signingConfigs.debug
             debuggable false
             minifyEnabled enableProguardInReleaseBuilds
@@ -210,6 +236,8 @@ android {
             buildConfigField "String", "SHARPMIND_APP_ENV", "\"qa\""
         }
         release {
+            resValue "string", "react_native_dev_server_ip", "0.0.0.0"
+            resValue "integer", "react_native_dev_server_port", "0"
             signingConfig signingConfigs.release
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
