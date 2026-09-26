@@ -93,9 +93,14 @@ jobs:
     timeout-minutes: 45
     needs: verify
     env:
-      SHARPMIND_API_URL: ${{ vars.SHARPMIND_API_URL }}
-      SHARPMIND_SUPABASE_URL: ${{ vars.SHARPMIND_SUPABASE_URL }}
-      SHARPMIND_SUPABASE_ANON_KEY: ${{ vars.SHARPMIND_SUPABASE_ANON_KEY }}
+      # Public client config. These are NOT secrets (a backend URL and the Supabase publishable
+      # key), so a repository *variable* is the natural home - but the same name is also accepted
+      # as a secret, because whoever configures the repository should not have to remember which
+      # of the two it belongs in. The generator's own precedence is preserved: SHARPMIND_* wins
+      # over NEXT_PUBLIC_*, and both win over apps/mobile/config/production.json.
+      SHARPMIND_API_URL: ${{ vars.SHARPMIND_API_URL || secrets.SHARPMIND_API_URL }}
+      SHARPMIND_SUPABASE_URL: ${{ vars.SHARPMIND_SUPABASE_URL || secrets.SHARPMIND_SUPABASE_URL }}
+      SHARPMIND_SUPABASE_ANON_KEY: ${{ vars.SHARPMIND_SUPABASE_ANON_KEY || secrets.SHARPMIND_SUPABASE_ANON_KEY }}
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
       NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
@@ -161,9 +166,14 @@ jobs:
     timeout-minutes: 45
     needs: verify
     env:
-      SHARPMIND_API_URL: ${{ vars.SHARPMIND_API_URL }}
-      SHARPMIND_SUPABASE_URL: ${{ vars.SHARPMIND_SUPABASE_URL }}
-      SHARPMIND_SUPABASE_ANON_KEY: ${{ vars.SHARPMIND_SUPABASE_ANON_KEY }}
+      # Public client config. These are NOT secrets (a backend URL and the Supabase publishable
+      # key), so a repository *variable* is the natural home - but the same name is also accepted
+      # as a secret, because whoever configures the repository should not have to remember which
+      # of the two it belongs in. The generator's own precedence is preserved: SHARPMIND_* wins
+      # over NEXT_PUBLIC_*, and both win over apps/mobile/config/production.json.
+      SHARPMIND_API_URL: ${{ vars.SHARPMIND_API_URL || secrets.SHARPMIND_API_URL }}
+      SHARPMIND_SUPABASE_URL: ${{ vars.SHARPMIND_SUPABASE_URL || secrets.SHARPMIND_SUPABASE_URL }}
+      SHARPMIND_SUPABASE_ANON_KEY: ${{ vars.SHARPMIND_SUPABASE_ANON_KEY || secrets.SHARPMIND_SUPABASE_ANON_KEY }}
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
       NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
@@ -238,9 +248,14 @@ jobs:
     if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.production_release)
     environment: production
     env:
-      SHARPMIND_API_URL: ${{ vars.SHARPMIND_API_URL }}
-      SHARPMIND_SUPABASE_URL: ${{ vars.SHARPMIND_SUPABASE_URL }}
-      SHARPMIND_SUPABASE_ANON_KEY: ${{ vars.SHARPMIND_SUPABASE_ANON_KEY }}
+      # Public client config. These are NOT secrets (a backend URL and the Supabase publishable
+      # key), so a repository *variable* is the natural home - but the same name is also accepted
+      # as a secret, because whoever configures the repository should not have to remember which
+      # of the two it belongs in. The generator's own precedence is preserved: SHARPMIND_* wins
+      # over NEXT_PUBLIC_*, and both win over apps/mobile/config/production.json.
+      SHARPMIND_API_URL: ${{ vars.SHARPMIND_API_URL || secrets.SHARPMIND_API_URL }}
+      SHARPMIND_SUPABASE_URL: ${{ vars.SHARPMIND_SUPABASE_URL || secrets.SHARPMIND_SUPABASE_URL }}
+      SHARPMIND_SUPABASE_ANON_KEY: ${{ vars.SHARPMIND_SUPABASE_ANON_KEY || secrets.SHARPMIND_SUPABASE_ANON_KEY }}
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
       NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
