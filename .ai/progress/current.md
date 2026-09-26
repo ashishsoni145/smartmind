@@ -4,6 +4,10 @@ Android production distribution and the client/server secret boundary (ADR 0011)
 
 Local proof complete: mobile typecheck, Jest 52/52, Node build-script tests 28/28, auditor self test, source audit, backend typecheck, backend tests 252/252. APK/AAB proof is GitHub Actions, not this sandbox — no JDK, no Android SDK, and Maven/Google hosts are unreachable here. Blocking follow-up: supply the public Supabase anon key, otherwise `android-qa` and `android-release` fail at the configuration gate (intended, with an actionable message).
 
+Pushed as `b198f71` on PR #15 (https://github.com/ashishsoni145/smartmind/pull/15). CI run 36184628852: `verify` **success**; `android-qa` **failure at the configuration gate** (intended — no anon key yet); `android-debug` Kotlin unit tests **success**, which proves Gradle 9.4.1 / AGP 9.2.1 / the new `qaStandalone` build type all configure. `Assemble debug APK` was still running when GitHub auth expired in the sandbox; its result was not read.
+
+Follow-ups pushed once GitHub auth returned: the **Pre-release checklist** in `apps/mobile/PLAY_AUDIT.md`, and CI now accepts `SHARPMIND_API_URL` / `SHARPMIND_SUPABASE_URL` / `SHARPMIND_SUPABASE_ANON_KEY` as a repository variable **or** a secret of the same name.
+
 # Previous
 
 Android client rebuild (ADR 0010) completed. Capacitor is gone. React Native screens and Kotlin focus sources are in `apps/mobile`. Usage-path `TIME_LIMIT` and `FOCUS_ONLY` are wired.

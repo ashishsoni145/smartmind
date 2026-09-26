@@ -98,7 +98,7 @@ while guaranteeing that no private provider/service credential ever crosses into
   build-script tests / 9 suites pass.
 - `npm --prefix apps/mobile run audit:selftest` — 16 credential shapes detected, 5 public values not
   flagged, 3 synthetic APK/AAB fixtures audited end to end.
-- `npm --prefix apps/mobile run audit:source` — 104 files, PASS.
+- `npm --prefix apps/mobile run audit:source` — 106 files, PASS.
 - Manual negative tests of the generator: release with localhost / `10.0.2.2` / http / missing anon
   key / service-role key / OpenRouter key / a server-only variable copied into a client field — all
   exit non-zero with actionable messages and no secret printed; debug build unaffected.
@@ -123,11 +123,38 @@ while guaranteeing that no private provider/service credential ever crosses into
   (HTTP 403), so it could not be added from here.
 - No Play Console upload, and nothing publishes automatically.
 
+## CI results observed on this branch (run 36184628852, PR #15)
+- `verify` — **success**. Mobile/web/backend typecheck, Jest, the 28 Node build-script tests,
+  `audit:selftest`, `audit:source --format github` and the backend suite all pass in CI.
+- `android-qa` — **failure, exactly as designed.** It stopped at "Validate public client
+  configuration for a distributed build"; every later step was skipped. The gate is the reason the
+  job is red, not a build defect.
+- `android-debug` — `Kotlin unit tests` **success**, which is the important signal: Gradle 9.4.1,
+  AGP 9.2.1 and the RNGP `settings.gradle` resolution all work, and the whole `android { }` block
+  (including the new `qaStandalone` build type, `matchingFallbacks += ['release']` and its explicit
+  `usesCleartextTraffic` placeholder) configures cleanly. `Assemble debug APK` was still running when
+  GitHub authentication expired in the sandbox; its final status was not observed.
+- GitHub auth then failed with HTTP 401 / "could not read Username", so the CI result could not be
+  read to completion and one follow-up commit could not be pushed. **Reconnect GitHub in Arena.**
+
+## Git state
+- `b198f71 feat(android): make SharpMind a standalone, Play-shippable production client` — pushed,
+  on PR #15 (https://github.com/ashishsoni145/smartmind/pull/15).
+- Follow-ups pushed after GitHub auth was restored: the **Pre-release checklist** in
+  `apps/mobile/PLAY_AUDIT.md`, the release-runbook pointer to it in `README.md`, CI reading the
+  public client config from a repository *variable* or a *secret*, and this memory update.
+
+The sandbox lost GitHub credentials part-way through (HTTP 401) and its working copy was rolled back
+to `cf13cde` while the files stayed modified; the follow-ups were re-committed on top of the fetched
+`b198f71` so history stays linear. Nothing was lost.
+
 ## Next checkpoint
-1. Watch the Actions run on this branch: `verify` green, then whether `android-debug` and `android-qa`
-   build. `android-qa` is the first real proof that the `qaStandalone` variant, the config gate and
-   the artifact audit all work under Gradle.
-2. Supply the anon key; re-run; confirm the QA APK audit is clean and the bundle assertion passes.
+1. Read the finished `android-debug` job on PR #15. If `Assemble debug APK` and the debug APK audit
+   passed, the Gradle toolchain is proven for debug and only the distributed variants remain.
+2. Supply the anon key: set `SHARPMIND_SUPABASE_ANON_KEY` as a repository variable, or commit it in
+   `apps/mobile/config/production.json` after verifying its JWT `role` claim is `anon`. Re-run;
+   `android-qa` should then build and assert `assets/index.android.bundle` inside the APK.
 3. Add the `production` keystore secrets; run the workflow with `production_release=true`; download
    the AAB and its audit report.
-4. Perform the physical-device test with the computer switched off and record the result.
+4. Perform the physical-device test in `apps/mobile/README.md` with the computer switched off, then
+   work through the **Pre-release checklist** in `apps/mobile/PLAY_AUDIT.md`.

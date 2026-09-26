@@ -1,5 +1,14 @@
 # Next
 
+- Read the finished `android-debug` job on PR #15 (run 36184628852): the Kotlin unit tests passed,
+  `Assemble debug APK` and the debug APK audit were still running when the sandbox lost GitHub
+  credentials. Everything is now pushed to PR #15.
+- Work through the **Pre-release checklist** at the end of `apps/mobile/PLAY_AUDIT.md` before any
+  Play submission. It separates what CI already enforces from what only a human can sign off.
+- Fix the web-only hardcoded demo accounts in
+  `apps/web/src/lib/adapters/auth/local-auth-adapter.ts` (password `Password123!`, advertised on the
+  login page). They are **not** in the Android bundle, but they are a live production credential
+  issue on `sharpminds.vercel.app` and deserve their own change.
 - Supply the public Supabase anon key so a distributed build can be produced: either commit it in
   `apps/mobile/config/production.json` (verify its JWT `role` claim is `anon` first) or set
   `SHARPMIND_SUPABASE_ANON_KEY` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` as a repository variable. Until
