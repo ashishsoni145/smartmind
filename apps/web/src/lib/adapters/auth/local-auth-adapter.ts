@@ -17,45 +17,7 @@ interface StoredUser extends User {
   passwordHash: string; // Simulated password hash
 }
 
-// Pre-seeded evaluation accounts for seamless demo & testing
-const DEFAULT_USERS: StoredUser[] = [
-  {
-    id: 'user-student-01',
-    email: 'student@sharpmind.app',
-    passwordHash: 'Password123!',
-    role: 'student',
-    fullName: 'Aarav Sharma',
-    isEmailVerified: true,
-    avatarUrl: undefined,
-    createdAt: '2026-09-01T00:00:00Z',
-    updatedAt: '2026-09-14T00:00:00Z',
-    metadata: { targetExam: 'JEE Advanced', grade: '12th' },
-  },
-  {
-    id: 'user-teacher-01',
-    email: 'teacher@sharpmind.app',
-    passwordHash: 'Password123!',
-    role: 'teacher',
-    fullName: 'Dr. Priya Nair',
-    isEmailVerified: true,
-    avatarUrl: undefined,
-    createdAt: '2026-09-01T00:00:00Z',
-    updatedAt: '2026-09-14T00:00:00Z',
-    metadata: { department: 'Physics', institution: 'Apex Academy' },
-  },
-  {
-    id: 'user-parent-01',
-    email: 'parent@sharpmind.app',
-    passwordHash: 'Password123!',
-    role: 'parent',
-    fullName: 'Rajesh Sharma',
-    isEmailVerified: true,
-    avatarUrl: undefined,
-    createdAt: '2026-09-01T00:00:00Z',
-    updatedAt: '2026-09-14T00:00:00Z',
-    metadata: { linkedStudentId: 'user-student-01' },
-  },
-];
+const DEFAULT_USERS: StoredUser[] = [];
 
 export class LocalAuthAdapter implements AuthAdapter {
   public readonly name = 'LocalAuthAdapter';

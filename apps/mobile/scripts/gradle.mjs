@@ -71,7 +71,7 @@ if (!isWindows) {
   }
 }
 
-const result = spawnSync(wrapper, args, {
+const result = spawnSync(wrapper, ['-I', path.join(androidDir, 'init.gradle'), ...args], {
   cwd: androidDir,
   stdio: 'inherit',
   // gradlew.bat is a batch file, so it needs the shell on Windows.

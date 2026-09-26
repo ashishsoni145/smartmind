@@ -1,3 +1,4 @@
+import { TabIcon } from './TabIcons';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, BackHandler, View } from 'react-native';
 import { NavigationContainer, DefaultTheme, createNavigationContainerRef } from '@react-navigation/native';
@@ -144,11 +145,46 @@ function MainTabs() {
         tabBarInactiveTintColor: theme.colors.textMuted,
         tabBarLabelStyle: { fontSize: 12 },
       }}>
-      <Tabs.Screen name="HomeTab" component={HomeStackScreen} options={{ title: 'Home' }} />
-      <Tabs.Screen name="TutorTab" component={TutorStackScreen} options={{ title: 'AI Tutor' }} />
-      <Tabs.Screen name="StudyTab" component={StudyStackScreen} options={{ title: 'Study' }} />
-      <Tabs.Screen name="FocusTab" component={FocusStackScreen} options={{ title: 'Focus' }} />
-      <Tabs.Screen name="ProgressTab" component={ProgressStackScreen} options={{ title: 'Progress' }} />
+      <Tabs.Screen
+        name="HomeTab"
+        component={HomeStackScreen}
+        options={{
+          title: 'Home',
+          tabBarIcon: ({ color, focused }) => <TabIcon name="home" color={color} focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="TutorTab"
+        component={TutorStackScreen}
+        options={{
+          title: 'AI Tutor',
+          tabBarIcon: ({ color, focused }) => <TabIcon name="tutor" color={color} focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="StudyTab"
+        component={StudyStackScreen}
+        options={{
+          title: 'Study',
+          tabBarIcon: ({ color, focused }) => <TabIcon name="study" color={color} focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="FocusTab"
+        component={FocusStackScreen}
+        options={{
+          title: 'Focus',
+          tabBarIcon: ({ color, focused }) => <TabIcon name="focus" color={color} focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="ProgressTab"
+        component={ProgressStackScreen}
+        options={{
+          title: 'Progress',
+          tabBarIcon: ({ color, focused }) => <TabIcon name="progress" color={color} focused={focused} />,
+        }}
+      />
     </Tabs.Navigator>
   );
 }
