@@ -839,6 +839,30 @@ export function runSelfTest() {
 // Artifact discovery
 // --------------------------------------------------------------------------------------------
 
+/**
+ * Resolve an artifact path given to the CLI.
+ *
+ * npm runs a script with the working directory set to the *package* directory, so
+ * `npm --prefix apps/mobile run audit:artifact -- <path>` executes with cwd = apps/mobile even when
+ * the caller passed a path relative to the repository root. Accepting both is not convenience: the
+ * `source` command already resolves its targets against the repository root, and an auditor that
+ * silently reported "artifact not found" for a file that is sitting right there would be worse than
+ * no auditor, because a green-looking run would have scanned nothing.
+ */
+function resolveArtifactPath(candidate) {
+  if (path.isAbsolute(candidate)) {
+    return { resolved: fs.existsSync(candidate) ? candidate : null, tried: [candidate] };
+  }
+  const tried = [];
+  for (const base of [process.cwd(), repoRoot, mobileRoot]) {
+    const absolute = path.resolve(base, candidate);
+    if (tried.includes(absolute)) continue;
+    tried.push(absolute);
+    if (fs.existsSync(absolute)) return { resolved: absolute, tried };
+  }
+  return { resolved: null, tried };
+}
+
 function discoverArtifacts() {
   const roots = [
     path.join(mobileRoot, 'android/app/build/outputs/apk'),
@@ -940,12 +964,19 @@ function main(argv) {
       return 2;
     }
     for (const artifact of artifacts) {
-      if (!fs.existsSync(artifact)) {
-        record({ id: 'artifact-missing', label: 'artifact not found', severity: 'error', where: artifact, detail: 'The path does not exist.' });
+      const { resolved, tried } = resolveArtifactPath(artifact);
+      if (!resolved) {
+        record({
+          id: 'artifact-missing',
+          label: 'artifact not found',
+          severity: 'error',
+          where: artifact,
+          detail: `The path does not exist. Looked for it at:\n    ${tried.join('\n    ')}\n    (cwd is ${process.cwd()}; npm scripts run from the package directory, not the repository root.)`,
+        });
         continue;
       }
       try {
-        auditArtifact(artifact, { appEnv, config });
+        auditArtifact(resolved, { appEnv, config });
       } catch (error) {
         record({
           id: 'audit-failed',

@@ -356,4 +356,39 @@ describe('security-audit', () => {
     assert.equal(stdout.includes('committed-keystore'), false);
     assert.match(stdout, /standard React Native debug keystore/);
   });
+
+  // Regression: CI runs `npm --prefix apps/mobile run audit:artifact -- <path>` where <path> is
+  // relative to the repository root, but npm executes the script with cwd = apps/mobile. The
+  // auditor reported "artifact not found" for a file that was sitting right there, which is worse
+  // than crashing: the job looks like it audited something and audited nothing.
+  test('a repository-root-relative artifact path still resolves when cwd is apps/mobile', () => {
+    const marker = path.join(mobileRoot, 'tmp-audit-path-resolution.bin');
+    fs.writeFileSync(marker, 'deliberately not a zip archive');
+    try {
+      const relativeToRepoRoot = path.relative(repoRoot, marker).split(path.sep).join('/');
+      const result = spawnSync(process.execPath, [audit, 'artifact', '--app-env', 'debug', relativeToRepoRoot], {
+        cwd: mobileRoot, // what npm --prefix does
+        encoding: 'utf8',
+      });
+      const output = `${result.stdout}\n${result.stderr}`;
+      assert.equal(output.includes('artifact not found'), false,
+        `the auditor must find ${relativeToRepoRoot} from cwd=apps/mobile, got:\n${output}`);
+      // It reached the file and failed on its *contents*, which proves the path resolved.
+      assert.match(output, /could not be audited/);
+    } finally {
+      fs.rmSync(marker, { force: true });
+    }
+  });
+
+  test('a genuinely missing artifact says where it looked, including the repository root', () => {
+    const result = spawnSync(process.execPath, [audit, 'artifact', '--app-env', 'debug', 'no/such/app.apk'], {
+      cwd: mobileRoot,
+      encoding: 'utf8',
+    });
+    const output = `${result.stdout}\n${result.stderr}`;
+    assert.match(output, /artifact not found/);
+    assert.ok(output.includes(path.join(repoRoot, 'no/such/app.apk')),
+      `the error must list the repository-root resolution so the mistake is self-diagnosing, got:\n${output}`);
+    assert.notEqual(result.status, 0);
+  });
 });

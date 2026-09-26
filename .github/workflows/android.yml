@@ -135,12 +135,16 @@ jobs:
         run: |
           set -e
           ls -la apps/mobile/android/app/build/outputs/apk/debug/
-          test -n "$(find apps/mobile/android/app/build/outputs/apk/debug -name '*.apk' -print -quit)" || { echo "::error::assembleDebug produced no APK"; exit 1; }
+          APK="$(find apps/mobile/android/app/build/outputs/apk/debug -name '*.apk' -print -quit)"
+          test -n "$APK" || { echo "::error::assembleDebug produced no APK"; exit 1; }
+          # Absolute, because `npm --prefix apps/mobile run ...` executes with the working directory
+          # set to apps/mobile, where a repository-root-relative path does not resolve.
+          echo "Debug APK: $(realpath "$APK")"
 
       - name: Secret audit of the debug APK
         run: |
           set -e
-          APK="$(find apps/mobile/android/app/build/outputs/apk/debug -name '*.apk' -print -quit)"
+          APK="$(realpath "$(find apps/mobile/android/app/build/outputs/apk/debug -name '*.apk' -print -quit)")"
           npm --prefix apps/mobile run audit:artifact -- --app-env debug --format github --report-json "$RUNNER_TEMP/debug-audit.json" "$APK"
 
       - name: Upload debug APK
@@ -210,6 +214,7 @@ jobs:
           set -e
           APK="$(find apps/mobile/android/app/build/outputs/apk/qaStandalone -name '*.apk' -print -quit)"
           test -n "$APK" || { echo "::error::assembleQaStandalone produced no APK"; exit 1; }
+          APK="$(realpath "$APK")"
           echo "QA APK: $APK"
           unzip -l "$APK" | grep -E '(^| )assets/index\.android\.bundle$' \
             || { echo "::error::The QA APK does not contain assets/index.android.bundle, so it would still need Metro"; exit 1; }
@@ -218,7 +223,8 @@ jobs:
       - name: Secret and configuration audit of the QA APK
         run: |
           set -e
-          APK="$(find apps/mobile/android/app/build/outputs/apk/qaStandalone -name '*.apk' -print -quit)"
+          # Absolute: `npm --prefix apps/mobile run ...` runs with cwd = apps/mobile.
+          APK="$(realpath "$(find apps/mobile/android/app/build/outputs/apk/qaStandalone -name '*.apk' -print -quit)")"
           npm --prefix apps/mobile run audit:artifact -- --app-env qa --format github --report-json "$RUNNER_TEMP/qa-audit.json" "$APK"
 
       - name: Upload QA APK
@@ -331,6 +337,7 @@ jobs:
           set -e
           AAB="$(find apps/mobile/android/app/build/outputs/bundle/release -name '*.aab' -print -quit)"
           test -n "$AAB" || { echo "::error::bundleRelease produced no AAB"; exit 1; }
+          AAB="$(realpath "$AAB")"
           echo "AAB: $AAB"
           unzip -l "$AAB" | grep -E '(^| )base/assets/index\.android\.bundle$' \
             || { echo "::error::The AAB does not contain base/assets/index.android.bundle, so it would still need Metro"; exit 1; }
@@ -339,7 +346,7 @@ jobs:
       - name: Verify the AAB is signed with the upload key and not the debug key
         run: |
           set -e
-          AAB="$(find apps/mobile/android/app/build/outputs/bundle/release -name '*.aab' -print -quit)"
+          AAB="$(realpath "$(find apps/mobile/android/app/build/outputs/bundle/release -name '*.aab' -print -quit)")"
           SIG="$(unzip -Z1 "$AAB" | grep -E '^META-INF/[^/]+\.(RSA|DSA|EC)$' | head -1 || true)"
           if [ -z "$SIG" ]; then
             echo "::error::The release AAB carries no signing certificate. It was not signed with the upload keystore."
@@ -361,7 +368,8 @@ jobs:
       - name: Secret and configuration audit of the release AAB
         run: |
           set -e
-          AAB="$(find apps/mobile/android/app/build/outputs/bundle/release -name '*.aab' -print -quit)"
+          # Absolute: `npm --prefix apps/mobile run ...` runs with cwd = apps/mobile.
+          AAB="$(realpath "$(find apps/mobile/android/app/build/outputs/bundle/release -name '*.aab' -print -quit)")"
           npm --prefix apps/mobile run audit:artifact -- --app-env release --format github --report-json "$RUNNER_TEMP/release-audit.json" "$AAB"
 
       - name: Remove keystore
