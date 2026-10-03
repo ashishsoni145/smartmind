@@ -30,7 +30,7 @@ export const envSchema = z.object({
   SUPABASE_ANON_KEY: z.string().optional().default(
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
   ),
-  CORS_ORIGIN: z.string().default('http://localhost:3000'),
+  CORS_ORIGIN: z.string().default('http://localhost:3000,http://localhost:3001,https://app.sharpmind.live,https://sharpmind.live'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
   API_PREFIX: z.string().default('/api/v1'),
   AI_PROVIDER_PRIMARY: z.enum(['groq', 'gemini', 'openrouter', 'mock']).default('gemini'),

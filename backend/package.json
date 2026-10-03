@@ -11,6 +11,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@sharpmind/types": "*",
     "@supabase/supabase-js": "^2.116.0",
     "compression": "^1.7.5",
     "cors": "^2.8.5",
