@@ -118,7 +118,7 @@ total_topics_count = sum(len(ts) for ts in all_topics_data.values())
 print(f"Total topics generated across all subjects: {total_topics_count}")
 
 # 1. Output ncert-topics-data.ts
-topics_ts_path = 'e:/mind/apps/web/src/lib/curriculum/fixtures/ncert-topics-data.ts'
+topics_ts_path = 'e:/mind/web/src/lib/curriculum/fixtures/ncert-topics-data.ts'
 print(f"Writing {topics_ts_path}...")
 with open(topics_ts_path, 'w', encoding='utf-8') as f:
     f.write("import type { TopicNode } from '@/lib/types/curriculum';\n\n")
@@ -129,7 +129,7 @@ with open(topics_ts_path, 'w', encoding='utf-8') as f:
 print("Finished writing ncert-topics-data.ts.")
 
 # 2. Output ncert-chapters-data.ts
-chapters_ts_path = 'e:/mind/apps/web/src/lib/curriculum/fixtures/ncert-chapters-data.ts'
+chapters_ts_path = 'e:/mind/web/src/lib/curriculum/fixtures/ncert-chapters-data.ts'
 print(f"Writing {chapters_ts_path}...")
 with open(chapters_ts_path, 'w', encoding='utf-8') as f:
     f.write("import type { ChapterNode } from '@/lib/types/curriculum';\n\n")

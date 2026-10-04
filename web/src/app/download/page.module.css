@@ -1,0 +1,63 @@
+.hero { position: relative; overflow: hidden; }
+.heroGlow { position: absolute; inset: 0; background: var(--gradient-hero); pointer-events: none; }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-6);
+}
+
+.platformHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-4);
+}
+
+.platformIcon {
+  font-size: var(--text-3xl);
+}
+
+.platformAction {
+  margin-top: var(--space-4);
+}
+
+/* Sync */
+.syncSection { background: var(--color-bg-secondary); }
+
+.syncFeatures {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-6);
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.syncItem {
+  text-align: center;
+  padding: var(--space-6);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-glass);
+}
+
+.syncItem h3 {
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-2);
+}
+
+.syncItem p {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+@media (max-width: 768px) {
+  .grid { grid-template-columns: repeat(2, 1fr); }
+  .syncFeatures { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 480px) {
+  .grid { grid-template-columns: 1fr; }
+}

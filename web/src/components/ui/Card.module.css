@@ -1,0 +1,73 @@
+/* ==========================================================================
+   Card — tonal panel with thin border. Restrained, hierarchy-driven.
+   ========================================================================== */
+
+.card {
+  position: relative;
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-tertiary);
+  box-shadow: var(--clay-shadow-sm);
+  transition:
+    transform var(--duration-fast) var(--ease-clay),
+    box-shadow var(--duration-fast) var(--ease-clay),
+    border-color var(--duration-fast) var(--ease-default),
+    background var(--duration-fast) var(--ease-default);
+}
+
+/* Variants */
+.feature {
+  background: var(--color-bg-elevated);
+  border-color: var(--color-border-hover);
+}
+
+.elevated {
+  background: var(--color-bg-elevated);
+  border-color: var(--color-border-hover);
+  box-shadow: var(--clay-shadow-md);
+}
+
+/* Hover — subtle lift only */
+.hover:hover {
+  border-color: var(--color-border-hover);
+  box-shadow: var(--clay-shadow-hover);
+  transform: translateY(-1px);
+}
+
+/* Sub-components */
+.icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--color-border);
+  margin-bottom: var(--space-3);
+  font-size: var(--text-lg);
+  color: var(--color-text-secondary);
+  transition: all var(--duration-fast) var(--ease-clay);
+}
+
+.hover:hover .icon {
+  color: var(--color-text-primary);
+  border-color: var(--color-border-hover);
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-1);
+  line-height: var(--leading-snug);
+  letter-spacing: var(--tracking-tight);
+}
+
+.description {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  line-height: 1.55;
+}
