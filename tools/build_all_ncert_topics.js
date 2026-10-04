@@ -3,6 +3,6 @@
 const fs = require('fs');
 const path = require('path');
 
-const { ALL_NCERT_CHAPTERS } = require('../apps/web/src/lib/curriculum/fixtures/ncert-chapters-data.ts');
+const { ALL_NCERT_CHAPTERS } = require('../web/src/lib/curriculum/fixtures/ncert-chapters-data.ts');
 
 console.log(`Loaded ${ALL_NCERT_CHAPTERS.length} chapters.`);
