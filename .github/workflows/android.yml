@@ -82,7 +82,7 @@ jobs:
         run: npm --prefix apps/mobile run prepare:env
 
       - name: Web typecheck
-        run: npm --prefix apps/web run typecheck
+        run: npm run typecheck:landing && npm run typecheck:web
 
       - name: Backend typecheck
         run: npm --prefix backend run typecheck
