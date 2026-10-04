@@ -3,7 +3,7 @@ import {
   VISUAL_SIMULATIONS_REGISTRY,
   getSimulationById,
   getSimulationsBySubject,
-} from '../../../apps/web/src/components/visual/visual-simulation.contract';
+} from '@sharpmind/shared';
 
 describe('Interactive Visual-Learning Framework (Phase 07 Part 02)', () => {
   it('should maintain a registry of 14 verified academic simulations across Physics, Chemistry, and Math', () => {
