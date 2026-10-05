@@ -57,8 +57,8 @@ node -e 'const k=process.argv[1].split(".");console.log(JSON.parse(Buffer.from(k
 
 ## Custom domains
 
-`sharpmindbackend-zeta.vercel.app` is the current production deployment hostname. If the backend
-moves behind a custom domain (for example `api.sharpmind.ai`), change `apiUrl` here **or** set
+`api.sharpmind.live` is the current production deployment hostname. If the backend
+moves (for example to a new custom domain), change `apiUrl` here **or** set
 `SHARPMIND_API_URL` in CI — and rebuild. A Vercel deployment URL that is not the stable production
 hostname, a Render preview URL, a LAN address, `localhost` or `10.0.2.2` are all rejected for
 distributed builds.

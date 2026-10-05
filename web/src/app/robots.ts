@@ -9,6 +9,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: '/',
       disallow: ['/app/', '/api/'],
     },
-    sitemap: 'https://sharpmind.app/sitemap.xml',
+    sitemap: 'https://app.sharpmind.live/sitemap.xml',
   };
 }

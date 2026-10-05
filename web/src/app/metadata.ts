@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 const SITE_NAME = 'SharpMind';
 const SITE_DESCRIPTION =
   'SharpMind is the AI Academic OS that continuously models what you know, what you forget, and what you need next — turning goals into evidence-backed learning, practice, and exam readiness.';
-const SITE_URL = 'https://sharpmind.app'; // Update when domain is live
+const SITE_URL = 'https://app.sharpmind.live'; // Canonical production domain for the student app
 
 export const siteConfig = {
   name: SITE_NAME,

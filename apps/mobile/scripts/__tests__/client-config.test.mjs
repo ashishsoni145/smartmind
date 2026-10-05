@@ -41,7 +41,7 @@ const SERVICE_ROLE_JWT = `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.${Buffer.from(
   JSON.stringify({ role: 'service_role', iss: 'https://vscprtuinxopistikpcs.supabase.co/auth/v1', ref: 'vscprtuinxopistikpcs' }),
 ).toString('base64url')}.dGVzdHNpZ25hdHVyZQ`;
 
-const PRODUCTION_API_URL = 'https://sharpmindbackend-zeta.vercel.app/api/v1';
+const PRODUCTION_API_URL = 'https://api.sharpmind.live/api/v1';
 
 // A clean environment: no inherited SHARPMIND_ or NEXT_PUBLIC_ values, no accidental secrets.
 function baseEnv() {
@@ -135,7 +135,7 @@ describe('secret-policy: developer host detection', () => {
   });
 
   test('does not flag public hosts', () => {
-    for (const host of ['sharpmindbackend-zeta.vercel.app', 'api.sharpmind.ai', 'vscprtuinxopistikpcs.supabase.co', '8.8.8.8', '172.32.0.1', '100.64.0.0']) {
+    for (const host of ['sharpmindbackend-zeta.vercel.app', 'api.sharpmind.live', 'api.sharpmind.ai', 'vscprtuinxopistikpcs.supabase.co', '8.8.8.8', '172.32.0.1', '100.64.0.0']) {
       // 100.64.0.0 is CGNAT and IS non-public; the rest are public.
       if (host === '100.64.0.0') continue;
       assert.equal(isNonPublicHost(host), false, `${host} should be treated as public`);

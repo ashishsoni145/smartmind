@@ -676,7 +676,7 @@ function runArtifactSelfTest(config) {
     JSON.stringify({ role: 'service_role', iss: 'https://vscprtuinxopistikpcs.supabase.co/auth/v1', ref: 'vscprtuinxopistikpcs' }),
   ).toString('base64url');
   const serviceJwt = `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.${servicePayload}.c2VsZnRlc3RzaWduYXR1cmU`;
-  const apiUrl = config.apiUrl || 'https://sharpmindbackend-zeta.vercel.app/api/v1';
+  const apiUrl = config.apiUrl || 'https://api.sharpmind.live/api/v1';
 
   const expect = (condition, message) => {
     if (!condition) {

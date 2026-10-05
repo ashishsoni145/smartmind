@@ -61,7 +61,7 @@ Three values, and only three, are ever inlined into the JavaScript bundle. They 
 
 | Value | Environment override | Committed default |
 | --- | --- | --- |
-| Backend base URL | `SHARPMIND_API_URL` / `NEXT_PUBLIC_API_URL` | `https://sharpmindbackend-zeta.vercel.app/api/v1` |
+| Backend base URL | `SHARPMIND_API_URL` / `NEXT_PUBLIC_API_URL` | `https://api.sharpmind.live/api/v1` |
 | Supabase project URL | `SHARPMIND_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_URL` | `https://vscprtuinxopistikpcs.supabase.co` |
 | Supabase anon key | `SHARPMIND_SUPABASE_ANON_KEY` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | *(supplied at build time)* |
 

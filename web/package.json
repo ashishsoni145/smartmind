@@ -2,6 +2,9 @@
   "name": "@sharpmind/web",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "dev": "node ./run-next.js dev",
     "build": "node ./run-next.js build",
