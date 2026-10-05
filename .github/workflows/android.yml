@@ -20,6 +20,8 @@ on:
     paths:
       - 'apps/mobile/**'
       - 'backend/**'
+      - 'landing/**'
+      - 'web/**'
       - 'packages/**'
       - 'package.json'
       - 'package-lock.json'
@@ -29,6 +31,8 @@ on:
     paths:
       - 'apps/mobile/**'
       - 'backend/**'
+      - 'landing/**'
+      - 'web/**'
       - 'packages/**'
       - 'package.json'
       - 'package-lock.json'

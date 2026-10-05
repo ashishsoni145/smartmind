@@ -14,7 +14,7 @@ import {
  * invent a fallback when configuration is missing.
  */
 
-const PRODUCTION_API_URL = 'https://sharpmindbackend-zeta.vercel.app/api/v1';
+const PRODUCTION_API_URL = 'https://api.sharpmind.live/api/v1';
 
 function config(overrides: Partial<ClientConfig> = {}): ClientConfig {
   return {

@@ -2,7 +2,7 @@ import type { MetadataRoute } from 'next';
 
 export const dynamic = 'force-static';
 
-const BASE_URL = 'https://sharpmind.app';
+const BASE_URL = 'https://app.sharpmind.live';
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const routes = [

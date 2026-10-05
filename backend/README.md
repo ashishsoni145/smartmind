@@ -135,7 +135,7 @@ npm run build
 
 ## 9. Vercel Deployment
 
-The backend is configured for deployment as an independent Vercel project (e.g., `https://api.sharpmind.ai`).
+The backend is configured for deployment as an independent Vercel project (e.g., `https://api.sharpmind.live`).
 
 ### Configuration Files
 - `backend/api/index.ts`: Exported serverless handler.
@@ -162,7 +162,7 @@ The backend is configured for deployment as an independent Vercel project (e.g.,
 
 Configure web application environment variable:
 ```env
-NEXT_PUBLIC_API_URL=https://api.sharpmind.ai
+NEXT_PUBLIC_API_URL=https://api.sharpmind.live/api/v1
 ```
 The frontend communicates with the backend exclusively over HTTPS API calls sending the student's JWT in the `Authorization: Bearer <token>` header.
 
@@ -172,7 +172,7 @@ The frontend communicates with the backend exclusively over HTTPS API calls send
 
 Configure mobile application environment variable:
 ```env
-NEXT_PUBLIC_API_URL=https://api.sharpmind.ai
+NEXT_PUBLIC_API_URL=https://api.sharpmind.live/api/v1
 ```
 Mobile applications obtain a Supabase auth token upon login and include it in all backend API requests:
 ```typescript
