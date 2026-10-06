@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Icon } from '@/components/ui/Icon';
 import styles from '../VisualLearningViewer.module.css';
 
@@ -30,7 +30,7 @@ export const RectilinearKinematicsSimulation: React.FC<RectilinearKinematicsSimu
   const effectiveAcc = isBraking ? -6 : acceleration;
 
   // Calculate kinematics at time t
-  const getKinematicsAt = (t: number) => {
+  const getKinematicsAt = useCallback((t: number) => {
     let curV = initialVelocity + effectiveAcc * t;
     let curX = initialVelocity * t + 0.5 * effectiveAcc * t * t;
 
@@ -42,7 +42,7 @@ export const RectilinearKinematicsSimulation: React.FC<RectilinearKinematicsSimu
     }
 
     return { x: Math.max(0, curX), v: curV, a: effectiveAcc };
-  };
+  }, [effectiveAcc, initialVelocity, isBraking]);
 
   const current = getKinematicsAt(simTime);
   const stoppingDistance = current.v > 0 ? (current.v * current.v) / (2 * Math.abs(effectiveAcc || 1)) : 0;
@@ -287,7 +287,7 @@ export const RectilinearKinematicsSimulation: React.FC<RectilinearKinematicsSimu
     ctx.fill();
 
     ctx.restore();
-  }, [simTime, current, initialVelocity, effectiveAcc]);
+  }, [simTime, current, initialVelocity, effectiveAcc, getKinematicsAt]);
 
   return (
     <div className={styles.container} role="region" aria-label="1D Motion Kinematics Simulator">

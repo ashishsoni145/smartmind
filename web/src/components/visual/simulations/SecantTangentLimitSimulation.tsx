@@ -21,6 +21,7 @@ export const SecantTangentLimitSimulation: React.FC<SecantTangentLimitSimulation
   const [isAnimatingH, setIsAnimatingH] = useState<boolean>(false);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const animationStartDeltaXRef = useRef(deltaX);
 
   // Evaluate f(x) and f'(x)
   const evalFunc = (x: number, type: FuncType) => {
@@ -53,7 +54,7 @@ export const SecantTangentLimitSimulation: React.FC<SecantTangentLimitSimulation
   useEffect(() => {
     if (!isAnimatingH) return;
     let animId: number;
-    let currentH = deltaX;
+    let currentH = animationStartDeltaXRef.current;
     const targetH = 0.02;
 
     const step = () => {
@@ -245,7 +246,7 @@ export const SecantTangentLimitSimulation: React.FC<SecantTangentLimitSimulation
     ctx.stroke();
 
     ctx.fillText(`Q (x₀+h, f(x₀+h))`, p1x + 8, p1y - 10);
-  }, [funcType, x0, deltaX, y0, y1, tangentSlope, secantSlope, deltaY]);
+  }, [funcType, x0, deltaX, x1, y0, y1, tangentSlope, secantSlope, deltaY]);
 
   return (
     <div className={styles.viewerContainer}>
@@ -296,7 +297,7 @@ export const SecantTangentLimitSimulation: React.FC<SecantTangentLimitSimulation
               Secant Slope m_sec = <span style={{ fontWeight: 'bold' }}>{secantSlope.toFixed(3)}</span> (Δy/h)
             </div>
             <div style={{ color: '#10b981' }}>
-              Tangent Slope f'(x₀) = <span style={{ fontWeight: 'bold' }}>{tangentSlope.toFixed(3)}</span>
+              Tangent Slope f&apos;(x₀) = <span style={{ fontWeight: 'bold' }}>{tangentSlope.toFixed(3)}</span>
             </div>
             <div style={{ color: errorPercent < 2 ? '#10b981' : '#f87171' }}>
               Approximation Error: {errorPercent.toFixed(1)}% {deltaX < 0.05 ? '(Converged!)' : ''}
@@ -375,7 +376,9 @@ export const SecantTangentLimitSimulation: React.FC<SecantTangentLimitSimulation
             {/* Animate h -> 0 button */}
             <button
               onClick={() => {
-                if (deltaX < 0.1) setDeltaX(2.0);
+                const startH = deltaX < 0.1 ? 2.0 : deltaX;
+                animationStartDeltaXRef.current = startH;
+                if (deltaX < 0.1) setDeltaX(startH);
                 setIsAnimatingH(true);
               }}
               style={{
@@ -416,7 +419,7 @@ export const SecantTangentLimitSimulation: React.FC<SecantTangentLimitSimulation
             >
               <div style={{ color: '#38bdf8', fontWeight: 600 }}>First Principle of Derivatives</div>
               <div style={{ fontFamily: 'monospace', color: '#fff', fontSize: '12px' }}>
-                f'(x) = lim_{'{h→0}'} [f(x+h) - f(x)] / h
+                f&apos;(x) = lim_{'{h→0}'} [f(x+h) - f(x)] / h
               </div>
               <div style={{ color: 'rgba(255,255,255,0.6)' }}>
                 As secant chord PQ pivots as h approaches 0, the chord merges into the tangent line at P.

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { WorkspaceShell } from '@/components/workspace/WorkspaceShell';
 import { Icon } from '@/components/ui/Icon';
 import styles from './tests.module.css';
@@ -31,6 +31,9 @@ export default function TestsPage() {
   const [showSubmitModal, setShowSubmitModal] = useState(false);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const autoSubmitRef = useRef<() => Promise<void>>(async () => undefined);
+  const timeoutSubmissionAttemptedRef = useRef(false);
+  const submissionInProgressRef = useRef(false);
 
   useEffect(() => {
     loadAssessments();
@@ -55,23 +58,20 @@ export default function TestsPage() {
     }
   }
 
-  // Timer countdown loop
+  // Timer countdown loop. Timeout submission is handled in a separate effect so
+  // the state updater stays pure and the interval never captures stale answers.
   useEffect(() => {
     if (!activeSession) return;
 
     timerRef.current = setInterval(() => {
-      setRemainingSeconds((prev) => {
-        if (prev <= 1) {
-          clearInterval(timerRef.current!);
-          handleAutoSubmit();
-          return 0;
-        }
-        return prev - 1;
-      });
+      setRemainingSeconds((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
 
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
     };
   }, [activeSession]);
 
@@ -80,8 +80,10 @@ export default function TestsPage() {
       setLoading(true);
       setRunnerError(null);
       const session = await api.assessments.start(test.id);
-      setActiveSession(session);
+      timeoutSubmissionAttemptedRef.current = false;
+      submissionInProgressRef.current = false;
       setRemainingSeconds(session.timeRemainingSeconds);
+      setActiveSession(session);
       setCurrentQuestionIndex(0);
 
       // Preload answers if any
@@ -182,12 +184,9 @@ export default function TestsPage() {
     }
   }
 
-  async function handleAutoSubmit() {
-    await handleSubmitTest();
-  }
-
-  async function handleSubmitTest() {
-    if (!activeSession) return;
+  const handleSubmitTest = useCallback(async () => {
+    if (!activeSession || submissionInProgressRef.current) return;
+    submissionInProgressRef.current = true;
     setSubmitting(true);
     setRunnerError(null);
     setShowSubmitModal(false);
@@ -213,9 +212,27 @@ export default function TestsPage() {
       console.error('Failed to submit test:', err);
       setRunnerError(`Submission failed: ${err.message || 'Server error'}. Your session is still active; please click Submit Test again.`);
     } finally {
+      submissionInProgressRef.current = false;
       setSubmitting(false);
     }
-  }
+  }, [activeSession, answersMap, remainingSeconds]);
+
+  useEffect(() => {
+    autoSubmitRef.current = handleSubmitTest;
+  }, [handleSubmitTest]);
+
+  useEffect(() => {
+    if (!activeSession || remainingSeconds !== 0) return;
+
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+
+    if (timeoutSubmissionAttemptedRef.current) return;
+    timeoutSubmissionAttemptedRef.current = true;
+    void autoSubmitRef.current();
+  }, [activeSession, remainingSeconds]);
 
   // Filtered assessment list
   const filteredAssessments = useMemo(() => {

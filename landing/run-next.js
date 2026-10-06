@@ -1,5 +1,14 @@
 #!/usr/bin/env node
 const path = require('path');
+const Module = require('module');
+
+// In the monorepo npm may hoist eslint-config-next while keeping Next.js and React
+// local to this app. Ensure CLI-loaded peer dependencies resolve from this app first.
+const localNodeModules = path.join(__dirname, 'node_modules');
+const nodePaths = (process.env.NODE_PATH || '').split(path.delimiter).filter(Boolean);
+if (!nodePaths.includes(localNodeModules)) nodePaths.unshift(localNodeModules);
+process.env.NODE_PATH = nodePaths.join(path.delimiter);
+Module._initPaths();
 
 // On Windows (e.g. FAT32/exFAT filesystems), patch fs.readlink to avoid EISDIR errors
 if (process.platform === 'win32') {

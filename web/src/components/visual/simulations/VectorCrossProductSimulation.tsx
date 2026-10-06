@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Icon } from '@/components/ui/Icon';
 import styles from '../VisualLearningViewer.module.css';
 
@@ -48,7 +48,7 @@ export const VectorCrossProductSimulation: React.FC<VectorCrossProductSimulation
   const thetaDeg = (Math.acos(cosTheta) * 180) / Math.PI;
 
   // 3D projection helper
-  const project3D = (
+  const project3D = useCallback((
     x: number,
     y: number,
     z: number,
@@ -78,7 +78,7 @@ export const VectorCrossProductSimulation: React.FC<VectorCrossProductSimulation
     const screenY = height / 2 - y2 * scale * fov; // canvas Y is inverted
 
     return { x: screenX, y: screenY, z: z2 };
-  };
+  }, [yaw, pitch, zoomScale]);
 
   // Canvas drawing
   useEffect(() => {
@@ -214,7 +214,7 @@ export const VectorCrossProductSimulation: React.FC<VectorCrossProductSimulation
     ctx.beginPath();
     ctx.arc(o.x, o.y, 24, 0, Math.PI);
     ctx.stroke();
-  }, [ax, ay, az, bx, by, bz, cx, cy, cz, yaw, pitch, zoomScale]);
+  }, [ax, ay, az, bx, by, bz, cx, cy, cz, yaw, pitch, zoomScale, project3D]);
 
   useEffect(() => {
     const canvas = canvasRef.current;

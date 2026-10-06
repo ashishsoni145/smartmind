@@ -1,9 +1,31 @@
 # Last Session Handoff
 
-Session: Android production distribution and client/server secret boundary, 2026-09-25
-(branch `arena/01a0d9f2-smartmind`). Recorded as ADR 0011; extends ADR 0010.
+Session: Vercel deployment readiness and codebase QA, 2026-10-05 (branch `arena/01a10d0a-smartmind`).
 
-## Objective
+## Current objective and outcome
+
+Inspected and corrected the current repository for three independent Vercel targets: `landing/`, `web/`, and `backend/`. Added `docs/deployment/vercel.md`, updated all three `vercel.json` files with Vercel’s schema reference, documented deployment roots and environment variables in the root README, corrected build/lint/type issues, and upgraded backend Vitest to 5.0.3.
+
+## Verification
+
+- Fresh root install passed: `npm ci --ignore-scripts --no-audit --no-fund` (1,128 packages).
+- Each project independently passed `npm ci --workspaces=false --no-audit --no-fund` from its Root Directory and `npm run build`; both Next.js exports generated 36 routes, and backend TypeScript build passed. The three Vercel configs use this isolated install command.
+- `npm run lint`, `npm run typecheck` (backend/landing/web/mobile), `npm run test:backend` (26 files, 252 tests), and `npm run build:packages` passed.
+- Test-environment Express smoke checks returned 200 for `/health` and `/api/v1/health`; this did not invoke Vercel.
+- Project-local production dependency audits for all three Vercel targets report zero vulnerabilities. Backend full audit is clean. Landing/web full audits still report five high `braces`/`micromatch` findings through the ESLint toolchain; root audit additionally reaches React Native/Metro/Jest. npm’s `--force` recommendation would downgrade React Native to 0.72.17 and was not applied.
+- `git diff --check` and JSON parsing of all three Vercel configs passed.
+
+## Not verified / next steps
+
+No Vercel deployment or secret-backed production runtime verification occurred. Configure the three Vercel projects, domains, Supabase values, backend CORS origins, and required provider secrets, then follow `docs/deployment/vercel.md` for live smoke checks. Do not describe this work as deployed. Resolve the outstanding dependency advisories when a valid upstream `braces` fix is available. No Android Gradle build/device test ran in this pass.
+
+## Archived prior handoff
+
+The following detailed notes preserve the previous 2026-09-25 Android production-distribution session. The 2026-10-05 deployment checkpoint above is authoritative for current repository status.
+
+---
+
+### Original objective
 Make the SharpMind Android app a genuine production React Native app that can be published to Google
 Play and run standalone on a phone — no Metro, no developer machine, no localhost, no `10.0.2.2` —
 while guaranteeing that no private provider/service credential ever crosses into the client.

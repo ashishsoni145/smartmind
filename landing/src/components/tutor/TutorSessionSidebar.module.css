@@ -76,6 +76,20 @@
   background: var(--surface-hover);
 }
 
+.sessionSelect {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
 .activeSessionItem {
   background: rgba(255, 255, 255, 0.06);
   border-color: var(--border-strong);

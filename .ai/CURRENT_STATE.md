@@ -1,6 +1,18 @@
 # Current State
 
-Date: 2026-09-25 (previous full refresh 2026-09-16)
+Date: 2026-10-05
+
+## Latest checkpoint — Vercel deployment readiness and codebase QA
+
+The current deployment targets are three separate Vercel projects rooted at `landing/`, `web/`, and `backend/`. Their project configs reference Vercel’s JSON schema; deployment setup, required secrets, CORS, and smoke checks are documented in `docs/deployment/vercel.md` and summarized in the root `README.md`.
+
+Verification from a fresh root install passed: `npm ci --ignore-scripts --no-audit --no-fund`, `npm run build` (landing and web each exported 36 static routes; backend compiled), `npm run lint`, `npm run typecheck` (backend, both web projects, mobile), `npm run test:backend` (26 files / 252 tests), and `npm run build:packages`. Each Vercel project was also installed from its own root with `npm ci --workspaces=false --no-audit --no-fund` and built independently; the Vercel configs use that isolated install command to avoid pulling in unrelated workspaces. Local Express health smoke checks returned 200 for `/health` and `/api/v1/health`; this did not exercise Vercel. Isolated production audits for all three Vercel projects report zero vulnerabilities; backend full audit is clean. Landing/web full audits and the root audit still report high `braces`/`micromatch` findings in developer tooling, plus root/mobile Metro/Jest paths. `braces@3.0.3` is currently the registry’s latest and is within the advisory range; npm’s proposed `--force` change would downgrade React Native to 0.72.17, so it was not applied.
+
+No live Vercel deployment, domain, secret-backed database connection, or production runtime smoke test was performed. Configure the Supabase values, production CORS origins, and any selected AI provider secrets in each Vercel project before live verification. No Android Gradle build or device test was performed in this deployment pass. See `.ai/progress/current.md`, `.ai/progress/next.md`, and `.ai/progress/blocked.md` for the concise current state and follow-ups.
+
+## Historical implementation detail
+
+The notes below record earlier implementation checkpoints. Where paths or deployment details conflict, the 2026-10-05 checkpoint above is authoritative.
 
 - Supabase Database & Persistence Layer Fully Provisioned:
   - Connected to remote Supabase project: `https://vscprtuinxopistikpcs.supabase.co`.

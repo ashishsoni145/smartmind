@@ -52,34 +52,26 @@ export const TutorSessionSidebar: React.FC<TutorSessionSidebarProps> = ({
 
             return (
               <li key={s.id}>
-                <div
-                  role="button"
-                  tabIndex={0}
-                  className={`${styles.sessionItem} ${isActive ? styles.activeSessionItem : ''}`}
-                  onClick={() => onSelectSession(s)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      onSelectSession(s);
-                    }
-                  }}
-                  aria-selected={isActive}
-                >
-                  <div className={styles.sessionContent}>
-                    <span className={styles.sessionTitle}>{s.title}</span>
-                    <span className={styles.sessionMeta}>
-                      <Icon name="clock" size="xs" />
-                      {dateStr} • {s.currentMode || s.mode}
-                    </span>
-                  </div>
+                <div className={`${styles.sessionItem} ${isActive ? styles.activeSessionItem : ''}`}>
+                  <button
+                    type="button"
+                    className={styles.sessionSelect}
+                    onClick={() => onSelectSession(s)}
+                    aria-pressed={isActive}
+                  >
+                    <div className={styles.sessionContent}>
+                      <span className={styles.sessionTitle}>{s.title}</span>
+                      <span className={styles.sessionMeta}>
+                        <Icon name="clock" size="xs" />
+                        {dateStr} • {s.currentMode || s.mode}
+                      </span>
+                    </div>
+                  </button>
 
                   <button
                     type="button"
                     className={styles.deleteBtn}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteSession(s.id);
-                    }}
+                    onClick={() => onDeleteSession(s.id)}
                     title="Delete dialogue"
                     aria-label={`Delete dialogue: ${s.title}`}
                   >
