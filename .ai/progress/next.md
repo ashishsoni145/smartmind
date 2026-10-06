@@ -1,33 +1,17 @@
 # Next
 
-- `android-debug` on PR #15 is green (run 36215983558): a real `assembleDebug` and a clean secret
-  audit of a real APK, uploaded as `sharpmind-android-debug-apk`. `assembleQaStandalone` and
-  `bundleRelease` have still never run anywhere — the gate blocks them — so the `qaStandalone` build
-  type is configured-OK, not yet built-OK.
-- Work through the **Pre-release checklist** at the end of `apps/mobile/PLAY_AUDIT.md` before any
-  Play submission. It separates what CI already enforces from what only a human can sign off.
-- Fix the web-only hardcoded demo accounts in
-  `apps/web/src/lib/adapters/auth/local-auth-adapter.ts` (password `Password123!`, advertised on the
-  login page). They are **not** in the Android bundle, but they are a live production credential
-  issue on `sharpminds.vercel.app` and deserve their own change.
-- **Blocking, and the only thing standing between here and a distributed build:** supply the public
-  Supabase anon key. The owner chose to set `SHARPMIND_SUPABASE_ANON_KEY` as a repository variable;
-  the workflow also accepts a secret of the same name, and `config/production.json` correctly stays
-  empty so the variable wins. Verify the JWT `role` claim is `anon` first. Until it is set,
-  `android-qa` and `android-release` fail at the configuration gate with an actionable message,
-  which is the intended behaviour.
-- Add the `production` GitHub environment secrets for a Play AAB: `SHARPMIND_KEYSTORE_BASE64`,
-  `SHARPMIND_KEYSTORE_PASSWORD`, `SHARPMIND_KEY_ALIAS`, `SHARPMIND_KEY_PASSWORD`. Optionally set the
-  `SHARPMIND_VERSION_NAME` and `SHARPMIND_VERSION_CODE_OFFSET` repository variables.
-- Confirm the GitHub Actions run is green and download `sharpmind-android-qa-apk`.
-- Run the physical-device test in `apps/mobile/README.md` -> "Physical-device test (QA APK)" on real
-  hardware: install, stop Metro, unplug USB, switch the computer off, launch, then walk every flow.
-  This cannot be automated and has not been performed yet.
-- When the backend moves behind a custom domain, update `apiUrl` in
-  `apps/mobile/config/production.json` (or `SHARPMIND_API_URL`) and rebuild.
-- Complete the Play Console declarations listed in `apps/mobile/PLAY_AUDIT.md` (special-use
-  foreground service, AccessibilityService, usage access). Nothing publishes automatically.
-- If Play rejects the AccessibilityService, keep content rules unsupported. Do not hide the service
-  or turn those rules into silent app blocks.
-- Follow-up on the honest limitation recorded in ADR 0011: transport rate limiting is process-local,
-  so a globally exact quota needs shared state (Upstash/Redis) or an edge layer.
+## Vercel deployment follow-up
+
+- Create/configure three independent Vercel projects with Root Directories `landing`, `web`, and `backend`; use the commands and Node 22 runtime documented in `docs/deployment/vercel.md`.
+- Add the public Supabase URL/anon key and `NEXT_PUBLIC_API_URL` to both frontend projects. Add the backend service-role key, Supabase URL, exact production `CORS_ORIGIN` origins, and production `APP_MODE` to the backend project. Add AI provider keys only for providers being used. Keep all service-role and provider credentials server-only.
+- Deploy and run the documented production smoke checks for static routes, `/health`, `/api/v1/health/db`, browser CORS, authentication, and a read API call. No deployment or live check has been performed yet.
+- Revisit npm security advisories when the upstream `braces` package has a fixed release. Current landing/web full audits report five high findings through `eslint-config-next`; root audit also reaches React Native/Metro/Jest. Do not apply `npm audit fix --force`: npm proposes a breaking React Native downgrade to 0.72.17. Vercel production dependency audits are currently clean.
+
+## Android release follow-up
+
+- Supply the public Supabase anon key as the `SHARPMIND_SUPABASE_ANON_KEY` repository variable (or matching secret); verify the JWT `role` claim is `anon`. Until then, `android-qa`/`android-release` stop at the intended configuration gate.
+- Add the `production` GitHub environment keystore secrets: `SHARPMIND_KEYSTORE_BASE64`, `SHARPMIND_KEYSTORE_PASSWORD`, `SHARPMIND_KEY_ALIAS`, and `SHARPMIND_KEY_PASSWORD`; then build and audit the QA APK/AAB in CI.
+- Perform the physical-device test in `apps/mobile/README.md` -> “Physical-device test (QA APK)” and complete the Play Console declarations in `apps/mobile/PLAY_AUDIT.md`. Nothing publishes automatically.
+- Update the public Android API URL in `apps/mobile/config/production.json` (or `SHARPMIND_API_URL`) and rebuild if the custom API domain is adopted.
+- Resolve the known web-only hardcoded demo credentials in `web/src/lib/adapters/auth/local-auth-adapter.ts` before treating local/demo auth as production-ready.
+- Follow up on the process-local backend rate limiter: a globally exact quota needs shared state (Upstash/Redis) or an edge layer.

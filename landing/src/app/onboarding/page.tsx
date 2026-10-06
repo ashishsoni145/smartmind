@@ -79,9 +79,9 @@ function OnboardingWizard() {
       setAcademicYears(y);
 
       // Default selections if unpopulated
-      if (!selectedGrade && g.length > 1) setSelectedGrade(g[1].id); // Class 12
-      if (!selectedBoard && b.length > 0) setSelectedBoard(b[0].id); // CBSE
-      if (!selectedYear && y.length > 0) setSelectedYear(y[0]);
+      if (g.length > 1) setSelectedGrade((current) => current || g[1].id); // Class 12
+      if (b.length > 0) setSelectedBoard((current) => current || b[0].id); // CBSE
+      if (y.length > 0) setSelectedYear((current) => current || y[0]);
 
       setCatalogLoaded(true);
     }

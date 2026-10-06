@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import Image from 'next/image';
 import { Icon } from '@/components/ui/Icon';
 import styles from './TutorInputArea.module.css';
 
@@ -93,7 +94,7 @@ export const TutorInputArea: React.FC<TutorInputAreaProps> = ({
       {attachedImage && (
         <div className={styles.previewContainer}>
           <div className={styles.thumbnailWrapper}>
-            <img src={attachedImage.url} alt="Attached thumbnail" className={styles.thumbnail} />
+            <Image src={attachedImage.url} alt="Attached thumbnail" width={48} height={48} unoptimized className={styles.thumbnail} />
           </div>
           <div className={styles.previewInfo}>
             <span className={styles.previewName}>{attachedImage.name}</span>

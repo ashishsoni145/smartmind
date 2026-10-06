@@ -1,4 +1,5 @@
 import React, { useRef, useEffect } from 'react';
+import Image from 'next/image';
 import type { TutorMessage } from '@/lib/types/tutor';
 import { Icon } from '@/components/ui/Icon';
 import styles from './TutorMessageThread.module.css';
@@ -119,9 +120,12 @@ export const TutorMessageThread: React.FC<TutorMessageThreadProps> = ({
               {/* Attached image preview */}
               {msg.imageUrl && (
                 <div className={styles.attachedImageWrapper}>
-                  <img
+                  <Image
                     src={msg.imageUrl}
                     alt="Student uploaded problem or handwritten work"
+                    width={560}
+                    height={420}
+                    unoptimized
                     className={styles.attachedImage}
                   />
                 </div>

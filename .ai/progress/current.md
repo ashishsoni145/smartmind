@@ -1,47 +1,32 @@
 # Current
 
-Android production distribution and the client/server secret boundary (ADR 0011) are implemented. Public client configuration is committed in `apps/mobile/config/production.json`; distributed builds fail rather than fall back to localhost; a third `qaStandalone` variant ships a bundled-JS, production-configured, sideloadable APK; `scripts/security-audit.mjs` scans sources and built APK/AAB artifacts; CI has `verify` → `android-debug` / `android-qa` → `android-release` with bundle, signature and secret assertions. Backend: Gemini key moved to a header, log redaction added, transport + AI rate limiting added.
+Date: 2026-10-05
 
-Local proof complete: mobile typecheck, Jest 52/52, Node build-script tests 30/30, auditor self test, source audit, backend typecheck, backend tests 252/252. APK/AAB proof is GitHub Actions, not this sandbox — no JDK, no Android SDK, and Maven/Google hosts are unreachable here. A real debug APK has now been built and audited clean in CI; `assembleQaStandalone` and `bundleRelease` have never run anywhere, because the gate blocks them. Blocking follow-up: supply the public Supabase anon key, otherwise `android-qa` and `android-release` fail at the configuration gate (intended, with an actionable message).
+## Vercel deployment readiness and repository verification
 
-All pushed to PR #15 (https://github.com/ashishsoni145/smartmind/pull/15): `b198f71` (the feature), `d5bb475` (pre-release checklist), `77f37a6` (CI reads the public config from a repository variable **or** a secret), `8c89fe3` (memory), `0497302` (auditor path fix). CI run 36215983558: `verify` **success**, `android-debug` **success** — a real `assembleDebug` plus a clean secret audit **of a real AGP-produced APK**, uploaded as `sharpmind-android-debug-apk` (48.8 MB). `android-qa` **fails at the configuration gate** with everything after it skipped, which is the intended behaviour while the anon key is empty. Node build-script tests are now 30/30.
+The requested deployment/codebase pass covers three independent Vercel projects: `landing/`, `web/`, and `backend/`. Each has a project-local `vercel.json` and lockfile; `docs/deployment/vercel.md` documents project roots, Node 22, build/install commands, environment variables, CORS, and post-deploy smoke checks. The root README now describes the monorepo and deployment layout. Vercel’s JSON schema reference is present in all three configs.
 
-CI also caught a genuine defect, now fixed: `npm --prefix apps/mobile run audit:artifact -- <path>` runs with cwd = `apps/mobile`, so a repository-root-relative artifact path resolved to `apps/mobile/apps/mobile/...` and the auditor reported "artifact not found" for a file that existed. Worse, a path pointing at a stale file would have produced a clean-looking audit of the wrong artifact. `resolveArtifactPath()` now tries cwd, the repository root and `apps/mobile`; the workflow passes `realpath` absolutes; two regression tests reproduce the CI invocation (28/30 without the fix, 30/30 with it).
+Code/config work in this pass includes pinning the two Next.js projects to Next 15.5.27 and React 19.2.3, adding direct ESLint configuration compatible with Next, keeping their CLI module lookup correct for both isolated installs and npm workspaces, and removing build-time Google font downloads so static builds do not depend on Google Fonts being reachable. React hook/timer issues in the test runner and simulations, the email verification effect dependencies, tutor image handling, and the tutor session selector accessibility were also corrected in both duplicated web trees. Backend Vitest was upgraded to 5.0.3 to resolve the prior Vitest advisory.
 
-# Previous
+### Verification
 
-Android client rebuild (ADR 0010) completed. Capacitor is gone. React Native screens and Kotlin focus sources are in `apps/mobile`. Usage-path `TIME_LIMIT` and `FOCUS_ONLY` are wired.
+- Root `npm ci --ignore-scripts --no-audit --no-fund` — passed (1,128 packages installed).
+- From each project root, `npm ci --workspaces=false --no-audit --no-fund` and the matching `npm run build` passed independently; all three Vercel configs now use that exact isolated install command.
+- Root `npm run build` — passed: landing and web each exported all 36 static routes; backend TypeScript build passed.
+- `npm run lint` — passed for landing and web.
+- `npm run typecheck` — passed for backend, landing, web, and mobile.
+- `npm run test:backend` — 26 test files, 252 tests passed; Vitest prints a non-fatal Vite config-loader warning about ESM syntax in `vitest.config.ts`.
+- `npm run build:packages` — shared types and API-client packages built successfully.
+- Backend local Express smoke test with test-only environment values: `/health` and `/api/v1/health` returned 200. This is not a Vercel deployment test.
+- Isolated audits against each project’s own lockfile: production dependencies have 0 vulnerabilities for landing, web, and backend; backend’s full audit is also clean.
+- Landing and web full (including dev dependencies) each still report five high findings involving `braces`/`micromatch` via `eslint-config-next`. Registry reports `braces@3.0.3` as latest and npm audit marks `<=3.0.3` affected; its `--force` proposal downgrades React Native to 0.72.17. No forced downgrade or unverified override was applied.
+- Root full and `--omit=dev` audits remain high due the same `braces` advisory through shared tooling plus React Native/Metro/Jest dependencies. This is outside the production dependency trees of the three Vercel projects, but the repository audit is not clean.
+- `git diff --check` passed. The three Vercel JSON files parse as valid JSON.
 
- 
-Phase 03 — COMPLETED (Parts 01–04).
- 
-- **Part 01 (Curriculum & Syllabus Engine)**:
-  - Database schema extension in `infra/supabase/migrations/20260918000002_curriculum_knowledge_graph_and_pyq.sql` applied to live Supabase project.
-  - Extended `curriculum_nodes` with `unit` node type, `academic_year`, `version`, `status`, `learning_objectives`, and `target_exam_ids`.
-  - Backend curriculum service, controller, Zod validation schemas, and routes (`/api/v1/curriculum`).
-  - Unit/hierarchy integrity tests and versioning verification (`backend/src/__tests__/curriculum.test.ts`).
- 
-- **Part 02 (Academic Knowledge Graph Layer)**:
-  - Standalone `concepts`, `concept_curriculum_mappings`, and `knowledge_graph_edges` tables.
-  - PostgreSQL recursive CTE function `public.get_concept_prerequisites(target_concept_id)`.
-  - Knowledge graph backend service, controller, schemas, and routes (`/api/v1/graph`).
-  - Strict DAG cycle detection via `GraphService.hasPrerequisiteCycle(sourceId, targetId)` with automated tests verifying that circular prerequisite edges are rejected.
- 
-- **Part 03 (PYQ Data Model & Deduplication Foundation)**:
-  - Extended `questions` with `concept_id`, `target_exam_id`, `marks`, `is_important`, `appearance_frequency`, `pattern_tags`, and paper codes.
-  - Ingestion deduplication on `(subject_id, question_text, source_exam, source_year)` which increments `appearance_frequency` and sets `is_important = true` without duplicating rows.
-  - Automated question pattern and frequency distribution analysis.
-  - Seeded authentic, rationalised NCERT concepts, DAG edges, and past JEE Main, JEE Advanced, and NEET questions into live Supabase database with zero fabricated data.
- 
-- **Part 04 (Classroom UI Connection to Real Backend)**:
-  - Enhanced `SupabaseCurriculumAdapter` in `apps/web` with live question querying, mapped concept retrieval, and authentic PYQs with fallback to canonical fixtures.
-  - Enhanced `TopicDetailView`:
-    - Added Academic Prerequisites & Diagnostic Readiness card with student calibration hooks (`masteryStatus`, `retentionPercent`).
-    - Added interactive examination filter pills (All, JEE Main, NEET, JEE Advanced, CBSE Board).
-    - Added visual badges for high-yield questions (`🔥 High Yield`), repeated question frequency (`Repeated 3x`), marks allocation (`4 Marks`), verified provenance, and pattern tags.
-  - 22/22 backend integration tests passed across 4 test suites (`api`, `curriculum`, `graph`, `pyq`).
-  - TypeScript compilation: 0 errors across backend and web.
-  - Live dev servers verified and responding.
- 
-Next Checkpoint: Phase 04 — Student Model, continuous knowledge state calibration, forgetting curves, and diagnostic evidence logging.
+### Not verified
 
+No Vercel deployment or live Vercel Function invocation was performed. Actual project creation/domains and real Supabase, CORS, and AI secrets still need to be configured in Vercel. The guide includes the exact required variables and live smoke checks. No real production credentials were available or used. No Android Gradle build/device test was performed in this pass.
+
+## Previous project checkpoint
+
+Android production distribution and the client/server secret boundary are documented in ADR 0011 and the previous handoff in `.ai/session/LAST_SESSION.md`. Prior CI evidence and remaining Android release prerequisites are retained in the historical notes below and `.ai/progress/next.md`.

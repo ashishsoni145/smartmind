@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth/auth-context';
 import { Button } from '@/components/ui/Button';
@@ -17,14 +17,7 @@ function VerifyEmailContent() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
 
-  // Auto-verify if token is in query params
-  useEffect(() => {
-    if (token) {
-      handleVerification(token);
-    }
-  }, [token]);
-
-  const handleVerification = async (verifyToken: string) => {
+  const handleVerification = useCallback(async (verifyToken: string) => {
     setIsVerifying(true);
     setStatusMessage('Verifying your email address...');
     const res = await verifyEmailToken(verifyToken);
@@ -37,7 +30,14 @@ function VerifyEmailContent() {
       setStatusMessage('Verification link expired or invalid.');
       setIsVerifying(false);
     }
-  };
+  }, [router, verifyEmailToken]);
+
+  // Auto-verify if token is in query params.
+  useEffect(() => {
+    if (token) {
+      void handleVerification(token);
+    }
+  }, [token, handleVerification]);
 
   const handleResend = async () => {
     if (cooldown > 0) return;
