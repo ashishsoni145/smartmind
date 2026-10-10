@@ -10,8 +10,3 @@ Notion is the source for product requirements and roadmap. Git plus `.ai/` is th
 
 Required workflow: READ MEMORY → INSPECT REPOSITORY → IDENTIFY PHASE/PART → VERIFY CHECKPOINT → PLAN → IMPLEMENT → TEST → DIFF → UPDATE MEMORY → CHECKPOINT. Do not start Phase 01 without explicit `START PHASE 01`.
 
-## Browser Verification Credentials
-Whenever opening the browser to verify implementations, use the following credentials to sign in:
-- Email: `alpmlaapmp@gmail.com`
-- Password: `Asdfghjkl;0`
-

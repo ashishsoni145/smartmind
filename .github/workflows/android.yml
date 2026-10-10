@@ -94,6 +94,46 @@ jobs:
       - name: Backend tests
         run: npm --prefix backend test
 
+  frontend-builds:
+    name: Clean frontend production builds
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Clean install, check and build landing
+        working-directory: landing
+        env:
+          # These are deliberately non-secret CI-only values. They ensure the
+          # production fail-closed auth configuration is exercised without
+          # granting CI access to a real Supabase project.
+          NEXT_PUBLIC_SUPABASE_URL: https://ci-check.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-check-public-anon-key
+          NEXT_PUBLIC_API_URL: https://api.example.invalid/api/v1
+        run: |
+          npm ci --workspaces=false --no-audit --no-fund
+          npm run typecheck
+          npm run lint
+          npm ls react react-dom next
+          npm run build
+
+      - name: Clean install, check and build web
+        working-directory: web
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://ci-check.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-check-public-anon-key
+          NEXT_PUBLIC_API_URL: https://api.example.invalid/api/v1
+        run: |
+          npm ci --workspaces=false --no-audit --no-fund
+          npm run typecheck
+          npm run lint
+          npm ls react react-dom next
+          npm run build
+
   android-debug:
     name: Kotlin tests and debug APK
     runs-on: ubuntu-latest

@@ -71,3 +71,5 @@ For Preview deployments, use a separate Preview value containing only the previe
 ## Local verification
 
 From the repository root, `npm run build` builds the landing site, web app, and backend. `npm run lint`, `npm run typecheck`, and `npm run test:backend` run the corresponding checks. Each project was also installed using its own lockfile (`npm ci --workspaces=false` from its Root Directory) and built independently to verify the Vercel Root Directory setup.
+
+GitHub Actions independently repeats the clean Node 22 installs, type checks, lint checks, dependency-tree inspection, and static production builds for `landing/` and `web/`. Its build-only public environment values are intentionally fake; production still requires each Vercel project to hold the real public Supabase and API configuration.

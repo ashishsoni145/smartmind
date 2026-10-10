@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "node ./run-next.js dev",
-    "build": "node ./run-next.js build",
+    "build": "node ./verify-production-env.js && node ./run-next.js build",
     "start": "node ./run-next.js start",
     "lint": "node ./run-eslint.js",
     "typecheck": "tsc --noEmit"

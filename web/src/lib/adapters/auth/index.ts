@@ -11,7 +11,14 @@ function createAuthAdapter(): AuthAdapter {
     return new SupabaseAuthAdapter();
   }
 
-
+  // A static production build without these values would otherwise quietly ship
+  // the browser-local demo adapter. Fail early so a deployment cannot present
+  // localStorage-backed credentials as real authentication.
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      'NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are required for production. LocalAuthAdapter is development-only.'
+    );
+  }
 
   return new LocalAuthAdapter();
 }
